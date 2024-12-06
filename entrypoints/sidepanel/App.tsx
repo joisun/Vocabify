@@ -9,6 +9,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { Aperture, CopyIcon, XIcon } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 function App() {
   const [count, setCount] = useState(0);
 
@@ -38,18 +40,18 @@ function App() {
         Click on the WXT and React logos to learn more
       </p> */}
 
-      <Button>Hello wxt + Shadcn</Button>
+      {/* <Button>Hello wxt + Shadcn</Button> */}
 
       <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger>
-            <button className="text-red-600">Hover</button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Add to library</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Tooltip open>
+        <TooltipTrigger className="whitespace-pre">Commit</TooltipTrigger>
+        <TooltipContent className="flex space-x-1 text-sm">
+          <Button className="bg-white/20 px-2" size={"sm"} variant="ghost"><Aperture/>Vocabify</Button> <Separator orientation="vertical"/>
+          <Button className="bg-white/20" size={"sm"} variant="ghost"><CopyIcon/>Copy</Button> <Separator orientation="vertical"/>
+          <Button size={"sm"} variant="destructive"><XIcon/></Button>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
     </>
   );
 }
