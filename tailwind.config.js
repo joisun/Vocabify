@@ -1,7 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
-  content: ['./entrypoints/**/*.{html,ts,tsx}', './components/**/*.{html,ts,tsx}'],
+  content: [
+    "./entrypoints/**/*.{html,ts,tsx}",
+    "./components/**/*.{html,ts,tsx}",
+  ],
   theme: {
     extend: {
       colors: {
@@ -44,7 +47,16 @@ export default {
         md: `calc(var(--radius) - 2px)`,
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        scaleUp: {
+          "0%": { transform: "scale(0.4)" },
+          "100%": { transform: "scale(1)" },
+        },
+      },
+      animation: {
+        scaleUp: "scaleUp 1s ease-in-out",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
-}
+};

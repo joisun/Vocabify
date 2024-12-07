@@ -11,6 +11,7 @@ export default defineConfig({
     },
     host_permissions:['*://*/*'],
     permissions: ['storage','sidePanel'],
+    
   },
   vite: () => ({
     // Override config here, same as `defineConfig({ ... })`

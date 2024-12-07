@@ -56,7 +56,7 @@ export default defineContentScript({
       function cancelHandler(selectionText: string) {
         // 以下操作目的，都是为了在取消的时候，将原来的文本还原成单个 textNode， 否则取消后，第二次选中时可能会存在一些意外问题。
         // 如果前后都有文本，那么就应该将前后文本和还原选中的文本拼接为一个 textNode
-        if (wrapper.previousSibling?.nodeType === Node.TEXT_NODE && wrapper.nextSibling?.nodeType === Node.TEXT_NODE && wrapper.previousSibling?.nodeValue !== '' &&  wrapper.nextSibling?.nodeValue !== '') {
+        if (wrapper.previousSibling?.nodeType === Node.TEXT_NODE && wrapper.nextSibling?.nodeType === Node.TEXT_NODE && wrapper.previousSibling?.nodeValue !== '' && wrapper.nextSibling?.nodeValue !== '') {
           // 前后都有文本节点的情况
           // 创建新的 textNode
           const prevText = wrapper.previousSibling.textContent || '';
@@ -69,7 +69,7 @@ export default defineContentScript({
           // wrapper.parentNode?.removeChild(wrapper);
           // wrapper.previousSibling?.parentNode?.removeChild(wrapper.previousSibling);
           // wrapper.nextSibling?.parentNode?.removeChild(wrapper.nextSibling);
-          
+
         } else if (wrapper.previousSibling?.nodeType === Node.TEXT_NODE && wrapper.previousSibling?.nodeValue !== '') {
           // 只有前方有文本节点的情况
           wrapper.previousSibling.textContent += selectionText;
@@ -89,11 +89,16 @@ export default defineContentScript({
 
       function vocabifyHandler(text: string) {
         // send message to background to open side panel
+        // chrome.runtime.sendMessage({
+        //   action: 'openSidePanel',
+        //   payload: selectedText
+        // });
+
         chrome.runtime.sendMessage({
-          action: 'openSidePanel',
+          action: 'sendToAi',
           payload: selectedText
         });
-    
+
       }
 
 

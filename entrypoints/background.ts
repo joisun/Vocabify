@@ -3,6 +3,8 @@
  * 在 插件的 Service Workder 中看不到 IndexedDB, 可以在 side panel 的控制台中看到
  */
 import VocabifyIndexDB from "@/lib/db";
+import { AiApiAdaptor } from "./options/aiModels";
+
 export default defineBackground(() => {
   console.log("Hello background!", { id: browser.runtime.id });
   chrome.sidePanel
@@ -28,39 +30,20 @@ export default defineBackground(() => {
           .then(console.log)
           .catch(console.error);
       },
-      openSidePanel: () => {
+      openSidePanel: async () => {
         if (!sender.tab) return;
-        console.log("received message", ":", payload);
-        chrome.sidePanel.open({
+        await chrome.sidePanel.open({
           tabId: sender.tab.id,
           windowId: sender.tab.windowId,
         });
       },
+      sendToAi: async () => {
+        await MessageHandler.openSidePanel();
+        chrome.runtime.sendMessage({ action: "sendToAi", payload });
+      },
     };
 
     const action = message.action as keyof typeof MessageHandler;
-
     MessageHandler[action]();
-
-    // if (message.action === "openSidePanel" && sender.tab) {
-    //   const { word } = message;
-    //   console.log("received message", ":", word);
-    //   // 设置 side panel 的选项
-    //   chrome.sidePanel.open({
-    //     tabId: sender.tab.id,
-    //     windowId: sender.tab.windowId,
-    //   });
-
-    //   // chrome.sidePanel.setOptions({
-    //   //   tabId: sender.tab.id,
-    //   //   path: "sidePanel.html", // Side Panel 的 HTML 文件路径
-    //   //   enabled: true, // 确保启用 Side Panel
-    //   // });
-    //   // 向 side panel 发送词汇数据
-    //   // chrome.runtime.sendMessage({
-    //   //   action: "updateSidePanel",
-    //   //   word: word,
-    //   // });
-    // }
   });
 });
