@@ -95,7 +95,7 @@ export default defineContentScript({
         // });
 
         chrome.runtime.sendMessage({
-          action: 'sendToAi',
+          action: 'triggerSelection',
           payload: selectedText
         });
 
