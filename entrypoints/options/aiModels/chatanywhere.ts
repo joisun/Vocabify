@@ -6,7 +6,7 @@
 // https://chatanywhere.apifox.cn/api-92222074
 import { AgentsType } from "@/typings/aiModelAdaptor";
 import { API_ERROR_TYPE, RequestFn } from "@/typings/app";
-import { getSystemPrompt } from "@/utils/app";
+// import { getSystemPrompt } from "@/utils/app";
 import { AiApiBasic } from ".";
 
 
@@ -22,10 +22,10 @@ const chatanywhereAPI: RequestFn = function ({ apikey, apiUrl, model, userMessag
             body: JSON.stringify({
                 model: model,
                 messages: [
-                    {
-                        role: "system",
-                        content: getSystemPrompt()
-                    },
+                    // {
+                    //     role: "system",
+                    //     content: getSystemPrompt()
+                    // },
                     {
                         role: "user",
                         content: userMessage

@@ -15,28 +15,37 @@ import { AiApiAdaptor } from "../options/aiModels";
 import { chatanywhereAIService } from "../options/aiModels/chatanywhere";
 import { xunfeiSparkAPIAIService } from "../options/aiModels/xunfeiSpark";
 import { kimiAPIAIService } from "../options/aiModels/kimi";
+import preprocessMsg from "./utils/preprocessMsg";
 function App() {
   let AI: AiApiAdaptor | null = null;
-  function initAiApiAdaptor() {
-    AI = new AiApiAdaptor([
-      new chatanywhereAIService(['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4o', 'gpt-4']),
-      new xunfeiSparkAPIAIService(['generalv3']),
-      new kimiAPIAIService(["moonshot-v1-8k"])
-    ])
+
+  async function initAiApiAdaptor() {
+    AI = new AiApiAdaptor()
+    await AI.initServices(
+      [
+        new chatanywhereAIService(['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4o', 'gpt-4']),
+        new xunfeiSparkAPIAIService(['generalv3']),
+        new kimiAPIAIService(["moonshot-v1-8k"])
+      ])
   }
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     const { payload } = message;
-    const processedMsg = preprocessMsg(payload)
+
     const MessageHandler = {
       sendToAi: async () => {
-        if (!AI) { initAiApiAdaptor() }
-        const response = await AI?.chat(checkBaseInfoMatch);
+        const processedMsg = await preprocessMsg(payload)
+        if (!AI) { await initAiApiAdaptor() }
+        console.log('AI', AI)
+        if (processedMsg) {
+          const response = await AI?.chat(processedMsg);
+          console.log('response', response)
+        }
 
 
       }
     }
     const action = message.action as keyof typeof MessageHandler;
-    MessageHandler[action]();
+    MessageHandler[action] && MessageHandler[action]();
 
   })
 

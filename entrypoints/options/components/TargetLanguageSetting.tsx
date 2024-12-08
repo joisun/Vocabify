@@ -24,17 +24,13 @@ import cz from '@/assets/flags/4x3/cz.svg';
 import gr from '@/assets/flags/4x3/gr.svg';
 import in_flag from '@/assets/flags/4x3/in.svg';
 import vn from '@/assets/flags/4x3/vn.svg';
+import { DefaultLanguage } from '@/const';
 
 const TargetLanguageSetting = () => {
-    const [selectedLanguage, setSelectedLanguage] = useState('English');
+    const [selectedLanguage, setSelectedLanguage] = useState(DefaultLanguage);
     useEffect(() => {
         targetLanguage.getValue().then(storedVal => {
-            console.log('storedVal', storedVal)
-            if (storedVal) {
-                setSelectedLanguage(storedVal)
-            } else {
-                targetLanguage.setValue(selectedLanguage)
-            }
+            if (storedVal) setSelectedLanguage(storedVal)
         })
     }, [])
     const handleSelect = (value: string) => {

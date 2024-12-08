@@ -37,13 +37,13 @@ export default defineBackground(() => {
           windowId: sender.tab.windowId,
         });
       },
-      sendToAi: async () => {
+      triggerSelection: async () => {
         await MessageHandler.openSidePanel();
         chrome.runtime.sendMessage({ action: "sendToAi", payload });
       },
     };
 
     const action = message.action as keyof typeof MessageHandler;
-    MessageHandler[action]();
+    MessageHandler[action] && MessageHandler[action]();
   });
 });

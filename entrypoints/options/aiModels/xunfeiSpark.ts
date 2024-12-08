@@ -1,6 +1,6 @@
 import { AgentsType } from "@/typings/aiModelAdaptor";
 import { RequestFn } from "@/typings/app";
-import { getSystemPrompt } from "@/utils/app";
+// import { getSystemPrompt } from "@/utils/app";
 import { AiApiBasic } from ".";
 // https://www.xfyun.cn/doc/spark/HTTP%E8%B0%83%E7%94%A8%E6%96%87%E6%A1%A3.html#_3-%E8%AF%B7%E6%B1%82%E8%AF%B4%E6%98%8E
 // 不要用 spark-lite(general), 纯属智障！！
@@ -17,10 +17,10 @@ const xunfeiSparkAPI: RequestFn = function ({ apikey, apiUrl, model, userMessage
             body: JSON.stringify({
                 model: model,
                 messages: [
-                    {
-                        role: "system",
-                        content: getSystemPrompt()
-                    },
+                    // {
+                    //     role: "system",
+                    //     content: getSystemPrompt()
+                    // },
                     {
                         role: 'user',
                         content: userMessage,
