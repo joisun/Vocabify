@@ -23,13 +23,13 @@ export const agentsStorage = storage.defineItem<AiAgentApiKeys>(
   {
     fallback: [
       {
-          "agentName": "ChatAnywhere",
-          "apiKey": "sk-M72D5lilVXr4dKsWwPJgs8PRzvnLQleW0UrpBKdjjm7hHWWL"
+        agentName: "XunFeiSpark",
+        apiKey: "MTrricoschHlfxWNvIJD:ZXklDofIqPdoBxkWsjTA",
       },
       {
-          "agentName": "XunFeiSpark",
-          "apiKey": "MTrricoschHlfxWNvIJD:ZXklDofIqPdoBxkWsjTA"
-      }
-  ],
+        agentName: "ChatAnywhere",
+        apiKey: "sk-M72D5lilVXr4dKsWwPJgs8PRzvnLQleW0UrpBKdjjm7hHWWL",
+      },
+    ],
   }
 );

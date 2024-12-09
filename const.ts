@@ -14,5 +14,5 @@ Please explain the following vocabulary word or phrase in ${Language_Placeholder
 **Formatting guidelines**:
 - Use relevant emojis that represent the meaning of the word, such as 🐱 for "cat", 💬 for "say", etc.
 - Keep the language simple and easy to read.
-- Add emojis where appropriate to make the explanation more engaging.        
+- Add emojis where appropriate to make the explanation more engaging.
     `;
