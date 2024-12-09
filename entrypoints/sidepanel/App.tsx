@@ -13,6 +13,7 @@ import { Marked, marked } from 'marked'
 import { Layout, NewRecordPanel, RecordsPanel } from "./components/Layout";
 import { cn } from "@/lib/utils";
 import DOMPurify from 'dompurify';
+import Placeholder from "./components/Placeholder";
 
 function App() {
   const textRef = useRef<HTMLDivElement>(null)
@@ -111,9 +112,14 @@ function App() {
     <Layout>
       <NewRecordPanel>
         <div className="p-2">
-          <p className="flex items-center gap-4 mt-2 mb-6"><span className="text-2xl underline underline-offset-4 decoration-4 decoration-blue-600/80">{selection}</span> <span>{ailoading && <LoaderPinwheel className="animate-spin" />}</span></p>
-          <div className="relative text-lg whitespace-break-spaces">
-            <div className="edit-wrapper rounded-md border p-2" style={{
+
+          {!selection && <Placeholder />}
+
+          <div className="relative">
+            <p className={cn("flex items-center gap-4", selection ? "mt-2 mb-6" : '')}><span className="text-2xl underline underline-offset-4 decoration-4 decoration-blue-600/80">{selection}</span> <span>{ailoading && <LoaderPinwheel className="animate-spin" />}</span></p>
+
+
+            <div className="edit-wrapper text-lg whitespace-break-spaces rounded-md border p-2" style={{
               display: edit ? 'block' : 'none'
             }}>
               <div id="text-target" contentEditable suppressContentEditableWarning ref={textRef} className="">
@@ -121,7 +127,11 @@ function App() {
               </div>
             </div>
 
-            <div >
+            <div className={cn("html-wrapper rounded-md  border p-2 prose prose-sm",
+              "dark:prose-invert prose-strong:text-indigo-500")}
+              style={{
+                display: edit || !htmlContent ? 'none' : 'block'
+              }}>
               <div
                 className=""
                 dangerouslySetInnerHTML={{ __html: htmlContent as string }} // 动态渲染的 HTML

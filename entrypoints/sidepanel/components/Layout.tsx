@@ -35,7 +35,6 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
         chrome.runtime.openOptionsPage()
     }
     return (
-
         <div className="flex m-2">
             <Tabs defaultValue="newrecord" className="w-full">
                 <TabsList className="w-full flex justify-between">
