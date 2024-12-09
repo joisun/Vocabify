@@ -17,12 +17,12 @@ import DOMPurify from 'dompurify';
 function App() {
   const textRef = useRef<HTMLDivElement>(null)
   const [text, setText] = useState("");
-  const [htmlContent, setHtmlContent] = useState(marked.parseInline(text));
+  const [htmlContent, setHtmlContent] = useState(marked.parse(text));
   const [edit, setEdit] = useState(false)
   // useEditable(textRef, setText);
   const onEditableChange = useCallback((text: string) => {
     setText(text);
-    setHtmlContent(marked.parseInline(text))
+    setHtmlContent(marked.parse(text))
   }, []);
   useEditable(textRef, onEditableChange, {
     disabled: false,
@@ -87,7 +87,7 @@ function App() {
 
     // 监听 打字机文本变化,实时 转markdown 渲染
     const observer = new MutationObserver(() => {
-      textRef.current?.textContent && setHtmlContent(marked.parseInline(textRef.current?.textContent))
+      textRef.current?.textContent && setHtmlContent(marked.parse(textRef.current?.textContent))
     });
     textRef?.current && observer.observe(textRef?.current, { childList: true, subtree: true });
     return () => {
@@ -121,11 +121,7 @@ function App() {
               </div>
             </div>
 
-            <div className={cn("html-wrapper rounded-md  border p-2 prose",
-              "dark:prose-invert prose-strong:text-indigo-500")}
-              style={{
-                display: edit ? 'none' : 'block'
-              }}>
+            <div >
               <div
                 className=""
                 dangerouslySetInnerHTML={{ __html: htmlContent as string }} // 动态渲染的 HTML
