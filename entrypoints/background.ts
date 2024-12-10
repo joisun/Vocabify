@@ -19,18 +19,32 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { payload } = message;
     const MessageHandler = {
-      saveWord: () => {
-        console.log("saveWpord:", payload);
-        const db = new VocabifyIndexDB();
-        db.addData({
-          id: 1, // 主键
-          word: "example",
-          meaning: "示例",
-          timestamp: Date.now(),
-        })
-          .then(console.log)
-          .catch(console.error);
+      saveWordOrPhrase: async () => {
+        try {
+          const db = new VocabifyIndexDB();
+
+          db.addData(payload)
+            .then((res) => {
+              sendResponse({
+                status: "success",
+                message: res,
+              });
+            })
+            .catch((error) => {
+              sendResponse({
+                status: "error",
+                message: error,
+              });
+            });
+        } catch (err) {
+          sendResponse({
+            status: "error",
+            message:
+              "Vocabify Data Base Init error. Please Contact the developer.",
+          });
+        }
       },
+
       openSidePanel: async () => {
         if (!sender.tab) return;
         await chrome.sidePanel.open({
@@ -52,5 +66,9 @@ export default defineBackground(() => {
 
     const action = message.action as keyof typeof MessageHandler;
     MessageHandler[action] && MessageHandler[action]();
+
+
+    // https://developer.chrome.com/docs/extensions/develop/concepts/messaging#simple
+    return true;
   });
 });

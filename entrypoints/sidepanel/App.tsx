@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import DOMPurify from "dompurify";
 import Placeholder from "./components/Placeholder";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 function App() {
   const textRef = useRef<HTMLDivElement>(null);
@@ -106,13 +107,34 @@ function App() {
 
     // side panel 首次初始化的时候，去检查 firstSelection 中有没有用户选中的词汇，如果有，取出执行
     firstSelection.getValue().then((firstSelectionData) => {
-      MessageHandler.sendToAi(firstSelectionData)
+      if (!firstSelectionData.trim()) return;
+      MessageHandler.sendToAi(firstSelectionData);
     });
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
       observer.disconnect();
     };
   }, []);
+
+  const handleSave = async () => {
+    setEdit(false);
+    const response = await chrome.runtime.sendMessage({
+      action: "saveWordOrPhrase",
+      payload: {
+        wordOrParase: selection,
+        meaning: text,
+      },
+    });
+    if (response.status === "success") {
+      toast("Done🎉🎉🎉", {
+        description: response.message,
+      });
+    } else if (response.status === "error") {
+      toast("Failed😵‍💫😵‍💫😵‍💫", {
+        description: "Something happend while saving.",
+      });
+    }
+  };
 
   return (
     <Layout>
@@ -183,7 +205,7 @@ function App() {
                   className="ml-2"
                   size="sm"
                   disabled={isAnswering || ailoading}
-                  onClick={() => setEdit(false)}
+                  onClick={handleSave}
                 >
                   Save <Save />
                 </Button>
@@ -192,7 +214,9 @@ function App() {
           </div>
         </div>
       </NewRecordPanel>
-      <RecordsPanel></RecordsPanel>
+      <RecordsPanel>
+        
+      </RecordsPanel>
     </Layout>
   );
 }
