@@ -3,7 +3,7 @@
  * 在 插件的 Service Workder 中看不到 IndexedDB, 可以在 side panel 的控制台中看到
  */
 import VocabifyIndexDB from "@/lib/db";
-import { AiApiAdaptor } from "./options/aiModels";
+import { AiApiAdaptor } from "../lib/aiModels";
 import { firstSelection } from "@/utils/storage";
 
 export default defineBackground(() => {
