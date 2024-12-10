@@ -1,11 +1,5 @@
+import MockLoading from "@/components/custom/MockLoading";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { ChevronsDown, ChevronsUp, Edit } from "lucide-react";
@@ -56,41 +50,45 @@ function Record({
     setExpand(!expand);
   };
   return (
-    <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-4 pt-6 relative">
-      <div className="absolute right-1 top-1">
-        <Button variant={"ghost"} size="icon">
-          <Edit />
+    <>
+      <MockLoading />
+
+      <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-4 pt-6 relative">
+        <div className="absolute right-1 top-1">
+          <Button variant={"ghost"} size="icon">
+            <Edit />
+          </Button>
+        </div>
+
+        <Label>
+          <span className="text-lg bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
+            {wordOrPrase}
+          </span>
+        </Label>
+
+        <div
+          className={cn(
+            "grid my-1 transition-all duration-700 ease-in-out grid-rows-[0fr]",
+            expand ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          )}
+        >
+          <div className="overflow-hidden">
+            <div>{meaning}</div>
+          </div>
+        </div>
+
+        {!expand && (
+          <p className="animate-fadeIn">{meaning.substring(0, 150)}...</p>
+        )}
+
+        <Button variant="ghost" className="w-full my-2" onClick={toggleExpand}>
+          {expand ? (
+            <ChevronsUp className="animate-pulse" size="20" />
+          ) : (
+            <ChevronsDown className="animate-pulse" size="20" />
+          )}
         </Button>
       </div>
-
-      <Label>
-        <span className="text-lg bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
-          {wordOrPrase}
-        </span>
-      </Label>
-
-      <div
-        className={cn(
-          "grid my-1 transition-all duration-700 ease-in-out grid-rows-[0fr]",
-          expand ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        )}
-      >
-        <div className="overflow-hidden">
-          <div>{meaning}</div>
-        </div>
-      </div>
-
-      {!expand && (
-        <p className="animate-fadeIn">{meaning.substring(0, 150)}...</p>
-      )}
-
-      <Button variant="ghost" className="w-full my-2" onClick={toggleExpand}>
-        {expand ? (
-          <ChevronsUp className="animate-pulse" size="20" />
-        ) : (
-          <ChevronsDown className="animate-pulse" size="20" />
-        )}
-      </Button>
-    </div>
+    </>
   );
 }
