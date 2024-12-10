@@ -12,6 +12,11 @@ export default defineConfig({
     host_permissions: ["*://*/*"],
     permissions: ["storage", "sidePanel"],
   },
+  dev: {
+    server: {
+      port: 3000,
+    },
+  },
   vite: () => ({
     // Override config here, same as `defineConfig({ ... })`
     // inside vite.config.ts files
