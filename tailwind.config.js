@@ -52,11 +52,16 @@ export default {
           "0%": { transform: "scale(0.4)" },
           "100%": { transform: "scale(1)" },
         },
+        fadeIn: {
+          "0%": { opacity: 0 },
+          "100%": { opacity: 1 },
+        },
       },
       animation: {
         scaleUp: "scaleUp 1s ease-in-out",
+        fadeIn: "fadeIn 1s ease-in-out",
       },
-    }
+    },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 };

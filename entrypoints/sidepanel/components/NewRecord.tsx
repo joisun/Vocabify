@@ -147,8 +147,11 @@ export default function NewRecord() {
             selection ? "mt-2 mb-6" : ""
           )}
         >
-          <span className="text-2xl bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
-            {selection}
+          {/* wrapper for underline effect */}
+          <span>
+            <span className="text-2xl bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
+              {selection}
+            </span>
           </span>
           <span>
             {ailoading && <LoaderPinwheel className="animate-spin" />}
