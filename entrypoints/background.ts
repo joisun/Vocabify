@@ -4,6 +4,7 @@
  */
 import VocabifyIndexDB from "@/lib/db";
 import { AiApiAdaptor } from "./options/aiModels";
+import { firstSelection } from "@/utils/storage";
 
 export default defineBackground(() => {
   console.log("Hello background!", { id: browser.runtime.id });
@@ -39,6 +40,12 @@ export default defineBackground(() => {
       },
       triggerSelection: async () => {
         await MessageHandler.openSidePanel();
+
+        /**
+         * 当用户首次选中文本，而没有事先打开 side panel 的时候，sidepanel 内的消息监听还没有初始化， 所以首次 消息是监听不到的。
+         * 为了解决这个问题，将用户首次选中的词汇缓存下来。 待 side panel 首次挂载的时候， 在  side panle 中取出执行。
+         */
+        firstSelection.setValue(payload);
         chrome.runtime.sendMessage({ action: "sendToAi", payload });
       },
     };

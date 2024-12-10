@@ -1,25 +1,24 @@
-import path from "path"
-import { defineConfig } from 'wxt';
+import path from "path";
+import { defineConfig } from "wxt";
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-  extensionApi: 'chrome',
-  modules: ['@wxt-dev/module-react'],
-  manifest:{
-    action:{
-      default_title: 'Click to open panel'
+  extensionApi: "chrome",
+  modules: ["@wxt-dev/module-react"],
+  manifest: {
+    action: {
+      default_title: "Click to open panel",
     },
-    host_permissions:['*://*/*'],
-    permissions: ['storage','sidePanel'],
-    
+    host_permissions: ["*://*/*"],
+    permissions: ["storage", "sidePanel"],
   },
   vite: () => ({
     // Override config here, same as `defineConfig({ ... })`
     // inside vite.config.ts files
-    resolve:{
+    resolve: {
       alias: {
         "@": path.resolve(__dirname, "./"),
       },
-    }
+    },
   }),
 });

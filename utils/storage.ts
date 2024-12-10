@@ -33,3 +33,13 @@ export const agentsStorage = storage.defineItem<AiAgentApiKeys>(
     ],
   }
 );
+
+
+
+/**
+ * selections 队列
+ * 用于解决，background 首次打开 side panel 的时候， side panel 中的消息监听还未初始化，导致消息事件不执行的问题。
+ */
+export const firstSelection = storage.defineItem<string[]>("session:firstSelection", {
+  fallback: [],
+});
