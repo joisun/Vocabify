@@ -51,47 +51,48 @@ function App() {
   }
 
   useEffect(() => {
+    const MessageHandler = {
+      sendToAi: async (payload: any) => {
+        const processedMsg = await preprocessMsg(payload);
+        setSelection(payload);
+        setText("");
+        setIsAnswering(false);
+
+        if (!AI) {
+          await initAiApiAdaptor();
+        }
+        if (processedMsg) {
+          setAiloading(true);
+          const response = await AI?.chat(processedMsg);
+          setIsAnswering(true);
+          const textRefCurrent = textRef.current;
+          if (textRefCurrent) {
+            const typed = new Typed(textRefCurrent, {
+              strings: [response!],
+              showCursor: false,
+              onStringTyped: (self) => {
+                console.log("self", self);
+              },
+              onComplete: () => {
+                setText(response!);
+                setAiloading(false);
+                setIsAnswering(false);
+                typed.destroy(); // 销毁 Typed 实例
+              },
+            });
+          }
+        }
+      },
+    };
     const messageListener = async (
       message: any,
       sender: chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void
     ) => {
       const { payload } = message;
-      const MessageHandler = {
-        sendToAi: async () => {
-          const processedMsg = await preprocessMsg(payload);
-          setSelection(payload);
-          setText("");
-          setIsAnswering(false);
 
-          if (!AI) {
-            await initAiApiAdaptor();
-          }
-          if (processedMsg) {
-            setAiloading(true);
-            const response = await AI?.chat(processedMsg);
-            setIsAnswering(true);
-            const textRefCurrent = textRef.current;
-            if (textRefCurrent) {
-              const typed = new Typed(textRefCurrent, {
-                strings: [response!],
-                showCursor: false,
-                onStringTyped: (self) => {
-                  console.log("self", self);
-                },
-                onComplete: () => {
-                  setText(response!);
-                  setAiloading(false);
-                  setIsAnswering(false);
-                  typed.destroy(); // 销毁 Typed 实例
-                },
-              });
-            }
-          }
-        },
-      };
       const action = message.action as keyof typeof MessageHandler;
-      MessageHandler[action] && MessageHandler[action]();
+      MessageHandler[action] && MessageHandler[action](payload);
     };
     chrome.runtime.onMessage.addListener(messageListener);
 
@@ -102,18 +103,16 @@ function App() {
     });
     textRef?.current &&
       observer.observe(textRef?.current, { childList: true, subtree: true });
+
+    // side panel 首次初始化的时候，去检查 firstSelection 中有没有用户选中的词汇，如果有，取出执行
+    firstSelection.getValue().then((firstSelectionData) => {
+      MessageHandler.sendToAi(firstSelectionData)
+    });
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
       observer.disconnect();
     };
   }, []);
-
-  // const handleClick = function () {
-  //   chrome.runtime.sendMessage({
-  //     action: "saveWord",
-  //     payload: "123",
-  //   });
-  // }
 
   return (
     <Layout>
@@ -167,27 +166,29 @@ function App() {
             />
 
             {/* Operation Btns  */}
-            <div className="text-end mt-1">
-              {!edit && (
+            {selection && (
+              <div className="text-end mt-1">
+                {!edit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isAnswering || ailoading}
+                    onClick={() => setEdit(true)}
+                  >
+                    Edit <Edit />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
+                  className="ml-2"
                   size="sm"
                   disabled={isAnswering || ailoading}
-                  onClick={() => setEdit(true)}
+                  onClick={() => setEdit(false)}
                 >
-                  Edit <Edit />
+                  Save <Save />
                 </Button>
-              )}
-              <Button
-                variant="ghost"
-                className="ml-2"
-                size="sm"
-                disabled={isAnswering || ailoading}
-                onClick={() => setEdit(false)}
-              >
-                Save <Save />
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </NewRecordPanel>
