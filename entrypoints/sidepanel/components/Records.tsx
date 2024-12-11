@@ -2,7 +2,8 @@ import MockLoading from "@/components/custom/MockLoading";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ChevronsDown, ChevronsUp, Edit } from "lucide-react";
+import { ChevronsDown, ChevronsUp, Edit, Save } from "lucide-react";
+import Editor from "./Editor";
 
 export default function Records() {
   const records = [
@@ -31,8 +32,10 @@ Example sentences:
   ];
   return (
     <div>
-      {records.map(({ wordOrPrase, meaning }) => {
-        return <Record wordOrPrase={wordOrPrase} meaning={meaning} />;
+      {records.map(({ wordOrPrase, meaning }, index) => {
+        return (
+          <Record wordOrPrase={wordOrPrase} meaning={meaning} key={index} />
+        );
       })}
     </div>
   );
@@ -46,20 +49,16 @@ function Record({
   meaning: string;
 }) {
   const [expand, setExpand] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
   const toggleExpand = () => {
     setExpand(!expand);
   };
+
   return (
     <>
-      <MockLoading />
+      {/* <MockLoading /> */}
 
-      <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-4 pt-6 relative">
-        <div className="absolute right-1 top-1">
-          <Button variant={"ghost"} size="icon">
-            <Edit />
-          </Button>
-        </div>
-
+      <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-2 pt-6 relative">
         <Label>
           <span className="text-lg bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
             {wordOrPrase}
@@ -73,7 +72,8 @@ function Record({
           )}
         >
           <div className="overflow-hidden">
-            <div>{meaning}</div>
+            {/* <div>{meaning}</div> */}
+            <Editor Record={{ wordOrPrase, meaning }} />
           </div>
         </div>
 
@@ -81,7 +81,7 @@ function Record({
           <p className="animate-fadeIn">{meaning.substring(0, 150)}...</p>
         )}
 
-        <Button variant="ghost" className="w-full my-2" onClick={toggleExpand}>
+        <Button variant="ghost" className="w-full my-2 h-6 p-0" onClick={toggleExpand}>
           {expand ? (
             <ChevronsUp className="animate-pulse" size="20" />
           ) : (

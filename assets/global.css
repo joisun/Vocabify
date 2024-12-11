@@ -61,11 +61,27 @@
   }
 }
 
-
 @layer base {
+  html {
+    overflow: hidden;
+  }
   * {
     @apply border-border;
   }
+
+  .scrollbar-thin {
+    &::-webkit-scrollbar {
+      @apply w-1;
+    }
+    &::-webkit-scrollbar-track {
+      @apply bg-foreground/10 rounded-full;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      @apply bg-foreground/30 rounded-full;
+    }
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
