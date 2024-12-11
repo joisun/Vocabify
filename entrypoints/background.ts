@@ -23,7 +23,7 @@ export default defineBackground(() => {
         try {
           const db = new VocabifyIndexDB();
 
-          db.addData(payload)
+          db.addOrUpdateData(payload)
             .then((res) => {
               sendResponse({
                 status: "success",

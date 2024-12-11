@@ -1,4 +1,4 @@
-import { Edit, LoaderPinwheel, Save } from "lucide-react";
+import { Edit, LoaderPinwheel, Save, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import Typed from "typed.js";
 // https://github.com/FormidableLabs/use-editable?tab=readme-ov-file
@@ -125,8 +125,8 @@ export default function NewRecord() {
       },
     });
     if (response.status === "success") {
-      toast("Done🎉🎉🎉", {
-        description: response.message,
+      toast(response.message.title, {
+        description: response.message.detail,
       });
     } else if (response.status === "error") {
       toast("Failed😵‍💫😵‍💫😵‍💫", {
@@ -203,10 +203,8 @@ export default function NewRecord() {
                   disabled={isAnswering || ailoading}
                   onClick={handleAiRegenrate}
                 >
-                  AI regenerate{" "}
-                  <LoaderPinwheel
-                    className={cn((isAnswering || ailoading) && "animate-spin")}
-                  />
+                  Regenerate{" "}
+                  <RefreshCw/>
                 </Button>
                 <Button
                   variant="ghost"
