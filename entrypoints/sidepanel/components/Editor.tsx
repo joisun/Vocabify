@@ -121,8 +121,8 @@ export default function Editor({ Record }: EditorProps) {
       },
     });
     if (response.status === "success") {
-      toast("Done🎉🎉🎉", {
-        description: response.message,
+      toast(response.message.title, {
+        description: response.message.detail,
       });
     } else if (response.status === "error") {
       toast("Failed😵‍💫😵‍💫😵‍💫", {
@@ -141,7 +141,7 @@ export default function Editor({ Record }: EditorProps) {
       <div
         className={cn(
           "overflow-auto max-h-64 scrollbar-thin",
-          "edit-wrapper text-base whitespace-break-spaces rounded-sm p-2 bg-indigo-600/20"
+          "edit-wrapper text-base whitespace-break-spaces rounded-sm p-2 bg-indigo-400/10"
         )}
         style={{
           display: edit ? "block" : "none",

@@ -1,6 +1,7 @@
-type AddDataRecord = {
+type addOrUpdateDataRecord = {
   wordOrParase: string;
   meaning: string;
+  id?: string;
 };
 export default class VocabifyIndexDB {
   private dbname = "VocabifyIndexDB";
@@ -42,19 +43,29 @@ export default class VocabifyIndexDB {
       };
     });
   }
-  async addData(data: AddDataRecord) {
+  async addOrUpdateData(data: addOrUpdateDataRecord) {
     const db = await this.openDatabase();
     return new Promise(async (resolve, reject) => {
       const transaction = db.transaction("dataStore", "readwrite");
       const store = transaction.objectStore("dataStore");
       const index = store.index("wordOrParase"); // 使用索引
       const _request = index.get(data.wordOrParase.trim().toLocaleLowerCase());
+      const ResolveResult = {
+        add: {
+          title: "Done 🥳🎉🎉",
+          detail: "Data added successfully!",
+        },
+        update: {
+          title: "Updated 🔄✨✨",
+          detail: "Already existed, Update to new data!",
+        },
+      };
       _request.onsuccess = (event) => {
         const existed = (event.target as IDBRequest).result;
         if (existed) {
-          resolve("Already existed,there is no need to save again.");
-          return;
+          data.id = existed.id;
         }
+
         const request = store.put({
           ...data,
           wordOrParase: data.wordOrParase.trim().toLocaleLowerCase(), //对插入的单词或短语作预处理
@@ -63,7 +74,7 @@ export default class VocabifyIndexDB {
         }); // 增加或更新数据
 
         request.onsuccess = () => {
-          resolve("Data added successfully!");
+          resolve(existed ? ResolveResult.update : ResolveResult.add);
         };
         request.onerror = (event) => {
           console.error(
@@ -93,28 +104,6 @@ export default class VocabifyIndexDB {
   }
 }
 
-// const addData = async (data) => {
-//     const db = await openDatabase();
-
-//     return new Promise((resolve, reject) => {
-//       const transaction = db.transaction("dataStore", "readwrite");
-//       const store = transaction.objectStore("dataStore");
-
-//       const request = store.put(data); // 增加或更新数据
-
-//       request.onsuccess = () => resolve("Data added successfully!");
-//       request.onerror = (event) => reject(event.target.error);
-//     });
-//   };
-
-//   // 示例：添加数据
-//   addData({
-//     id: 1, // 主键
-//     word: "example",
-//     meaning: "示例",
-//     timestamp: Date.now()
-//   }).then(console.log).catch(console.error);
-
 // 数据查询
 // const getDataById = async (id) => {
 //     const db = await openDatabase();
@@ -143,7 +132,7 @@ export default class VocabifyIndexDB {
 //     if (!existingData) throw new Error(`Data with id ${id} not found`);
 
 //     const updatedData = { ...existingData, ...updatedFields }; // 合并新旧数据
-//     return addData(updatedData); // 复用 `addData` 函数
+//     return addOrUpdateData(updatedData); // 复用 `addOrUpdateData` 函数
 //   };
 
 //   // 示例：更新 id 为 1 的数据
