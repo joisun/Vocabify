@@ -1,5 +1,5 @@
 import { Edit, LoaderPinwheel, Save } from "lucide-react";
-import { useState } from "react";
+import { forwardRef, Ref, useImperativeHandle, useState } from "react";
 import Typed from "typed.js";
 // https://github.com/FormidableLabs/use-editable?tab=readme-ov-file
 // useEditable 用于解决contentEditable元素编辑的时候光标跳动问题,为什么要使用 contentEditable div 而不是 textarea呢? 是因为 typedjs 打字机效果在 textarea 下第二次触发时没有动画效果
@@ -14,11 +14,17 @@ import { toast } from "sonner";
 import { useEditable } from "use-editable";
 import Placeholder from "../components/Placeholder";
 import preprocessMsg from "../utils/preprocessMsg";
-export default function NewRecord() {
+
+type EditorProps = {
+  Record: { wordOrPrase: string; meaning?: string };
+};
+export default function Editor({ Record }: EditorProps) {
   const textRef = useRef<HTMLDivElement>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(Record.meaning || "");
   const [htmlContent, setHtmlContent] = useState(marked.parse(text));
   const [edit, setEdit] = useState(false);
+
+  type EditableRef = { setEdit: (edit: boolean) => void };
   // useEditable(textRef, setText);
   const onEditableChange = useCallback((text: string) => {
     setText(text);
@@ -29,7 +35,6 @@ export default function NewRecord() {
     indentation: 2,
   });
 
-  const [selection, setSelection] = useState("");
   const [ailoading, setAiloading] = useState(false);
   const [isAnswering, setIsAnswering] = useState(false);
 
@@ -47,11 +52,9 @@ export default function NewRecord() {
       new kimiAPIAIService(["moonshot-v1-8k"]),
     ]);
   }
-
   const MessageHandler = {
     sendToAi: async (payload: any) => {
       const processedMsg = await preprocessMsg(payload);
-      setSelection(payload);
       setText("");
       setIsAnswering(false);
 
@@ -102,13 +105,6 @@ export default function NewRecord() {
     textRef?.current &&
       observer.observe(textRef?.current, { childList: true, subtree: true });
 
-    // side panel 首次初始化的时候，去检查 firstSelection 中有没有用户选中的词汇，如果有，取出执行
-    firstSelection.getValue().then(async (firstSelectionData) => {
-      if (!firstSelectionData.trim()) return;
-      await MessageHandler.sendToAi(firstSelectionData);
-      // 执行完毕后删除缓存值
-      firstSelection.removeValue();
-    });
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
       observer.disconnect();
@@ -120,7 +116,7 @@ export default function NewRecord() {
     const response = await chrome.runtime.sendMessage({
       action: "saveWordOrPhrase",
       payload: {
-        wordOrParase: selection,
+        wordOrParase: Record.wordOrPrase,
         meaning: text,
       },
     });
@@ -136,100 +132,83 @@ export default function NewRecord() {
   };
 
   const handleAiRegenrate = async () => {
-    await MessageHandler.sendToAi(selection);
+    await MessageHandler.sendToAi(Record.wordOrPrase);
   };
 
   return (
-    <div className="p-2">
-      {!selection && <Placeholder />}
-
-      {/* Selection Text */}
-      <div className="relative">
-        <p
-          className={cn(
-            "flex items-center gap-4",
-            selection ? "mt-2 mb-6" : ""
-          )}
-        >
-          {/* wrapper for underline effect */}
-          <span>
-            <span className="text-2xl bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
-              {selection}
-            </span>
-          </span>
-          <span>
-            {ailoading && <LoaderPinwheel className="animate-spin" />}
-          </span>
-        </p>
-
-        {/* AI Display and Edit area */}
+    <div className="relative">
+      {/* AI Display and Edit area */}
+      <div
+        className={cn(
+          "overflow-auto max-h-64 scrollbar-thin",
+          "edit-wrapper text-base whitespace-break-spaces rounded-sm p-2 bg-indigo-600/20"
+        )}
+        style={{
+          display: edit ? "block" : "none",
+        }}
+      >
         <div
-          className="edit-wrapper text-base whitespace-break-spaces rounded-md border p-2"
-          style={{
-            display: edit ? "block" : "none",
-          }}
+          id="text-target"
+          contentEditable
+          suppressContentEditableWarning
+          ref={textRef}
+          className="focus:outline-none"
         >
-          <div
-            id="text-target"
-            contentEditable
-            suppressContentEditableWarning
-            ref={textRef}
-            className="focus:outline-none"
-          >
-            {text}
-          </div>
+          {text}
         </div>
+      </div>
 
-        <div
-          className={cn(
-            "html-wrapper rounded-md border p-2 prose",
-            "dark:prose-invert prose-strong:text-indigo-500"
-          )}
-          style={{
-            display: edit || !htmlContent ? "none" : "block",
-          }}
-          dangerouslySetInnerHTML={{ __html: htmlContent as string }} // 动态渲染的 HTML
-        />
+      <div
+        className={cn(
+          "overflow-auto max-h-64 scrollbar-thin",
+          "html-wrapper p-2 prose",
+          "dark:prose-invert prose-strong:text-indigo-500"
+        )}
+        style={{
+          display: edit || !htmlContent ? "none" : "block",
+        }}
+        dangerouslySetInnerHTML={{ __html: htmlContent as string }} // 动态渲染的 HTML
+      />
 
-        {/* Operation Btns  */}
-        {selection && (
-          <div className="text-end mt-1">
-            {!edit && (
-              <>
-                <Button
-                  variant="ghost"
-                  className="ml-2"
-                  size="sm"
-                  disabled={isAnswering || ailoading}
-                  onClick={handleAiRegenrate}
-                >
-                  AI regenerate{" "}
-                  <LoaderPinwheel
-                    className={cn((isAnswering || ailoading) && "animate-spin")}
-                  />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={isAnswering || ailoading}
-                  onClick={() => setEdit(true)}
-                >
-                  Edit <Edit />
-                </Button>
-              </>
-            )}
+      {/* Operation Btns  */}
+      {Record.wordOrPrase && (
+        <div className="text-end mt-1">
+          {edit ? (
+            <>
+              <Button
+                variant="ghost"
+                className="ml-2"
+                size="sm"
+                disabled={isAnswering || ailoading}
+                onClick={handleAiRegenrate}
+              >
+                AI regenerate{" "}
+                <LoaderPinwheel
+                  className={cn((isAnswering || ailoading) && "animate-spin")}
+                />
+              </Button>
+              <Button
+                variant="ghost"
+                className="ml-2"
+                size="sm"
+                disabled={isAnswering || ailoading}
+                onClick={handleSave}
+              >
+                Save <Save />
+              </Button>
+            </>
+          ) : (
             <Button
               variant="ghost"
-              className="ml-2"
               size="sm"
               disabled={isAnswering || ailoading}
-              onClick={handleSave}
+              onClick={() => setEdit(true)}
             >
-              Save <Save />
+              Edit <Edit />
             </Button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
