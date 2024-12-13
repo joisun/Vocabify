@@ -1,69 +1,66 @@
 type addOrUpdateDataRecord = {
-  wordOrParase: string;
-  meaning: string;
-  id?: string;
-};
+  wordOrParase: string
+  meaning: string
+  id?: string
+}
 export default class VocabifyIndexDB {
-  private dbname = "VocabifyIndexDB";
-  db: any;
+  private dbname = 'VocabifyIndexDB'
+  db: any
   constructor() {
-    console.log("initialaze vocabify indexDB");
-    this.db = this.openDatabase();
+    console.log('initialaze vocabify indexDB')
+    this.db = this.openDatabase()
   }
 
   openDatabase() {
     return new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(this.dbname, 1);
+      const request = indexedDB.open(this.dbname, 1)
       request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
-        const db = (event.target as IDBRequest).result;
+        const db = (event.target as IDBRequest).result
 
         // 创建对象存储，设置 "id" 为主键
-        if (!db.objectStoreNames.contains("dataStore")) {
-          const store = db.createObjectStore("dataStore", {
-            keyPath: "id",
+        if (!db.objectStoreNames.contains('dataStore')) {
+          const store = db.createObjectStore('dataStore', {
+            keyPath: 'id',
             autoIncrement: true,
-          });
+          })
           // 可创建额外索引: 目的用于查询，可以对单词进行查询，而不仅仅是主键
-          store.createIndex("wordOrParase", "wordOrParase", { unique: false });
+          store.createIndex('wordOrParase', 'wordOrParase', { unique: false })
           // 为时间戳创建索引: 目的用于日后有对时间范围过滤的需求
-          store.createIndex("createdAt", "createdAt", { unique: false });
-          store.createIndex("updatedAt", "updatedAt", { unique: false });
+          store.createIndex('createdAt', 'createdAt', { unique: false })
+          store.createIndex('updatedAt', 'updatedAt', { unique: false })
         }
-      };
+      }
       request.onsuccess = () => {
-        console.log("Vocabify IndexDB initialazed successfully.");
-        resolve(request.result);
-      };
+        console.log('Vocabify IndexDB initialazed successfully.')
+        resolve(request.result)
+      }
       request.onerror = (event) => {
-        console.error(
-          "Vocabify IndexDB initialazed failed. with blow error information: \n",
-          (event.target as IDBRequest).error
-        );
-        reject((event.target as IDBRequest).error);
-      };
-    });
+        console.error('Vocabify IndexDB initialazed failed. with blow error information: \n', (event.target as IDBRequest).error)
+        reject((event.target as IDBRequest).error)
+      }
+    })
   }
   async addOrUpdateData(data: addOrUpdateDataRecord) {
-    const db = await this.openDatabase();
+    const db = await this.openDatabase()
     return new Promise(async (resolve, reject) => {
-      const transaction = db.transaction("dataStore", "readwrite");
-      const store = transaction.objectStore("dataStore");
-      const index = store.index("wordOrParase"); // 使用索引
-      const _request = index.get(data.wordOrParase.trim().toLocaleLowerCase());
+      const transaction = db.transaction('dataStore', 'readwrite')
+      const store = transaction.objectStore('dataStore')
+      const index = store.index('wordOrParase') // 使用索引
+      const _request = index.get(data.wordOrParase.trim().toLocaleLowerCase())
       const ResolveResult = {
         add: {
-          title: "Done 🥳🎉🎉",
-          detail: "Data added successfully!",
+          title: 'Done 🥳🎉🎉',
+          detail: 'Data added successfully!',
         },
         update: {
-          title: "Updated 🔄✨✨",
-          detail: "Already existed, Update to new data!",
+          title: 'Updated 🔄✨✨',
+          detail: 'Already existed, Update to new data!',
         },
-      };
+      }
       _request.onsuccess = (event) => {
-        const existed = (event.target as IDBRequest).result;
+        const existed = (event.target as IDBRequest).result
         if (existed) {
-          data.id = existed.id;
+          data.id = existed.id
         }
 
         const request = store.put({
@@ -71,36 +68,96 @@ export default class VocabifyIndexDB {
           wordOrParase: data.wordOrParase.trim().toLocaleLowerCase(), //对插入的单词或短语作预处理
           createdAt: new Date().toISOString(), // 插入当前时间
           updatedAt: new Date().toISOString(), // 同时添加更新时间
-        }); // 增加或更新数据
+        }) // 增加或更新数据
 
         request.onsuccess = () => {
-          resolve(existed ? ResolveResult.update : ResolveResult.add);
-        };
+          resolve(existed ? ResolveResult.update : ResolveResult.add)
+        }
         request.onerror = (event) => {
-          console.error(
-            "Vocabify Data added failed!, with below error information: \n",
-            (event.target as IDBRequest).error
-          );
-          reject((event.target as IDBRequest).error);
-        };
-      };
+          console.error('Vocabify Data added failed!, with below error information: \n', (event.target as IDBRequest).error)
+          reject((event.target as IDBRequest).error)
+        }
+      }
       _request.onerror = (event) => {
-        reject((event.target as IDBRequest).error);
-      };
-    });
+        reject((event.target as IDBRequest).error)
+      }
+    })
   }
 
   async getDataByWord(word: string) {
-    const db = await this.openDatabase();
+    const db = await this.openDatabase()
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction("dataStore", "readonly");
-      const store = transaction.objectStore("dataStore");
-      const index = store.index("wordOrParase"); // 使用索引
-      const request = index.get(word);
-      request.onsuccess = (event) =>
-        resolve((event.target as IDBRequest).result);
-      request.onerror = (event) => reject((event.target as IDBRequest).error);
-    });
+      const transaction = db.transaction('dataStore', 'readonly')
+      const store = transaction.objectStore('dataStore')
+      const index = store.index('wordOrParase') // 使用索引
+      const request = index.get(word)
+      request.onsuccess = (event) => resolve((event.target as IDBRequest).result)
+      request.onerror = (event) => reject((event.target as IDBRequest).error)
+    })
+  }
+
+  async findByPage(pageNum: number, pageSize: number) {
+    const db = await this.openDatabase()
+
+    return new Promise(async (resolve, reject) => {
+      const totalCount = await this.getTotalCount() // 获取总条目数
+
+      const transaction = db.transaction('dataStore', 'readonly')
+      const store = transaction.objectStore('dataStore')
+      const results: {
+        records: any[]
+        total: number
+      } = {
+        records: [],
+        total: Math.ceil(totalCount as number / pageSize),
+      }
+      let currentIndex = 0
+
+      const cursorRequest = store.openCursor()
+
+      cursorRequest.onsuccess = function (event) {
+        const cursor = (event.target as IDBRequest).result
+        if (cursor) {
+          // 检查是否是需要的页
+          if (currentIndex >= (pageNum - 1) * pageSize && currentIndex < pageNum * pageSize) {
+            results.records.push(cursor.value) // 收集所需的记录
+          }
+          currentIndex++
+
+          // 如果结果集已达到所需的页大小，则停止继续查询
+          if (results.records.length < pageSize) {
+            cursor.continue() // 继续下一个游标
+          } else {
+            resolve(results) // 返回结果
+          }
+        } else {
+          // 没有更多的数据
+          resolve(results) // 返回结果
+        }
+      }
+
+      cursorRequest.onerror = function (event) {
+        reject((event.target as IDBRequest).error)
+      }
+    })
+  }
+  // 获取所有条目的总数
+  async getTotalCount() {
+    const db = await this.openDatabase()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('dataStore', 'readonly')
+      const store = transaction.objectStore('dataStore')
+
+      const countRequest = store.count()
+
+      countRequest.onsuccess = (event) => {
+        resolve((event.target as IDBRequest).result) // 返回总条目数
+      }
+
+      countRequest.onerror = (event) => {
+        reject((event.target as IDBRequest).error)
+      }
+    })
   }
 }
 

@@ -1,58 +1,91 @@
-import MockLoading from "@/components/custom/MockLoading";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-import { ChevronsDown, ChevronsUp, Edit, Save } from "lucide-react";
-import Editor from "./Editor";
+import MockLoading from '@/components/custom/MockLoading'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
+import { ChevronsDown, ChevronsUp, Edit, Save } from 'lucide-react'
+import Editor from './Editor'
+
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 
 export default function Records() {
-  const records = [
-    {
-      wordOrPrase: "Render",
-      meaning: ` | React renders a component | 🔄💻🎨
-React is a JavaScript library used for building user interfaces. It helps developers create reusable UI components that can be easily rendered on the web or mobile devices. When you use React, you write code that tells the library how to display your data and user interactions. One of the most common ways to display this data is by rendering a component. A component is a self-contained piece of UI that can be reused in different parts of an application. For example, you might have a button component that can be used in multiple places throughout your app. React renders these components into the DOM, which is the structure that makes up a web page.
+  const PAGE_SIZE = 3
+  const [records, setRecords] = useState([])
+  const [total, setTotal] = useState(1)
+  const [pageNum, setPageNum] = useState(1)
 
-Example sentences:
+  const handleNavigate = async (isNext: boolean) => {
+    if (pageNum - 1 < 0 || pageNum + 1 > total) return
 
-1. I used React to build a new component for my app.
-2. The React library allows me to render complex components with ease.
-3. When a user interacts with my app, React automatically updates the component that was affected. `,
-    },
-    {
-      wordOrPrase: "Commit",
-      meaning: ` **Commit**  |  /kəˈmɪt/ noun |
+    if (isNext) {
+      setPageNum(pageNum + 1)
+    } else {
+      setPageNum(pageNum - 1)
+    }
 
-A promise or decision to do something, often with strong feelings of loyalty or dedication. 🤝💪
+    await findByPage(pageNum, PAGE_SIZE)
+  }
 
-Example sentences:
-1. She made a commitment to finish her project by the end of the week. 📅⏰
-2. He's committed to his job and always arrives on time. 🕒💼
-3. The couple committed to each other in marriage. 💍💑`,
-    },
-  ];
+  const findByPage = async (pageNum: number, pageSize: number) => {
+    const response = await chrome.runtime.sendMessage({
+      action: 'findByPage',
+      payload: {
+        pageNum: pageNum,
+        pageSize: pageSize,
+      },
+    })
+    if (response.status === 'success') {
+      const total = response.message.total
+      setTotal(total)
+      setRecords(response.message.records)
+      console.log('response.message.records', response.message.records)
+    }
+  }
+
+  useEffect(() => {
+    findByPage(pageNum, PAGE_SIZE)
+  }, [])
+
   return (
     <div>
       {records.map(({ wordOrPrase, meaning }, index) => {
-        return (
-          <Record wordOrPrase={wordOrPrase} meaning={meaning} key={index} />
-        );
+        return <Record wordOrPrase={wordOrPrase} meaning={meaning} key={index} />
       })}
+
+      {/* <Button onClick={test}>{pageNum}/{total}</Button> */}
+      <p className="text-center text-foreground/50">
+        {pageNum}/{total}
+      </p>
+      {pageNum}
+      <Pagination className="mt-2">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious href="#" onClick={() => handleNavigate(false)} />
+          </PaginationItem>
+
+          <PaginationItem>
+            <PaginationNext href="#" onClick={() => handleNavigate(true)} />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     </div>
-  );
+  )
 }
 
-function Record({
-  wordOrPrase,
-  meaning,
-}: {
-  wordOrPrase: string;
-  meaning: string;
-}) {
-  const [expand, setExpand] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
+function Record({ wordOrPrase, meaning }: { wordOrPrase: string; meaning: string }) {
+  const [expand, setExpand] = useState(false)
+  console.log('wordOrPrase',wordOrPrase)
+  const editorRef = useRef<HTMLDivElement>(null)
   const toggleExpand = () => {
-    setExpand(!expand);
-  };
+    setExpand(!expand)
+  }
 
   return (
     <>
@@ -65,30 +98,19 @@ function Record({
           </span>
         </Label>
 
-        <div
-          className={cn(
-            "grid my-1 transition-all duration-700 ease-in-out grid-rows-[0fr]",
-            expand ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          )}
-        >
+        <div className={cn('grid my-1 transition-all duration-700 ease-in-out grid-rows-[0fr]', expand ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
           <div className="overflow-hidden">
             {/* <div>{meaning}</div> */}
             <Editor Record={{ wordOrPrase, meaning }} />
           </div>
         </div>
 
-        {!expand && (
-          <p className="animate-fadeIn">{meaning.substring(0, 150)}...</p>
-        )}
+        {!expand && <p className="animate-fadeIn">{meaning.substring(0, 150)}...</p>}
 
         <Button variant="ghost" className="w-full my-2 h-6 p-0" onClick={toggleExpand}>
-          {expand ? (
-            <ChevronsUp className="animate-pulse" size="20" />
-          ) : (
-            <ChevronsDown className="animate-pulse" size="20" />
-          )}
+          {expand ? <ChevronsUp className="animate-pulse" size="20" /> : <ChevronsDown className="animate-pulse" size="20" />}
         </Button>
       </div>
     </>
-  );
+  )
 }
