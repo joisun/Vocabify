@@ -16,7 +16,7 @@ import Placeholder from "../components/Placeholder";
 import preprocessMsg from "../utils/preprocessMsg";
 
 type EditorProps = {
-  Record: { wordOrPrase: string; meaning?: string };
+  Record: { wordOrPhrase: string; meaning?: string };
 };
 export default function Editor({ Record }: EditorProps) {
   const textRef = useRef<HTMLDivElement>(null);
@@ -116,7 +116,7 @@ export default function Editor({ Record }: EditorProps) {
     const response = await chrome.runtime.sendMessage({
       action: "saveWordOrPhrase",
       payload: {
-        wordOrParase: Record.wordOrPrase,
+        wordOrPhrase: Record.wordOrPhrase,
         meaning: text,
       },
     });
@@ -132,7 +132,7 @@ export default function Editor({ Record }: EditorProps) {
   };
 
   const handleAiRegenrate = async () => {
-    await MessageHandler.sendToAi(Record.wordOrPrase);
+    await MessageHandler.sendToAi(Record.wordOrPhrase);
   };
 
   return (
@@ -171,7 +171,7 @@ export default function Editor({ Record }: EditorProps) {
       />
 
       {/* Operation Btns  */}
-      {Record.wordOrPrase && (
+      {Record.wordOrPhrase && (
         <div className="text-end mt-1">
           {edit ? (
             <>

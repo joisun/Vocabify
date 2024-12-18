@@ -1,5 +1,5 @@
 type addOrUpdateDataRecord = {
-  wordOrParase: string
+  wordOrPhrase: string
   meaning: string
   id?: string
 }
@@ -24,7 +24,7 @@ export default class VocabifyIndexDB {
             autoIncrement: true,
           })
           // 可创建额外索引: 目的用于查询，可以对单词进行查询，而不仅仅是主键
-          store.createIndex('wordOrParase', 'wordOrParase', { unique: false })
+          store.createIndex('wordOrPhrase', 'wordOrPhrase', { unique: false })
           // 为时间戳创建索引: 目的用于日后有对时间范围过滤的需求
           store.createIndex('createdAt', 'createdAt', { unique: false })
           store.createIndex('updatedAt', 'updatedAt', { unique: false })
@@ -45,8 +45,8 @@ export default class VocabifyIndexDB {
     return new Promise(async (resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readwrite')
       const store = transaction.objectStore('dataStore')
-      const index = store.index('wordOrParase') // 使用索引
-      const _request = index.get(data.wordOrParase.trim().toLocaleLowerCase())
+      const index = store.index('wordOrPhrase') // 使用索引
+      const _request = index.get(data.wordOrPhrase.trim().toLocaleLowerCase())
       const ResolveResult = {
         add: {
           title: 'Done 🥳🎉🎉',
@@ -65,7 +65,7 @@ export default class VocabifyIndexDB {
 
         const request = store.put({
           ...data,
-          wordOrParase: data.wordOrParase.trim().toLocaleLowerCase(), //对插入的单词或短语作预处理
+          wordOrPhrase: data.wordOrPhrase.trim().toLocaleLowerCase(), //对插入的单词或短语作预处理
           createdAt: new Date().toISOString(), // 插入当前时间
           updatedAt: new Date().toISOString(), // 同时添加更新时间
         }) // 增加或更新数据
@@ -89,7 +89,7 @@ export default class VocabifyIndexDB {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readonly')
       const store = transaction.objectStore('dataStore')
-      const index = store.index('wordOrParase') // 使用索引
+      const index = store.index('wordOrPhrase') // 使用索引
       const request = index.get(word)
       request.onsuccess = (event) => resolve((event.target as IDBRequest).result)
       request.onerror = (event) => reject((event.target as IDBRequest).error)

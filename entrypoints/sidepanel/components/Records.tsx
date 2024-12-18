@@ -1,18 +1,15 @@
-import MockLoading from '@/components/custom/MockLoading'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { ChevronsDown, ChevronsUp, Edit, Save } from 'lucide-react'
+import { ChevronsDown, ChevronsUp } from 'lucide-react'
 import Editor from './Editor'
 
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
-  PaginationPrevious,
+  PaginationPrevious
 } from '@/components/ui/pagination'
 
 export default function Records() {
@@ -22,15 +19,18 @@ export default function Records() {
   const [pageNum, setPageNum] = useState(1)
 
   const handleNavigate = async (isNext: boolean) => {
-    if (pageNum - 1 < 0 || pageNum + 1 > total) return
-
+    let nextPageNum = 1
     if (isNext) {
-      setPageNum(pageNum + 1)
+      nextPageNum = pageNum + 1
     } else {
-      setPageNum(pageNum - 1)
+      nextPageNum = pageNum - 1
     }
 
-    await findByPage(pageNum, PAGE_SIZE)
+    if (nextPageNum < 1 || nextPageNum > total) return
+
+    setPageNum(nextPageNum)
+
+    await findByPage(nextPageNum, PAGE_SIZE)
   }
 
   const findByPage = async (pageNum: number, pageSize: number) => {
@@ -45,7 +45,6 @@ export default function Records() {
       const total = response.message.total
       setTotal(total)
       setRecords(response.message.records)
-      console.log('response.message.records', response.message.records)
     }
   }
 
@@ -55,15 +54,14 @@ export default function Records() {
 
   return (
     <div>
-      {records.map(({ wordOrPrase, meaning }, index) => {
-        return <Record wordOrPrase={wordOrPrase} meaning={meaning} key={index} />
+      {records.map(({ wordOrPhrase, meaning }, index) => {
+        return <Record wordOrPhrase={wordOrPhrase} meaning={meaning} key={index} />
       })}
 
       {/* <Button onClick={test}>{pageNum}/{total}</Button> */}
       <p className="text-center text-foreground/50">
         {pageNum}/{total}
       </p>
-      {pageNum}
       <Pagination className="mt-2">
         <PaginationContent>
           <PaginationItem>
@@ -79,10 +77,8 @@ export default function Records() {
   )
 }
 
-function Record({ wordOrPrase, meaning }: { wordOrPrase: string; meaning: string }) {
+function Record({ wordOrPhrase, meaning }: { wordOrPhrase: string; meaning: string }) {
   const [expand, setExpand] = useState(false)
-  console.log('wordOrPrase',wordOrPrase)
-  const editorRef = useRef<HTMLDivElement>(null)
   const toggleExpand = () => {
     setExpand(!expand)
   }
@@ -94,18 +90,18 @@ function Record({ wordOrPrase, meaning }: { wordOrPrase: string; meaning: string
       <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-2 pt-6 relative">
         <Label>
           <span className="text-lg bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
-            {wordOrPrase}
+            {wordOrPhrase}
           </span>
         </Label>
 
         <div className={cn('grid my-1 transition-all duration-700 ease-in-out grid-rows-[0fr]', expand ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
           <div className="overflow-hidden">
             {/* <div>{meaning}</div> */}
-            <Editor Record={{ wordOrPrase, meaning }} />
+            <Editor Record={{ wordOrPhrase, meaning }} />
           </div>
         </div>
 
-        {!expand && <p className="animate-fadeIn">{meaning.substring(0, 150)}...</p>}
+        {!expand && <p className="animate-fadeIn h-12 line-clamp-3" >{meaning.substring(0, 150)}</p>}
 
         <Button variant="ghost" className="w-full my-2 h-6 p-0" onClick={toggleExpand}>
           {expand ? <ChevronsUp className="animate-pulse" size="20" /> : <ChevronsDown className="animate-pulse" size="20" />}
