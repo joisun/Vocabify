@@ -1,4 +1,4 @@
-import { Edit, LoaderPinwheel, Save, RefreshCw } from 'lucide-react'
+import { Edit, LoaderPinwheel, RefreshCw, Save } from 'lucide-react'
 import { useState } from 'react'
 import Typed from 'typed.js'
 // https://github.com/FormidableLabs/use-editable?tab=readme-ov-file
@@ -62,6 +62,8 @@ export default function NewRecord() {
           const typed = new Typed(textRefCurrent, {
             strings: [response!],
             showCursor: false,
+            typeSpeed: 0,
+            backSpeed: 0,
             onStringTyped: (self) => {
               console.log('self', self)
             },

@@ -8,6 +8,7 @@ import { firstSelection } from '@/utils/storage'
 
 export default defineBackground(() => {
   console.log('Hello background!', { id: browser.runtime.id })
+
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error))
 
   chrome.runtime.onInstalled.addListener(() => {
@@ -88,7 +89,6 @@ export default defineBackground(() => {
           })
         }
       },
-
       openSidePanel: async () => {
         if (!sender.tab) return
         await chrome.sidePanel.open({
@@ -105,6 +105,29 @@ export default defineBackground(() => {
          */
         firstSelection.setValue(payload)
         chrome.runtime.sendMessage({ action: 'sendToAi', payload })
+      },
+      getAllRecordsData: async () => {
+        try {
+          const db = new VocabifyIndexDB()
+          db.getAllData()
+            .then((res) => {
+              sendResponse({
+                status: 'success',
+                message: res,
+              })
+            })
+            .catch((error) => {
+              sendResponse({
+                status: 'error',
+                message: error,
+              })
+            })
+        } catch (err) {
+          sendResponse({
+            status: 'error',
+            message: 'Vocabify Data Base Init error. Please Contact the developer.',
+          })
+        }
       },
     }
 

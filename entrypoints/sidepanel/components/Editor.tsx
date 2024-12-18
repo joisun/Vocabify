@@ -70,6 +70,8 @@ export default function Editor({ Record }: EditorProps) {
           const typed = new Typed(textRefCurrent, {
             strings: [response!],
             showCursor: false,
+            typeSpeed: 0,
+            backSpeed: 0,
             onStringTyped: (self) => {
               console.log("self", self);
             },

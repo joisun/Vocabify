@@ -178,6 +178,19 @@ export default class VocabifyIndexDB {
       }
     })
   }
+
+  async getAllData() {
+    const db = await this.openDatabase()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('dataStore', 'readonly')
+      const store = transaction.objectStore('dataStore')
+
+      const request = store.getAll() // 获取所有数据
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = (event) => reject((event.target as IDBRequest).error)
+    })
+  }
 }
 
 // 数据查询
