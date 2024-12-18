@@ -107,7 +107,7 @@ function Record({ wordOrPhrase, meaning }: { wordOrPhrase: string; meaning: stri
     <>
       {/* <MockLoading /> */}
 
-      <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-2 pt-6 relative">
+      <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-2 pt-1 relative">
         <Label>
           <span className="text-lg bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
             {wordOrPhrase}
