@@ -95,6 +95,25 @@ export default class VocabifyIndexDB {
       request.onerror = (event) => reject((event.target as IDBRequest).error)
     })
   }
+  async fuzzySearchByKeyword(keywords: string) {
+    console.log('keywords', keywords)
+    const db = await this.openDatabase()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('dataStore', 'readonly')
+      const store = transaction.objectStore('dataStore')
+      const index = store.index('wordOrPhrase') // 使用索引
+      const request = index.getAll()
+
+      request.onsuccess = (event) => {
+        const allData = (event.target as IDBRequest).result
+        const filteredData = allData.filter(
+          (item: any) => item.wordOrPhrase.includes(keywords) // 根据字段模糊匹配
+        )
+        resolve(filteredData)
+      }
+      request.onerror = (event) => reject((event.target as IDBRequest).error)
+    })
+  }
 
   async findByPage(pageNum: number, pageSize: number) {
     const db = await this.openDatabase()
@@ -109,7 +128,7 @@ export default class VocabifyIndexDB {
         total: number
       } = {
         records: [],
-        total: Math.ceil(totalCount as number / pageSize),
+        total: Math.ceil((totalCount as number) / pageSize),
       }
       let currentIndex = 0
 

@@ -73,7 +73,7 @@ const PromptTemplate = () => {
                     onChange={handleInputChange}
                     placeholder="请输入您的内容"
                     rows={15}
-                    className="w-full mt-2" // Adjust width as needed
+                    className="w-full mt-2 scrollbar-thin" // Adjust width as needed
                 />
             </div>
 
