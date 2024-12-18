@@ -19,11 +19,31 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
     return acc
   }, {}) as { [key in SubPanelType]: React.ReactElement }
 
+  const [activeTab, setActiveTab] = useState('newrecord')
+
   const handleClickSetting = () => {
     chrome.runtime.openOptionsPage()
   }
 
-  const [activeTab, setActiveTab] = useState('newrecord')
+  const MessageHandler = {
+    sendToAi: async (payload: any) => {
+        setActiveTab("newrecord")
+    },
+  }
+  useEffect(() => {
+    const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+      const { payload } = message
+
+      const action = message.action as keyof typeof MessageHandler
+      MessageHandler[action] && MessageHandler[action](payload)
+    }
+    chrome.runtime.onMessage.addListener(messageListener)
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener)
+    }
+  }, [])
+
   return (
     <div className="flex m-2">
       <Tabs defaultValue="newrecord" className="w-full" value={activeTab} onValueChange={setActiveTab}>

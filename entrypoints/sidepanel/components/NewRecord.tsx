@@ -109,7 +109,7 @@ export default function NewRecord() {
     const response = await chrome.runtime.sendMessage({
       action: 'saveWordOrPhrase',
       payload: {
-        wordOrParase: selection,
+        wordOrPhrase: selection,
         meaning: text,
       },
     })
