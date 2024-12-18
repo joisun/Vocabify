@@ -43,3 +43,14 @@ export const agentsStorage = storage.defineItem<AiAgentApiKeys>(
 export const firstSelection = storage.defineItem<string>("session:firstSelection", {
   fallback: "",
 });
+
+
+
+
+/** side panel  */
+export const recordPageSize = storage.defineItem<number>(
+  "local:recordPageSize",
+  {
+    fallback: 5,
+  }
+);

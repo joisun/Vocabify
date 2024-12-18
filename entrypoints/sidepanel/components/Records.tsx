@@ -1,39 +1,28 @@
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { ChevronsDown, ChevronsUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search } from 'lucide-react'
+import { recordPageSize } from '@/utils/storage'
+
 import Editor from './Editor'
-
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious
-} from '@/components/ui/pagination'
-
+import { Input } from '@/components/ui/input'
 export default function Records() {
-  const PAGE_SIZE = 3
   const [records, setRecords] = useState([])
   const [total, setTotal] = useState(1)
   const [pageNum, setPageNum] = useState(1)
+  const [onSearch, setOnSearch] = useState(false)
 
   const handleNavigate = async (isNext: boolean) => {
-    let nextPageNum = 1
-    if (isNext) {
-      nextPageNum = pageNum + 1
-    } else {
-      nextPageNum = pageNum - 1
-    }
-
+    let nextPageNum = isNext ? pageNum + 1 : pageNum - 1
     if (nextPageNum < 1 || nextPageNum > total) return
 
     setPageNum(nextPageNum)
 
-    await findByPage(nextPageNum, PAGE_SIZE)
+    await findByPage(nextPageNum)
   }
 
-  const findByPage = async (pageNum: number, pageSize: number) => {
+  const findByPage = async (pageNum: number) => {
+    const pageSize = (await recordPageSize.getValue()) || 5
     const response = await chrome.runtime.sendMessage({
       action: 'findByPage',
       payload: {
@@ -44,35 +33,66 @@ export default function Records() {
     if (response.status === 'success') {
       const total = response.message.total
       setTotal(total)
-      setRecords(response.message.records)
+      setRecords(response.message.records || [])
+    }
+  }
+
+  const handleSearch = async (e: any) => {
+    setOnSearch(true)
+    if (e.target.value.trim() === '') {
+      setOnSearch(false)
+      await findByPage(1)
+
+      return
+    }
+
+    const response = await chrome.runtime.sendMessage({
+      action: 'fuzzySearchByKeyword',
+      payload: e.target.value,
+    })
+    if (response.status === 'success') {
+      const total = response.message.total
+      setTotal(total)
+      console.log('response.message', response.message)
+      setRecords(response.message || [])
     }
   }
 
   useEffect(() => {
-    findByPage(pageNum, PAGE_SIZE)
+    findByPage(pageNum)
   }, [])
 
   return (
-    <div>
-      {records.map(({ wordOrPhrase, meaning }, index) => {
-        return <Record wordOrPhrase={wordOrPhrase} meaning={meaning} key={index} />
-      })}
+    <div className="h-[calc(100vh-5rem)] relative">
+      <div className="relative w-full">
+        <Input className="pr-9" placeholder="Search here..." onInput={handleSearch} />
+        <Search className="absolute right-0 top-0 m-2.5 h-4 w-4 text-muted-foreground" />
+      </div>
 
-      {/* <Button onClick={test}>{pageNum}/{total}</Button> */}
-      <p className="text-center text-foreground/50">
-        {pageNum}/{total}
-      </p>
-      <Pagination className="mt-2">
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious href="#" onClick={() => handleNavigate(false)} />
-          </PaginationItem>
+      <div className="h-[calc(100vh-10rem)] overflow-auto scrollbar-tiny pr-1">
+        {records.map(({ wordOrPhrase, meaning }, index) => {
+          return <Record wordOrPhrase={wordOrPhrase} meaning={meaning} key={index} />
+        })}
+      </div>
 
-          <PaginationItem>
-            <PaginationNext href="#" onClick={() => handleNavigate(true)} />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
+      {!onSearch && (
+        <section className="absolute bottom-0 w-full">
+          <div className="row-1 flex justify-between items-center">
+            <Button variant="ghost" onClick={() => handleNavigate(false)} disabled={pageNum === 1}>
+              <ChevronLeft />
+              Previous
+            </Button>
+            <p className="text-center text-foreground/50">
+              {pageNum}/{total}
+            </p>
+            <Button variant="ghost" onClick={() => handleNavigate(true)} disabled={pageNum === total}>
+              <ChevronRight />
+              Next
+            </Button>
+          </div>
+          <div className="row2 text-right"></div>
+        </section>
+      )}
     </div>
   )
 }
@@ -101,7 +121,7 @@ function Record({ wordOrPhrase, meaning }: { wordOrPhrase: string; meaning: stri
           </div>
         </div>
 
-        {!expand && <p className="animate-fadeIn h-12 line-clamp-3" >{meaning.substring(0, 150)}</p>}
+        {!expand && <p className="animate-fadeIn  line-clamp-3">{meaning.substring(0, 150)}</p>}
 
         <Button variant="ghost" className="w-full my-2 h-6 p-0" onClick={toggleExpand}>
           {expand ? <ChevronsUp className="animate-pulse" size="20" /> : <ChevronsDown className="animate-pulse" size="20" />}

@@ -69,6 +69,23 @@
     @apply border-border;
   }
 
+  .scrollbar-hidden {
+    &::-webkit-scrollbar {
+      @apply w-0;
+    }
+  }
+  .scrollbar-tiny {
+    &::-webkit-scrollbar {
+      @apply w-[2px];
+    }
+    &::-webkit-scrollbar-track {
+      @apply bg-foreground/10 rounded-full;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      @apply bg-foreground/30 rounded-full;
+    }
+  }
   .scrollbar-thin {
     &::-webkit-scrollbar {
       @apply w-1;
