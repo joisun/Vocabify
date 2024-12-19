@@ -123,6 +123,10 @@ export default class VocabifyIndexDB {
 
       const transaction = db.transaction('dataStore', 'readonly')
       const store = transaction.objectStore('dataStore')
+
+      // 获取 'updateAtIndex' 索引
+      const index = store.index('updatedAt')
+
       const results: {
         records: any[]
         total: number
@@ -130,9 +134,11 @@ export default class VocabifyIndexDB {
         records: [],
         total: Math.ceil((totalCount as number) / pageSize),
       }
-      let currentIndex = 0
 
-      const cursorRequest = store.openCursor()
+      // 获取游标，按 'updateAt' 降序排列
+      const cursorRequest = index.openCursor(null, 'prev') // 'prev' 为降序
+
+      let currentIndex = 0
 
       cursorRequest.onsuccess = function (event) {
         const cursor = (event.target as IDBRequest).result
@@ -160,6 +166,7 @@ export default class VocabifyIndexDB {
       }
     })
   }
+
   // 获取所有条目的总数
   async getTotalCount() {
     const db = await this.openDatabase()
