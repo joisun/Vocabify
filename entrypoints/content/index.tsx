@@ -39,7 +39,7 @@ export default defineContentScript({
       // Create a mount point for react Component
       const wrapper = document.createElement('span')
       wrapper.className = MARKED_CLASSNAME
-      wrapper.style.color = 'yellow'
+      // wrapper.style.color = 'yellow'
 
       // create range to replace selected text
       const range = document.createRange()
@@ -88,13 +88,7 @@ export default defineContentScript({
         ui.remove()
       }
 
-      function vocabifyHandler(text: string) {
-        // send message to background to open side panel
-        // chrome.runtime.sendMessage({
-        //   action: 'openSidePanel',
-        //   payload: selectedText
-        // });
-
+      async function vocabifyHandler(text: string) {
         chrome.runtime.sendMessage({
           action: 'triggerSelection',
           payload: selectedText,
@@ -173,7 +167,12 @@ export function highlightWords(records: any[], nodes: ChildNode[]) {
             // 使用 ReactDOM 创建根节点并渲染 TooltipBtn
             const root = ReactDOM.createRoot(container)
             root.render(
-              <TooltipIndicator record={record} text={selectedText} cancelHandler={() => console.log('Cancel clicked')} vocabifyHandler={() => console.log('Vocabify clicked')} />
+              <TooltipIndicator
+                record={record}
+                text={selectedText}
+                cancelHandler={() => console.log('Cancel clicked')}
+                vocabifyHandler={() => console.log('Vocabify clicked')}
+              />
             )
 
             // 将组件容器插入到文档片段中

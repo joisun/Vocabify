@@ -1,16 +1,17 @@
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { firstCheckRecord, recordPageSize } from '@/utils/storage'
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search } from 'lucide-react'
-import { recordPageSize } from '@/utils/storage'
 
-import Editor from './Editor'
 import { Input } from '@/components/ui/input'
+import Editor from './Editor'
 export default function Records() {
   const [records, setRecords] = useState([])
   const [total, setTotal] = useState(1)
   const [pageNum, setPageNum] = useState(1)
   const [onSearch, setOnSearch] = useState(false)
+  const [searchText, setSearchText] = useState('')
 
   const handleNavigate = async (isNext: boolean) => {
     let nextPageNum = isNext ? pageNum + 1 : pageNum - 1
@@ -38,34 +39,62 @@ export default function Records() {
   }
 
   const handleSearch = async (e: any) => {
+    setSearchText(e.target.value)
+
     setOnSearch(true)
     if (e.target.value.trim() === '') {
       setOnSearch(false)
       await findByPage(1)
-
       return
     }
 
+    await fuzzySearchByKeyword(searchText)
+  }
+  const fuzzySearchByKeyword = async (keyword: string) => {
     const response = await chrome.runtime.sendMessage({
       action: 'fuzzySearchByKeyword',
-      payload: e.target.value,
+      payload: keyword,
     })
     if (response.status === 'success') {
       const total = response.message.total
       setTotal(total)
-      console.log('response.message', response.message)
       setRecords(response.message || [])
     }
   }
-
+  const MessageHandler = {
+    checkWord: async (payload: any) => {
+      setSearchText(payload)
+      await fuzzySearchByKeyword(payload)
+    },
+  }
   useEffect(() => {
-    findByPage(pageNum)
+    const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+      const { payload } = message
+      const action = message.action as keyof typeof MessageHandler
+      MessageHandler[action] && MessageHandler[action](payload)
+    }
+    chrome.runtime.onMessage.addListener(messageListener)
+
+    // side panel 首次初始化的时候，去检查 firstCheckWord 中有没有用户待查询，如果有，取出执行
+    firstCheckRecord.getValue().then(async (firstCheckRecordData) => {
+      if (!firstCheckRecordData.trim()) {
+        findByPage(pageNum)
+      } else {
+        await MessageHandler.checkWord(firstCheckRecordData)
+        // 执行完毕后删除缓存值
+        firstCheckRecord.removeValue()
+      }
+    })
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener)
+    }
   }, [])
 
   return (
     <div className="h-[calc(100vh-5rem)] relative">
       <div className="relative w-full">
-        <Input className="pr-9" placeholder="Search here..." onInput={handleSearch} />
+        <Input className="pr-9" placeholder="Search here..." value={searchText} onChange={handleSearch} />
         <Search className="absolute right-0 top-0 m-2.5 h-4 w-4 text-muted-foreground" />
       </div>
 

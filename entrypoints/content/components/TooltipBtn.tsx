@@ -16,7 +16,7 @@ function TooltipBtn({
     <TooltipProvider>
       <Tooltip open>
         <TooltipTrigger className="" asChild>
-          <span>{text}</span>
+          <span className='bg-gradient-to-b from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80'>{text}</span>
         </TooltipTrigger>
         <TooltipContent className="flex space-x-1 text-sm rounded-full p-1">
           <Button className="rounded-full h-7 bg-white/20" size={'sm'} variant="ghost" onClick={() => vocabifyHandler(text)}>
