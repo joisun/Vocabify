@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { firstCheckRecord, recordPageSize } from '@/utils/storage'
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, XIcon } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import Editor from './Editor'
@@ -50,6 +50,11 @@ export default function Records() {
 
     await fuzzySearchByKeyword(searchText)
   }
+  const handleClear = async () => {
+    setOnSearch(false)
+    setSearchText('')
+    await findByPage(1)
+  }
   const fuzzySearchByKeyword = async (keyword: string) => {
     const response = await chrome.runtime.sendMessage({
       action: 'fuzzySearchByKeyword',
@@ -94,8 +99,16 @@ export default function Records() {
   return (
     <div className="h-[calc(100vh-5rem)] relative">
       <div className="relative w-full">
-        <Input className="pr-9" placeholder="Search here..." value={searchText} onChange={handleSearch} />
-        <Search className="absolute right-0 top-0 m-2.5 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-0 top-0 m-2.5 h-4 w-4 text-muted-foreground" />
+        <Input className="px-9" placeholder="Search here..." value={searchText} onChange={handleSearch} />
+        <Button
+          onClick={handleClear}
+          variant="link"
+          size="icon"
+          className="absolute hover:text-foreground cursor-pointer right-0 top-0 m-2.5 h-4 w-4 rounded-full text-muted-foreground"
+        >
+          <XIcon />
+        </Button>
       </div>
 
       <div className="h-[calc(100vh-10rem)] overflow-auto scrollbar-tiny pr-1">
