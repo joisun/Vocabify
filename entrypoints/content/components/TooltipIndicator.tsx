@@ -22,7 +22,10 @@ function TooltipIndicator({
     meaning: string
   }
 }) {
-  console.log('record', record)
+
+  const handleJump = (wordOrPhrase: string) => {
+    chrome.runtime.sendMessage({ action: 'triggerCheck', payload: wordOrPhrase })
+  }
   return (
     <TooltipProvider>
       <Tooltip>
@@ -38,7 +41,12 @@ function TooltipIndicator({
             )}
             dangerouslySetInnerHTML={{ __html: marked.parse(record.meaning) as string }}
           ></div>
-          <Button variant="link" className="absolute top-0 right-0 p-0 text-indigo-600 hover:text-indigo-500" size="icon">
+          <Button
+            onClick={() => handleJump(record.wordOrPhrase)}
+            variant="link"
+            className="absolute top-0 right-0 p-0 text-indigo-600 hover:text-indigo-500"
+            size="icon"
+          >
             <SquareArrowOutUpRight />
           </Button>
         </TooltipContent>

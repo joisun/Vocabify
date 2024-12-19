@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { firstCheckRecord, firstSelection } from '@/utils/storage'
 import { Settings } from 'lucide-react'
 import { isValidElement } from 'react'
 
@@ -23,8 +24,12 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
   }
 
   const MessageHandler = {
-    sendToAi: async (payload: any) => {
-        setActiveTab("newrecord")
+    sendToAi: async (payload?: any) => {
+      setActiveTab('newrecord')
+    },
+    checkWord: async (payload?: any) => {
+      console.log('triggerfffff')
+      setActiveTab('records')
     },
   }
   useEffect(() => {
@@ -35,6 +40,17 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
       MessageHandler[action] && MessageHandler[action](payload)
     }
     chrome.runtime.onMessage.addListener(messageListener)
+
+    firstSelection.getValue().then((value) => {
+      if (value.trim()) {
+        MessageHandler.sendToAi()
+      }
+    })
+    firstCheckRecord.getValue().then((value) => {
+      if (value.trim()) {
+        MessageHandler.checkWord()
+      }
+    })
 
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener)
@@ -60,7 +76,7 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
           </Card>
         </TabsContent>
         {/* 如果不指定 forceMount 那么就会重新渲染*/}
-        <TabsContent value="records" hidden={activeTab !== 'records'}>
+        <TabsContent value="records"  hidden={activeTab !== 'records'}>
           <Card>
             <CardContent className="p-2">{panels.RecordsPanel}</CardContent>
           </Card>
