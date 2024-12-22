@@ -3,8 +3,9 @@ import ReactDOM from 'react-dom/client'
 import TooltipBtn from './components/TooltipBtn'
 import TooltipIndicator from './components/TooltipIndicator'
 
-import { getAllTextNodes, isCrossElementsCheck, isSelectionIntersectWithElement } from './utils'
+import { checkIsDisabled, getAllTextNodes, isCrossElementsCheck, isSelectionIntersectWithElement } from './utils'
 import VocabifyIndexDB from '@/lib/db'
+import { NO_SELECTION_CONTAINER } from '@/const'
 export default defineContentScript({
   matches: ['<all_urls>'],
 
@@ -14,6 +15,11 @@ export default defineContentScript({
     const MARKED_CLASSNAME = 'vocabify-marked-tag'
     document.addEventListener('mouseup', function (event) {
       const target = event.target as Node
+      // 某些元素可能不需要用户选中，例如回显
+      const isDisabled = checkIsDisabled(target)
+      if (isDisabled) return;
+
+
       // if targetNode not exist or is not textNode or textContent is empty, then return
       const selection = window.getSelection()
       // if selection content is empty, then return
@@ -136,53 +142,89 @@ async function hightlightRecords() {
 }
 
 export function highlightWords(records: any[], nodes: ChildNode[]) {
-  console.log('records', records)
+  type Modification = {
+    matchIndex: number
+    matchText: string
+    length: number
+    record: {
+      id: number
+      createAt: string
+      updateAt: string
+      wordOrPhrase: string
+      meaning: string
+    }
+  }
   const t0 = performance.now()
 
-  // 遍历所有文本节点
+  // Traverse all text nodes
   nodes.forEach((node) => {
     let text = node.nodeValue
     if (!text?.trim()) return
 
-    records.forEach((record) => {
-      const word = record.wordOrPhrase
-      const regex = new RegExp(word, 'gi') // 创建不区分大小写的正则表达式
+    const range = document.createRange()
+    const modifications: Modification[] = [] // Track match info (index and length)
 
-      // 如果文本中有匹配的词
-      if (regex.test(text)) {
-        // 用正则匹配多个部分并替换文本
-        const parts = text.split(regex)
-        const matches = text.match(regex)
-
-        const fragment = document.createDocumentFragment()
-
-        parts.forEach((part, index) => {
-          fragment.appendChild(document.createTextNode(part))
-
-          if (matches && matches[index]) {
-            // 创建一个容器，用于包裹 TooltipBtn 组件
-            const container = document.createElement('span')
-            const selectedText = matches[index]
-
-            // 使用 ReactDOM 创建根节点并渲染 TooltipBtn
-            const root = ReactDOM.createRoot(container)
-            root.render(
-              <TooltipIndicator
-                record={record}
-                text={selectedText}
-                cancelHandler={() => console.log('Cancel clicked')}
-                vocabifyHandler={() => console.log('Vocabify clicked')}
-              />
-            )
-
-            // 将组件容器插入到文档片段中
-            fragment.appendChild(container)
-          }
-        })
-
-        // 替换原文本节点为包含 TooltipBtn 的内容
-        node.replaceWith(fragment)
+    const regexes = records.map((record) => {
+      const wordOrPhrase = record.wordOrPhrase
+      const isWholeWord = /^[a-zA-Z]+$/.test(wordOrPhrase)
+      const pattern = isWholeWord ? `\\b${wordOrPhrase}\\b` : wordOrPhrase
+      return {
+        regex: new RegExp(pattern, 'gi'),
+        record,
       }
+    })
+
+    regexes.forEach(({ record, regex }) => {
+      const matches = [...text.matchAll(regex)]
+
+      // Store match info (start index and length) to avoid modifying node during iteration
+      matches.forEach((match) => {
+        const matchIndex = match.index
+        const matchText = match[0]
+        // Store match details (index and length)
+        modifications.push({ matchIndex, matchText, record, length: matchText.length })
+      })
+    })
+
+    // Sort modifications by match index in reverse order to prevent affecting earlier matches
+    modifications.sort((a, b) => b.matchIndex - a.matchIndex)
+
+    // Process modifications in reverse order to avoid messing with indices
+    modifications.forEach(({ matchIndex, matchText, record }) => {
+      /**
+       * 如果文本中同时存在短的命中文本，和长的命中文本。 那么短的可能将原始文本阶段阶段
+       * 短的匹配会改变文本的结构，导致后续匹配失败或报错
+       * 例如 Importing and Exporting Components 同时命中文本 “on” 和 “components”
+       * 那么这时在操作的 component 的标记的时候，就会报错。
+       * 为此，为了解决这个问题，可以使用贪婪匹配策略，即优先处理长的匹配，确保短的匹配不会截断长的匹配。
+       */
+      if (modifications.length && node.nodeValue === 'Importing and Exporting Components') {
+        console.log('node', node.nodeName)
+      }
+      // Create a container for the TooltipIndicator component
+      const container = document.createElement('span')
+      try {
+        // Set the range to the current match
+        range.setStart(node, matchIndex)
+        range.setEnd(node, matchIndex + matchText.length)
+
+        // Delete the matched contents and insert the container
+        range.deleteContents()
+        range.insertNode(container)
+      } catch (err) {
+        console.error('err', err)
+      }
+
+      // Use ReactDOM to render TooltipIndicator inside the container
+      const root = ReactDOM.createRoot(container)
+      root.render(
+        <TooltipIndicator
+          record={record}
+          text={matchText}
+          cancelHandler={() => console.log('Cancel clicked')}
+          vocabifyHandler={() => console.log('Vocabify clicked')}
+        />
+      )
     })
   })
 
