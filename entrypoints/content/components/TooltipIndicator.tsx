@@ -5,6 +5,7 @@ import { CopyIcon, XIcon, Aperture, SquareArrowOutUpRight } from 'lucide-react'
 import { copyHandler } from '../utils'
 import { marked } from 'marked'
 import { cn } from '@/lib/utils'
+import { NO_SELECTION_CONTAINER } from '@/const'
 function TooltipIndicator({
   text,
   cancelHandler,
@@ -22,7 +23,6 @@ function TooltipIndicator({
     meaning: string
   }
 }) {
-
   const handleJump = (wordOrPhrase: string) => {
     chrome.runtime.sendMessage({ action: 'triggerCheck', payload: wordOrPhrase })
   }
@@ -30,12 +30,17 @@ function TooltipIndicator({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger className="" asChild>
-          <span className="bg-gradient-to-b from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">{text}</span>
+          <span
+            className={cn('underline ')}
+          >
+            {text}
+          </span>
         </TooltipTrigger>
         <TooltipContent align="start" className="p-0 border-border/50 border rounded-md relative">
           <div
             className={cn(
-              'html-wrapper rounded-md bg-background p-2 prose w-80',
+              NO_SELECTION_CONTAINER,
+              'html-wrapper rounded-md bg-background p-2 pt-6 prose prose-sm w-96',
               'dark:prose-invert prose-strong:text-indigo-500',
               'max-h-[calc(100vh-18rem)] overflow-auto scrollbar-thin'
             )}

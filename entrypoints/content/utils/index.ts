@@ -1,3 +1,5 @@
+import { NO_SELECTION_CONTAINER } from '@/const'
+
 /**
  * Checks whether the selection intersects with an element of the given class name.
  * @param {Selection} selection - The selection object
@@ -53,23 +55,24 @@ export const copyHandler = function (text: string) {
   }
 }
 
-
 export function getAllTextNodes() {
-  const textNodes: ChildNode[] = [];
-  const elements = document.querySelectorAll("*"); // 获取所有元素
-  const ignoredTags = new Set(["STYLE", "SCRIPT", "NOSCRIPT", "IFRAME", "TEMPLATE"]); // 忽略的标签
+  const textNodes: ChildNode[] = []
+  const elements = document.querySelectorAll('*') // 获取所有元素
+  const ignoredTags = new Set(['STYLE', 'HEAD', 'TITLE', 'SCRIPT', 'NOSCRIPT', 'IFRAME', 'TEMPLATE']) // 忽略的标签
 
   elements.forEach((element) => {
-    if (ignoredTags.has(element.tagName)) return; // 跳过无效元素
+    if (ignoredTags.has(element.tagName)) return // 跳过无效元素
 
     element.childNodes.forEach((child) => {
-      if (child.nodeType === Node.TEXT_NODE && child.nodeValue?.trim() !== "") {
-        textNodes.push(child); // 添加非空文本节点
+      if (child.nodeType === Node.TEXT_NODE && child.nodeValue?.trim() !== '') {
+        textNodes.push(child) // 添加非空文本节点
       }
-    });
-  });
+    })
+  })
 
-  return textNodes;
+  return textNodes
 }
 
-
+export function checkIsDisabled(target: any) {
+  return target.closest(`.${NO_SELECTION_CONTAINER}`)
+}

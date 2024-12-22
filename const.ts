@@ -1,6 +1,6 @@
-export const Selection_Placeholder = "#SELECTION#";
-export const Language_Placeholder = "#LANGUAGE#";
-export const DefaultLanguage = "English";
+export const Selection_Placeholder = '#SELECTION#'
+export const Language_Placeholder = '#LANGUAGE#'
+export const DefaultLanguage = 'English'
 export const DefaultPromptTemplate = `
 Please explain the following vocabulary word or phrase in ${Language_Placeholder} and format the response as follows:
 
@@ -15,4 +15,6 @@ Please explain the following vocabulary word or phrase in ${Language_Placeholder
 - Use relevant emojis that represent the meaning of the word, such as 🐱 for "cat", 💬 for "say", etc.
 - Keep the language simple and easy to read.
 - Add emojis where appropriate to make the explanation more engaging.
-    `;
+    `
+
+export const NO_SELECTION_CONTAINER = 'vocabify-no-selection'
