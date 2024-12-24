@@ -3,9 +3,8 @@ import ReactDOM from 'react-dom/client'
 import TooltipBtn from './components/TooltipBtn'
 import TooltipIndicator from './components/TooltipIndicator'
 
+import { highlightStyleSettingsType } from '@/utils/storage'
 import { checkIsDisabled, getAllTextNodes, isCrossElementsCheck, isSelectionIntersectWithElement } from './utils'
-import VocabifyIndexDB from '@/lib/db'
-import { NO_SELECTION_CONTAINER } from '@/const'
 export default defineContentScript({
   matches: ['<all_urls>'],
 
@@ -17,8 +16,7 @@ export default defineContentScript({
       const target = event.target as Node
       // 某些元素可能不需要用户选中，例如回显
       const isDisabled = checkIsDisabled(target)
-      if (isDisabled) return;
-
+      if (isDisabled) return
 
       // if targetNode not exist or is not textNode or textContent is empty, then return
       const selection = window.getSelection()
@@ -137,11 +135,20 @@ async function hightlightRecords() {
     records = response.message
   }
 
+  let highlightStyleSettings = null
+  const highlightStyleSettingsResponse = await chrome.runtime.sendMessage({
+    action: 'getHighlightStyleSettings',
+  })
+
+  if (highlightStyleSettingsResponse.status === 'success') {
+    highlightStyleSettings = highlightStyleSettingsResponse.message
+  }
+
   // hightlight
-  highlightWords(records, nodes)
+  highlightWords(records, nodes, highlightStyleSettings)
 }
 
-export function highlightWords(records: any[], nodes: ChildNode[]) {
+export function highlightWords(records: any[], nodes: ChildNode[], highlightStyleSettings: highlightStyleSettingsType) {
   type Modification = {
     matchIndex: number
     matchText: string
@@ -223,6 +230,7 @@ export function highlightWords(records: any[], nodes: ChildNode[]) {
           text={matchText}
           cancelHandler={() => console.log('Cancel clicked')}
           vocabifyHandler={() => console.log('Vocabify clicked')}
+          highlightStyleSettings={highlightStyleSettings}
         />
       )
     })
