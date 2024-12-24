@@ -6,11 +6,13 @@ import { copyHandler } from '../utils'
 import { marked } from 'marked'
 import { cn } from '@/lib/utils'
 import { NO_SELECTION_CONTAINER } from '@/const'
+import { highlightStyleSettingsType } from '@/utils/storage'
 function TooltipIndicator({
   text,
   cancelHandler,
   vocabifyHandler,
   record,
+  highlightStyleSettings,
 }: {
   text: string
   vocabifyHandler: (text: string) => void
@@ -22,16 +24,33 @@ function TooltipIndicator({
     wordOrPhrase: string
     meaning: string
   }
+  highlightStyleSettings: highlightStyleSettingsType
 }) {
   const handleJump = (wordOrPhrase: string) => {
     chrome.runtime.sendMessage({ action: 'triggerCheck', payload: wordOrPhrase })
   }
+
+  const typeSet = {
+    underline: 'underline',
+    'under-over': 'underline overline',
+  }
+
+  const { color, invertColor, offset, style, thickness, type } = highlightStyleSettings
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger className="" asChild>
           <span
             className={cn('underline ')}
+            style={{
+              color: invertColor ? `rgba(${255 - color.r}, ${255 - color.g}, ${255 - color.b})` : undefined,
+              textDecorationLine: type !== 'background' ? typeSet[type as keyof typeof typeSet] : undefined,
+              textDecorationColor: type !== 'background' ? `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})` : undefined,
+              textDecorationStyle: type !== 'background' ? (style as any) : undefined,
+              textDecorationThickness: type !== 'background' ? `${thickness}px` : undefined,
+              textUnderlineOffset: type !== 'background' ? `${offset}px` : undefined,
+              backgroundColor: type === 'background' ? `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})` : undefined,
+            }}
           >
             {text}
           </span>

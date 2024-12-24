@@ -137,6 +137,23 @@ export default defineBackground(() => {
           })
         }
       },
+      getHighlightStyleSettings: async () => {
+        try {
+          hightlightStyle.getValue().then((res) => {
+            if (res) {
+              sendResponse({
+                status: 'success',
+                message: res,
+              })
+            }
+          })
+        } catch (err) {
+          sendResponse({
+            status: 'error',
+            message: 'Vocabify Data Base Init error. Please Contact the developer.',
+          })
+        }
+      },
     }
 
     const action = message.action as keyof typeof MessageHandler

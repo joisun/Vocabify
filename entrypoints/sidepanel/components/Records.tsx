@@ -39,7 +39,7 @@ export default function Records() {
   }
 
   const handleSearch = async (e: any) => {
-    setSearchText(e.target.value)
+    setSearchText((e.target.value as string).toLocaleLowerCase())
 
     setOnSearch(true)
     if (e.target.value.trim() === '') {

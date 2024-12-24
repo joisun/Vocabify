@@ -7,7 +7,7 @@ function App() {
   return (
     <>
       <MockLoading />
-      <div className="container mx-auto max-w-4xl p-6 overflow-auto">
+      <div className="container mx-auto max-w-4xl p-6 overflow-auto mb-96">
         {/* <Button onClick={handleClick}>Hello wxt + Shadcn</Button> */}
         <ApiKeysConfigComponent />
         <TargetLanguageSetting />
