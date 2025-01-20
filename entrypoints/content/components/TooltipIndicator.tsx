@@ -70,6 +70,7 @@ function TooltipIndicator({
             variant="link"
             className="absolute top-0 right-0 p-0 text-indigo-600 hover:text-indigo-500"
             size="icon"
+            title="View in Sidepanel"
           >
             <SquareArrowOutUpRight />
           </Button>
