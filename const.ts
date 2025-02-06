@@ -1,5 +1,5 @@
-export const Selection_Placeholder = '#SELECTION#'
-export const Language_Placeholder = '#LANGUAGE#'
+export const Selection_Placeholder = '{SELECTION}'
+export const Language_Placeholder = '{LANGUAGE}'
 export const DefaultLanguage = 'English'
 export const DefaultPromptTemplate = `
 Please explain the following vocabulary word or phrase in ${Language_Placeholder} and format the response as follows:

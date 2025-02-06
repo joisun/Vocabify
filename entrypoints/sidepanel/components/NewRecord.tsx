@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { useEditable } from 'use-editable'
 import Placeholder from '../components/Placeholder'
 import preprocessMsg from '../utils/preprocessMsg'
+import { aiServiceManager } from '@/lib/aiModels/aiServiceManager'
 export default function NewRecord() {
   const textRef = useRef<HTMLDivElement>(null)
   const [text, setText] = useState('')
@@ -46,7 +47,7 @@ export default function NewRecord() {
 
   const MessageHandler = {
     sendToAi: async (payload: any) => {
-      const processedMsg = await preprocessMsg(payload)
+      // const processedMsg = await preprocessMsg(payload)
       setSelection(payload)
       setText('')
       setIsAnswering(false)
@@ -54,9 +55,10 @@ export default function NewRecord() {
       if (!AI) {
         await initAiApiAdaptor()
       }
-      if (processedMsg) {
+      if (payload) {
         setAiloading(true)
-        const response = await AI?.chat(processedMsg)
+        const response = await aiServiceManager.getExplanation(payload)
+        // const response = await AI?.chat(processedMsg)
         setIsAnswering(true)
         const textRefCurrent = textRef.current
         if (textRefCurrent) {
