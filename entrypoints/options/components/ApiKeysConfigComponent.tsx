@@ -123,7 +123,7 @@ const ApiKeysConfigComponent: React.FC = () => {
                     {/* shadcn bug not fixed: https://github.com/shadcn-ui/ui/issues/2054 */}
                     {/* @ts-ignore */}
                     <Select onValueChange={e => setSelectedAgent(Number(e))} value={selectedAgent?.toString() || null}>
-                        <SelectTrigger className="w-80">
+                        <SelectTrigger className="w-100">
                             <SelectValue placeholder="Select the AI provider" />
                         </SelectTrigger>
                         <SelectContent>
@@ -171,7 +171,7 @@ const ApiKeysConfigComponent: React.FC = () => {
                                                 >
                                                     <DragSvgIcon className={styles.dragBtn} style={{ fontSize: '24px' }} /> {/* 拖拽图标 */}
                                                 </span>
-                                                <label className='w-[20ch] overflow-ellipsis overflow-hidden'>{item.agentName}</label>
+                                                <label className='w-[40ch] overflow-ellipsis overflow-hidden'>{item.agentName}</label>
                                                 <Input
                                                     className=""
                                                     type="text"
