@@ -155,7 +155,7 @@ export default function NewRecord() {
 
         <div
           className={cn(
-            'html-wrapper rounded-md border p-2 prose',
+            'html-wrapper rounded-md border p-2 prose prose-sm',
             'dark:prose-invert prose-strong:text-indigo-500',
             'h-[calc(100vh-18rem)] overflow-auto scrollbar-thin'
           )}

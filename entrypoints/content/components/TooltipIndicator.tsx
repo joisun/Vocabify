@@ -55,7 +55,7 @@ function TooltipIndicator({
             {text}
           </span>
         </TooltipTrigger>
-        <TooltipContent align="start" className="p-0 border-border/50 border rounded-md relative">
+        <TooltipContent onWheel={(e) => e.stopPropagation()} align="start" className="p-0 border-border/50 border rounded-md relative">
           <div
             className={cn(
               NO_SELECTION_CONTAINER,
