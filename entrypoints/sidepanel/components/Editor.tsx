@@ -135,7 +135,7 @@ export default function Editor({ Record }: EditorProps) {
       </div>
 
       <div
-        className={cn('overflow-auto max-h-64 scrollbar-thin', 'html-wrapper p-2 prose', 'dark:prose-invert prose-strong:text-indigo-500')}
+        className={cn('overflow-auto max-h-64 scrollbar-thin', 'html-wrapper p-2 prose prose-sm', 'dark:prose-invert prose-strong:text-indigo-500')}
         style={{
           display: edit || !htmlContent ? 'none' : 'block',
         }}
