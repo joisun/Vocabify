@@ -1,9 +1,11 @@
+import MockLoading from '@/components/custom/MockLoading'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { firstCheckRecord, firstSelection } from '@/utils/storage'
-import { Settings, RefreshCcw } from 'lucide-react'
+import { Settings, RefreshCw } from 'lucide-react'
 import { isValidElement } from 'react'
+import { toast } from 'sonner'
 
 export const Layout = ({ children }: { children: React.ReactElement[] }) => {
   type SubPanelType = 'NewRecordPanel' | 'RecordsPanel'
@@ -18,12 +20,14 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
   }, {}) as { [key in SubPanelType]: React.ReactElement }
 
   const [activeTab, setActiveTab] = useState('newrecord')
+  const [loading, setLoading] = useState(false)
 
   const handleClickSetting = () => {
     chrome.runtime.openOptionsPage()
   }
 
   const handleClickAsync = () => {
+    setLoading(true)
     const clientId = 'Ov23liwjMLi50xHATOtV'
     const clientSecret = 'c169b239c8b3bf18cca076ccc2f7b41684373eff'
     // const redirectUri = `chrome-extension://ppmbokdjdpifcjleoikhfgnhegcihdll/sidepanel.html`
@@ -44,6 +48,10 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
       function (redirectUrl) {
         if (chrome.runtime.lastError || !redirectUrl) {
           console.error('Error during authentication:', chrome.runtime.lastError)
+          toast('Might be Network issue❌', {
+            description: 'Something happend while saving.',
+          })
+          setLoading(false)
           return
         }
 
@@ -122,8 +130,8 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
             <Button size="icon" variant={'ghost'} onClick={handleClickSetting}>
               <Settings />
             </Button>
-            <Button size="icon" variant={'ghost'} onClick={handleClickAsync}>
-              <RefreshCcw />
+            <Button size="icon" variant={'ghost'} onClick={handleClickAsync}  disabled={loading}>
+              <RefreshCw className={loading ? 'animate-spin ' : ''}/>
             </Button>
           </div>
         </TabsList>

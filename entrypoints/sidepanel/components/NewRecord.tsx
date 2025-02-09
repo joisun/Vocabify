@@ -114,7 +114,7 @@ export default function NewRecord() {
         description: response.message.detail,
       })
     } else if (response.status === 'error') {
-      toast('Failed😵‍💫😵‍💫😵‍💫', {
+      toast('Failed😵', {
         description: 'Something happend while saving.',
       })
     }
