@@ -4,14 +4,13 @@ import Typed from 'typed.js'
 // https://github.com/FormidableLabs/use-editable?tab=readme-ov-file
 // useEditable 用于解决contentEditable元素编辑的时候光标跳动问题,为什么要使用 contentEditable div 而不是 textarea呢? 是因为 typedjs 打字机效果在 textarea 下第二次触发时没有动画效果
 import { Button } from '@/components/ui/button'
+import { aiServiceManager } from '@/lib/aiModels/aiServiceManager'
 import { cn } from '@/lib/utils'
 import { firstSelection } from '@/utils/storage'
 import { marked } from 'marked'
 import { toast } from 'sonner'
 import { useEditable } from 'use-editable'
 import Placeholder from '../components/Placeholder'
-import preprocessMsg from '../utils/preprocessMsg'
-import { aiServiceManager } from '@/lib/aiModels/aiServiceManager'
 export default function NewRecord() {
   const textRef = useRef<HTMLDivElement>(null)
   const [text, setText] = useState('')
@@ -31,8 +30,6 @@ export default function NewRecord() {
   const [ailoading, setAiloading] = useState(false)
   const [isAnswering, setIsAnswering] = useState(false)
 
-
-
   const MessageHandler = {
     sendToAi: async (payload: any) => {
       // const processedMsg = await preprocessMsg(payload)
@@ -42,25 +39,34 @@ export default function NewRecord() {
 
       if (payload) {
         setAiloading(true)
-        const response = await aiServiceManager.getExplanation(payload)
-        // const response = await AI?.chat(processedMsg)
-        setIsAnswering(true)
-        const textRefCurrent = textRef.current
-        if (textRefCurrent) {
-          const typed = new Typed(textRefCurrent, {
-            strings: [response!],
-            showCursor: false,
-            typeSpeed: 0,
-            backSpeed: 0,
-            onStringTyped: (self) => {
-              console.log('self', self)
-            },
-            onComplete: () => {
-              setText(response!)
-              setAiloading(false)
-              setIsAnswering(false)
-              typed.destroy() // 销毁 Typed 实例
-            },
+
+        try {
+          // const response = await AI?.chat(processedMsg)
+          const response = await aiServiceManager.getExplanation(payload)
+          setIsAnswering(true)
+          const textRefCurrent = textRef.current
+          if (textRefCurrent) {
+            const typed = new Typed(textRefCurrent, {
+              strings: [response!],
+              showCursor: false,
+              typeSpeed: 0,
+              backSpeed: 0,
+              onStringTyped: (self) => {
+                console.log('self', self)
+              },
+              onComplete: () => {
+                setText(response!)
+                setAiloading(false)
+                setIsAnswering(false)
+                typed.destroy() // 销毁 Typed 实例
+              },
+            })
+          }
+        } catch (error) {
+          setAiloading(false)
+          setIsAnswering(false)
+          toast('Failed😵', {
+            description: (error as Error).message,
           })
         }
       }

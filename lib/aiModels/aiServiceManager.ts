@@ -43,6 +43,8 @@ export class AIServiceManager {
 
     // 获取所有已配置的模型
     const agents = await agentsStorage.getValue() || [];
+
+    console.log(agents)
     
     // 按配置顺序尝试不同的模型
     for (const agent of agents) {

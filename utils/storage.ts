@@ -16,15 +16,11 @@ export const targetLanguage = storage.defineItem<string>('local:targetLanguage',
 export const agentsStorage = storage.defineItem<AiAgentApiKeys>('local:agents', {
   fallback: [
     {
-      agentName: 'Kimi',
-      apiKey:'sk-sxlEFFXG2dNQUjcwoukP63Z37Q7oOF83gB9XuIvPIEtcKcci'
-    },
-    {
-      agentName: 'XunFeiSpark',
+      agentName: 'XunFeiSpark Pro',
       apiKey: 'MTrricoschHlfxWNvIJD:ZXklDofIqPdoBxkWsjTA',
     },
     {
-      agentName: 'ChatAnywhere',
+      agentName: 'ChatAnywhere GPT-3.5 Turbo',
       apiKey: 'sk-M72D5lilVXr4dKsWwPJgs8PRzvnLQleW0UrpBKdjjm7hHWWL',
     },
   ],
