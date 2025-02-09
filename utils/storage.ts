@@ -16,6 +16,10 @@ export const targetLanguage = storage.defineItem<string>('local:targetLanguage',
 export const agentsStorage = storage.defineItem<AiAgentApiKeys>('local:agents', {
   fallback: [
     {
+      agentName: 'Kimi',
+      apiKey:'sk-sxlEFFXG2dNQUjcwoukP63Z37Q7oOF83gB9XuIvPIEtcKcci'
+    },
+    {
       agentName: 'XunFeiSpark',
       apiKey: 'MTrricoschHlfxWNvIJD:ZXklDofIqPdoBxkWsjTA',
     },

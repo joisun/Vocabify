@@ -4,10 +4,6 @@ import Typed from 'typed.js'
 // https://github.com/FormidableLabs/use-editable?tab=readme-ov-file
 // useEditable 用于解决contentEditable元素编辑的时候光标跳动问题,为什么要使用 contentEditable div 而不是 textarea呢? 是因为 typedjs 打字机效果在 textarea 下第二次触发时没有动画效果
 import { Button } from '@/components/ui/button'
-import { AiApiAdaptor } from '@/lib/aiModels'
-import { chatanywhereAIService } from '@/lib/aiModels/chatanywhere'
-import { kimiAPIAIService } from '@/lib/aiModels/kimi'
-import { xunfeiSparkAPIAIService } from '@/lib/aiModels/xunfeiSpark'
 import { cn } from '@/lib/utils'
 import { firstSelection } from '@/utils/storage'
 import { marked } from 'marked'
@@ -35,15 +31,7 @@ export default function NewRecord() {
   const [ailoading, setAiloading] = useState(false)
   const [isAnswering, setIsAnswering] = useState(false)
 
-  let AI: AiApiAdaptor | null = null
-  async function initAiApiAdaptor() {
-    AI = new AiApiAdaptor()
-    await AI.initServices([
-      new chatanywhereAIService(['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4o', 'gpt-4']),
-      new xunfeiSparkAPIAIService(['generalv3']),
-      new kimiAPIAIService(['moonshot-v1-8k']),
-    ])
-  }
+
 
   const MessageHandler = {
     sendToAi: async (payload: any) => {
@@ -52,9 +40,6 @@ export default function NewRecord() {
       setText('')
       setIsAnswering(false)
 
-      if (!AI) {
-        await initAiApiAdaptor()
-      }
       if (payload) {
         setAiloading(true)
         const response = await aiServiceManager.getExplanation(payload)

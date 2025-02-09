@@ -27,6 +27,7 @@ interface Agent {
 
 function generateOptions() {
     const agents = Object.values(AgentsType);
+    console.log('agents', agents);
     return agents.map((agent, index) => {
         return {
             name: agent,
@@ -46,8 +47,10 @@ const ApiKeysConfigComponent: React.FC = () => {
     useEffect(() => {
         agentsStorage.getValue().then((value) => {
             if (value) {
+                console.log('value', value);
                 setApiKeys(value);
             }
+
         });
     }, []);
 

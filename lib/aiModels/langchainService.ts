@@ -47,7 +47,7 @@ export class LangchainService {
     try {
       const response = await chain.invoke({
         LANGUAGE: language,  
-        SELECTION: selection 
+        SELECTION: selection ,
       });
 
       return response;
