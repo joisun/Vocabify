@@ -66,3 +66,7 @@ export const firstSelection = storage.defineItem<string>('session:firstSelection
 export const firstCheckRecord = storage.defineItem<string>('session:firstCheckRecord', {
   fallback: '',
 })
+
+export const githubAccessToken = storage.defineItem<string | null>('local:githubAccessToken', {
+  fallback: null,
+})

@@ -2,7 +2,8 @@ import MockLoading from '@/components/custom/MockLoading'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { firstCheckRecord, firstSelection } from '@/utils/storage'
+import { createRepo, getRepo, repoExists, syncLocalAndRemoteData } from '@/lib/githubapi'
+import { firstCheckRecord, firstSelection, githubAccessToken } from '@/utils/storage'
 import { Settings, RefreshCw } from 'lucide-react'
 import { isValidElement } from 'react'
 import { toast } from 'sonner'
@@ -26,59 +27,81 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
     chrome.runtime.openOptionsPage()
   }
 
-  const login = () => {
-    const clientId = 'Ov23liwjMLi50xHATOtV'
-    const clientSecret = 'c169b239c8b3bf18cca076ccc2f7b41684373eff'
-    // 使用 chrome.identity API 开始 OAuth 流程
-    const redirectUri = chrome.identity.getRedirectURL()
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`
-    // createRepo
-    chrome.identity.launchWebAuthFlow(
-      {
-        url: authUrl,
-        interactive: true,
-      },
-      function (redirectUrl) {
-        if (chrome.runtime.lastError || !redirectUrl) {
-          console.error('Error during authentication:', chrome.runtime.lastError)
-          toast('Might be Network issue❌', {
-            description: 'Something happend while saving.',
+  const login = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const clientId = 'Ov23liwjMLi50xHATOtV'
+      const clientSecret = 'c169b239c8b3bf18cca076ccc2f7b41684373eff'
+      // 使用 chrome.identity API 开始 OAuth 流程
+      const redirectUri = chrome.identity.getRedirectURL()
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo,user:email`
+      // createRepo
+      chrome.identity.launchWebAuthFlow(
+        {
+          url: authUrl,
+          interactive: true,
+        },
+        function (redirectUrl) {
+          if (chrome.runtime.lastError || !redirectUrl) {
+            console.error('Error during authentication:', chrome.runtime.lastError)
+            toast('Might be Network issue❌', {
+              description: 'Something happened while saving.',
+            })
+            setLoading(false)
+            return
+          }
+
+          // 提取 code
+          const urlParams = new URLSearchParams(new URL(redirectUrl).search)
+          const code = urlParams.get('code')
+
+          // 请求 GitHub 的 access token
+          fetch('https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              client_id: clientId,
+              client_secret: clientSecret, // 注意隐私，尽量放在安全位置
+              code: code,
+            }),
           })
-          setLoading(false)
-          return
+            .then((response) => response.json())
+            .then(async (data) => {
+              const accessToken = data.access_token
+              console.log('data', data)
+              console.log('Access Token:', accessToken)
+              resolve(accessToken)
+              await githubAccessToken.setValue(accessToken)
+
+              // 继续您的 API 调用或保存令牌
+            })
+            .catch((error) => {
+              reject()
+              console.error('Error:', error)
+            })
         }
-
-        // 提取 code
-        const urlParams = new URLSearchParams(new URL(redirectUrl).search)
-        const code = urlParams.get('code')
-
-        // 请求 GitHub 的 access token
-        fetch('https://github.com/login/oauth/access_token', {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            client_id: clientId,
-            client_secret: clientSecret, // 注意隐私，尽量放在安全位置
-            code: code,
-          }),
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            const accessToken = data.access_token
-            console.log('data', data)
-            console.log('Access Token:', accessToken)
-            // 继续您的 API 调用或保存令牌
-          })
-          .catch((error) => console.error('Error:', error))
-      }
-    )
+      )
+    })
   }
 
-  const handleClickAsync = () => {
+  const handleClickAsync = async () => {
     setLoading(true)
+    let token = null
+    // let token = await githubAccessToken.getValue()
+    if (!token) {
+      token = await login()
+    }
+    setLoading(false)
+    const exist = await repoExists(token)
+    if (!exist) {
+      const response = await createRepo(token)
+    }
+    const sync = await syncLocalAndRemoteData(token)
+    console.log(sync)
+    // console.log('repos', repos)
+    // console.log('token', token)
   }
 
   const MessageHandler = {
