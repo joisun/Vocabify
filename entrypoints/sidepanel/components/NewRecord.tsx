@@ -1,5 +1,5 @@
-import { Edit, LoaderPinwheel, RefreshCw, Save } from 'lucide-react'
-import { useState } from 'react'
+import { Edit, LoaderPinwheel, RefreshCw, Save, Volume2 } from 'lucide-react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Typed from 'typed.js'
 // https://github.com/FormidableLabs/use-editable?tab=readme-ov-file
 // useEditable 用于解决contentEditable元素编辑的时候光标跳动问题,为什么要使用 contentEditable div 而不是 textarea呢? 是因为 typedjs 打字机效果在 textarea 下第二次触发时没有动画效果
@@ -11,6 +11,8 @@ import { marked } from 'marked'
 import { toast } from 'sonner'
 import { useEditable } from 'use-editable'
 import Placeholder from '../components/Placeholder'
+import { speak } from '../utils/tts'
+
 export default function NewRecord() {
   const textRef = useRef<HTMLDivElement>(null)
   const [text, setText] = useState('')
@@ -29,6 +31,7 @@ export default function NewRecord() {
   const [selection, setSelection] = useState('')
   const [ailoading, setAiloading] = useState(false)
   const [isAnswering, setIsAnswering] = useState(false)
+  const [ttsLoading, setTtsLoading] = useState(false)
 
   const MessageHandler = {
     sendToAi: async (payload: any) => {
@@ -124,13 +127,17 @@ export default function NewRecord() {
     await MessageHandler.sendToAi(selection)
   }
 
+  const handlePlayAudio = async () => {
+    await speak(selection, setTtsLoading)
+  }
+
   return (
     <div className="p-0">
       {!selection && <Placeholder />}
 
       {/* Selection Text */}
       <div className="relative">
-        <p className={cn('flex items-center gap-4', selection ? 'mt-2 mb-6' : '')}>
+        <p className={cn('flex items-center gap-2', selection ? 'mt-2 mb-6' : '')}>
           {/* wrapper for underline effect */}
           <span>
             <span className="text-2xl bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
@@ -138,6 +145,11 @@ export default function NewRecord() {
             </span>
           </span>
           <span>{ailoading && <LoaderPinwheel className="animate-spin" />}</span>
+          {selection && (
+            <Button className='shrink-0' variant="ghost" size="icon" onClick={handlePlayAudio} disabled={ttsLoading}>
+              <Volume2 className={ttsLoading ? 'animate-spark' : ''} />
+            </Button>
+          )}
         </p>
 
         {/* AI Display and Edit area */}

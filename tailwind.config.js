@@ -48,6 +48,10 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        spark: {
+          "0%": { color: "#fff" },
+          "100%": { color: "gray" },
+        },
         scaleUp: {
           "0%": { transform: "scale(0.4)" },
           "100%": { transform: "scale(1)" },
@@ -60,6 +64,7 @@ export default {
       animation: {
         scaleUp: "scaleUp 1s ease-in-out",
         fadeIn: "fadeIn 1s ease-in-out",
+        spark: "spark 1s ease-in-out infinite",
       },
     },
   },
