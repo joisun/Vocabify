@@ -84,7 +84,7 @@ export default class VocabifyIndexDB {
     })
   }
 
-  async getDataByWord(word: string) {
+  async getDataByWord(word: string):Promise<any> {
     const db = await this.openDatabase()
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readonly')

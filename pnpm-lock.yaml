@@ -65,6 +65,9 @@ importers:
       dompurify:
         specifier: ^3.2.2
         version: 3.2.2
+      js-base64:
+        specifier: ^3.7.7
+        version: 3.7.7
       langchain:
         specifier: ^0.3.15
         version: 0.3.15(@langchain/anthropic@0.3.12(@langchain/core@0.3.37(openai@4.82.0(ws@8.18.0)(zod@3.23.8))))(@langchain/core@0.3.37(openai@4.82.0(ws@8.18.0)(zod@3.23.8)))(axios@1.7.9)(openai@4.82.0(ws@8.18.0)(zod@3.23.8))(ws@8.18.0)
@@ -2842,6 +2845,9 @@ packages:
   jiti@1.21.6:
     resolution: {integrity: sha512-2yTgeWTWzMWkHu6Jp9NKgePDaYHbntiwvYuuJLbbN9vl7DC9DvXKOB2BC3ZZ92D3cvV/aflH0osDfwpHepQ53w==}
     hasBin: true
+
+  js-base64@3.7.7:
+    resolution: {integrity: sha512-7rCnleh0z2CkXhH67J8K1Ytz0b2Y+yxTPL+/KOJoa20hfnVQ/3/T6W/KflYI4bRHRagNeXeU2bkNGI3v1oS/lw==}
 
   js-md5@0.7.3:
     resolution: {integrity: sha512-ZC41vPSTLKGwIRjqDh8DfXoCrdQIyBgspJVPXHBGu4nZlAEvG3nf+jO9avM9RmLiGakg7vz974ms99nEV0tmTQ==}
@@ -6652,6 +6658,8 @@ snapshots:
       '@pkgjs/parseargs': 0.11.0
 
   jiti@1.21.6: {}
+
+  js-base64@3.7.7: {}
 
   js-md5@0.7.3: {}
 
