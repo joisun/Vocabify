@@ -1,8 +1,9 @@
+import { speak } from '../utils/tts'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { firstCheckRecord, recordPageSize } from '@/utils/storage'
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, XIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, XIcon, Volume2 } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import Editor from './Editor'
@@ -141,8 +142,14 @@ export default function Records() {
 
 function Record({ wordOrPhrase, meaning }: { wordOrPhrase: string; meaning: string }) {
   const [expand, setExpand] = useState(false)
+  const [ttsLoading, setTtsLoading] = useState(false)
+
   const toggleExpand = () => {
     setExpand(!expand)
+  }
+  const handlePlayAudio = async (wordOrPhrase: string) => {
+    await speak(wordOrPhrase, setTtsLoading)
+
   }
 
   return (
@@ -150,11 +157,17 @@ function Record({ wordOrPhrase, meaning }: { wordOrPhrase: string; meaning: stri
       {/* <MockLoading /> */}
 
       <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-2 pt-1 relative">
-        <Label>
-          <span className="text-lg bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
-            {wordOrPhrase}
-          </span>
-        </Label>
+        <div className='flex items-center gap-2'>
+          <Label>
+            <span className="text-lg  bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
+              {wordOrPhrase}
+            </span>
+          </Label>
+
+          <Button className='shrink-0' variant="ghost" size="icon" onClick={() => handlePlayAudio(wordOrPhrase)} disabled={ttsLoading}>
+            <Volume2 className={ttsLoading ? 'animate-spark' : ''} />
+          </Button>
+        </div>
 
         <div className={cn('grid my-1 transition-all duration-700 ease-in-out grid-rows-[0fr]', expand ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
           <div className="overflow-hidden">
