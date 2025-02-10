@@ -26,20 +26,13 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
     chrome.runtime.openOptionsPage()
   }
 
-  const handleClickAsync = () => {
-    setLoading(true)
+  const login = () => {
     const clientId = 'Ov23liwjMLi50xHATOtV'
     const clientSecret = 'c169b239c8b3bf18cca076ccc2f7b41684373eff'
-    // const redirectUri = `chrome-extension://ppmbokdjdpifcjleoikhfgnhegcihdll/sidepanel.html`
-    // const authLink = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=SCOPE`
-    // console.log('authLink',authLink)
-    // window.location.href = authLink
-
     // 使用 chrome.identity API 开始 OAuth 流程
     const redirectUri = chrome.identity.getRedirectURL()
-    console.log('redirectUri',redirectUri)
     const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`
-
+    // createRepo
     chrome.identity.launchWebAuthFlow(
       {
         url: authUrl,
@@ -75,13 +68,17 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
           .then((response) => response.json())
           .then((data) => {
             const accessToken = data.access_token
-            console.log('data',data)
+            console.log('data', data)
             console.log('Access Token:', accessToken)
             // 继续您的 API 调用或保存令牌
           })
           .catch((error) => console.error('Error:', error))
       }
     )
+  }
+
+  const handleClickAsync = () => {
+    setLoading(true)
   }
 
   const MessageHandler = {
@@ -130,8 +127,8 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
             <Button size="icon" variant={'ghost'} onClick={handleClickSetting}>
               <Settings />
             </Button>
-            <Button size="icon" variant={'ghost'} onClick={handleClickAsync}  disabled={loading}>
-              <RefreshCw className={loading ? 'animate-spin ' : ''}/>
+            <Button size="icon" variant={'ghost'} onClick={handleClickAsync} disabled={loading}>
+              <RefreshCw className={loading ? 'animate-spin ' : ''} />
             </Button>
           </div>
         </TabsList>

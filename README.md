@@ -15,17 +15,17 @@ https://ui.shadcn.com/docs/installation/manual
   <img src="path/to/your/logo.png" alt="Vocabify Logo" width="200"/>
 </p>
 
-Vocabify is a browser extension that helps you learn and manage vocabulary while browsing the web. With AI-powered explanations and smart organization features, it makes vocabulary learning seamless and efficient.
+Vocabify is a premium browser extension that helps you learn and manage vocabulary while browsing the web. With AI-powered explanations and smart organization features, it makes vocabulary learning seamless and efficient.
 
 ## ✨ Features
 
 ### 🎯 Smart Text Selection
-- Select any text on webpage to get instant vocabulary assistance
+- Select any text on a webpage to get instant vocabulary assistance
 - Intelligent context detection to avoid invalid selections
 - Customizable highlight styles
 
 ### 🤖 AI-Powered Explanations
-- Multiple AI service providers support (ChatAnywhere, Kimi, XunfeiSpark)
+- Multiple AI service providers support (ChatAnywhere, Kimi, XunfeiSpark, OpenAI)
 - Customizable explanation templates
 - Multi-language support
 - Real-time explanation generation
@@ -67,6 +67,12 @@ pnpm build            # For Chrome
 pnpm build:firefox    # For Firefox
 ```
 
+## 🛒 Chrome Web Store
+
+Vocabify is available on the Chrome Web Store as a premium extension. Enjoy a 7-day free trial and unlock all features with a subscription.
+
+[![Chrome Web Store](path/to/chrome-web-store-badge.png)](https://chrome.google.com/webstore/detail/vocabify/your-extension-id)
+
 ## 🔧 Configuration
 
 ### AI Service Setup
@@ -77,6 +83,7 @@ pnpm build:firefox    # For Firefox
    - ChatAnywhere
    - Kimi
    - XunfeiSpark
+   - OpenAI
 
 ### Customizing Templates
 
@@ -106,7 +113,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [shadcn/ui](https://ui.shadcn.com/) - UI Components
 - **Tailwind CSS** - Styling Framework
 
-## �� Contact
+## 📞 Contact
 
 - Project Link: [https://github.com/yourusername/vocabify](https://github.com/yourusername/vocabify)
 - Author: Your Name
