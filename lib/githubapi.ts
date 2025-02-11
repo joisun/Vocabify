@@ -21,7 +21,7 @@ export const createRepo = async (token: string) => {
       name: REPO_NAME,
       description: 'Repository for Vocabify extension data',
       homepage: 'https://github.com',
-      private: false,
+      private: true,
       is_template: false,
       headers: {
         'X-GitHub-Api-Version': '2022-11-28',
