@@ -1,9 +1,8 @@
-import { speak } from '../utils/tts'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { firstCheckRecord, recordPageSize } from '@/utils/storage'
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, XIcon, Volume2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, XIcon } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import Editor from './Editor'
@@ -73,6 +72,11 @@ export default function Records() {
       await fuzzySearchByKeyword(payload)
     },
   }
+
+  const onDelete = () => {
+    findByPage(pageNum)
+  }
+
   useEffect(() => {
     const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
       const { payload } = message
@@ -114,7 +118,7 @@ export default function Records() {
 
       <div className="h-[calc(100vh-10rem)] overflow-auto scrollbar-tiny pr-1">
         {records.map(({ wordOrPhrase, meaning }, index) => {
-          return <Record wordOrPhrase={wordOrPhrase} meaning={meaning} key={index} />
+          return <Record onDelete={onDelete} wordOrPhrase={wordOrPhrase} meaning={meaning} key={index} />
         })}
       </div>
 
@@ -140,16 +144,10 @@ export default function Records() {
   )
 }
 
-function Record({ wordOrPhrase, meaning }: { wordOrPhrase: string; meaning: string }) {
+function Record({ wordOrPhrase, meaning, onDelete }: { wordOrPhrase: string; meaning: string; onDelete: () => void }) {
   const [expand, setExpand] = useState(false)
-  const [ttsLoading, setTtsLoading] = useState(false)
-
   const toggleExpand = () => {
     setExpand(!expand)
-  }
-  const handlePlayAudio = async (wordOrPhrase: string) => {
-    await speak(wordOrPhrase, setTtsLoading)
-
   }
 
   return (
@@ -157,22 +155,16 @@ function Record({ wordOrPhrase, meaning }: { wordOrPhrase: string; meaning: stri
       {/* <MockLoading /> */}
 
       <div className="mt-2 rounded-xl border bg-card text-card-foreground shadow px-2 pt-1 relative">
-        <div className='flex items-center gap-2'>
-          <Label>
-            <span className="text-lg  bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
-              {wordOrPhrase}
-            </span>
-          </Label>
-
-          <Button className='shrink-0' variant="ghost" size="icon" onClick={() => handlePlayAudio(wordOrPhrase)} disabled={ttsLoading}>
-            <Volume2 className={ttsLoading ? 'animate-spark' : ''} />
-          </Button>
-        </div>
+        <Label>
+          <span className="text-lg bg-gradient-to-b  from-transparent from-70% via-[percentage:70%_70%] via-indigo-600/80  to-indigo-600/80">
+            {wordOrPhrase}
+          </span>
+        </Label>
 
         <div className={cn('grid my-1 transition-all duration-700 ease-in-out grid-rows-[0fr]', expand ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
           <div className="overflow-hidden">
             {/* <div>{meaning}</div> */}
-            <Editor Record={{ wordOrPhrase, meaning }} />
+            <Editor onDelete={onDelete} Record={{ wordOrPhrase, meaning }} />
           </div>
         </div>
 

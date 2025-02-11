@@ -87,6 +87,29 @@ export default defineBackground(() => {
           })
         }
       },
+      deleteWordOrPhrase: async () => {
+        try {
+          const db = new VocabifyIndexDB()
+          db.deleteData(payload.wordOrPhrase)
+            .then((res) => {
+              sendResponse({
+                status: 'success',
+                message: res,
+              })
+            })
+            .catch((error) => {
+              sendResponse({
+                status: 'error',
+                message: error,
+              })
+            })
+        } catch (err) {
+          sendResponse({
+            status: 'error',
+            message: 'Vocabify Data Base Init error. Please Contact the developer.',
+          })
+        }
+      },
       openSidePanel: async () => {
         if (!sender.tab) return
         await chrome.sidePanel.open({
