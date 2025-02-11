@@ -55,11 +55,11 @@ function TooltipIndicator({
             {text}
           </span>
         </TooltipTrigger>
-        <TooltipContent onWheel={(e) => e.stopPropagation()} align="start" className="p-0 border-border/50 border rounded-md relative">
+        <TooltipContent onWheel={(e) => e.stopPropagation()} align="start" className="p-0 shadow-xl  bg-transparent relative">
           <div
             className={cn(
               NO_SELECTION_CONTAINER,
-              'html-wrapper rounded-md bg-background p-2 pt-6 prose prose-sm w-96',
+              'html-wrapper rounded-md  bg-background p-2 pt-6 prose prose-sm w-96',
               'dark:prose-invert prose-strong:text-indigo-500',
               'max-h-[calc(100vh-18rem)] overflow-auto scrollbar-thin'
             )}
