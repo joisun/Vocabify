@@ -109,7 +109,10 @@ const ApiKeysConfigComponent: React.FC = () => {
         <OptionSection>
             <div className={styles.container}>
                 <HeadlingTitle >API Providers Management</HeadlingTitle>
-                <Subtitle>Select the API provider, and drag to reorder. The provider at the front will be prioritized.</Subtitle>
+                <Subtitle>Select the API provider, and drag to reorder. The provider at the front will be prioritized.
+
+                The more advanced the AI provider you configure, the more accurate the language parsing and the higher the quality. The XunFeiSpark and ChatAnywhere GPT-3.5 Turbo API keys provided are trial keys, shared by all users. They have daily limitations and may become invalid at any time. We recommend using your own API key.
+                </Subtitle>
                 <p className={styles.operation}>
                     {/* <select onChange={e => setSelectedAgent(Number(e.target.value))} value={selectedAgent || ''} className='flex h-9 items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 w-[180px]' >
                     <option className='bg-background ' value="" disabled>选择API提供方</option>
