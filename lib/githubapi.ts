@@ -12,6 +12,26 @@ import { Octokit } from 'octokit'
 import VocabifyIndexDB from './db'
 import { Base64 } from 'js-base64';
 const REPO_NAME = '__Vocabify_Data_Center__'
+
+
+
+export const checkTokenValidity = async (token: string): Promise<boolean> => {
+  const octokit = new Octokit({
+    auth: token,
+  })
+  try {
+    await octokit.request('GET /user', {
+      headers: {
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    })
+    return true
+  } catch (error) {
+    console.error('Token is invalid or expired:', error)
+    return false
+  }
+}
+
 export const createRepo = async (token: string) => {
   const octokit = new Octokit({
     auth: token,

@@ -1,8 +1,7 @@
-import MockLoading from '@/components/custom/MockLoading'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { createRepo, repoExists, syncLocalAndRemoteData } from '@/lib/githubapi'
+import { checkTokenValidity, createRepo, repoExists, syncLocalAndRemoteData } from '@/lib/githubapi'
 import { firstCheckRecord, firstSelection, githubAccessToken } from '@/utils/storage'
 import { Settings, RefreshCw } from 'lucide-react'
 import { isValidElement } from 'react'
@@ -89,10 +88,8 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
   const handleClickAsync = async () => {
     setLoading(true)
     try {
-
-      let token = null
-      // let token = await githubAccessToken.getValue()
-      if (!token) {
+      let token = await githubAccessToken.getValue()
+      if (!token  || !(await checkTokenValidity(token))) {
         token = await login()
       }
       const exist = await repoExists(token)
