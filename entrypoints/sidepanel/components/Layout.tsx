@@ -88,20 +88,29 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
 
   const handleClickAsync = async () => {
     setLoading(true)
-    let token = null
-    // let token = await githubAccessToken.getValue()
-    if (!token) {
-      token = await login()
+    try {
+
+      let token = null
+      // let token = await githubAccessToken.getValue()
+      if (!token) {
+        token = await login()
+      }
+      const exist = await repoExists(token)
+      if (!exist) {
+        await createRepo(token)
+      }
+      const sync = await syncLocalAndRemoteData(token)
+      setLoading(false)
+      toast('Sync Success ✨', {
+        description: 'The record has been synced.',
+      })
+    } catch (e) {
+      setLoading(false)
+      toast('Sync Failed 🥵', {
+        description: 'The record has not been synced.',
+      })
+      console.error('Sync Failed:\n', e)
     }
-    setLoading(false)
-    const exist = await repoExists(token)
-    if (!exist) {
-      const response = await createRepo(token)
-    }
-    const sync = await syncLocalAndRemoteData(token)
-    console.log(sync)
-    // console.log('repos', repos)
-    // console.log('token', token)
   }
 
   const MessageHandler = {

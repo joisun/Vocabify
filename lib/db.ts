@@ -84,6 +84,39 @@ export default class VocabifyIndexDB {
     })
   }
 
+  async deleteData(wordOrPhrase: string): Promise<void> {
+    const db = await this.openDatabase()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('dataStore', 'readwrite')
+      const store = transaction.objectStore('dataStore')
+      const index = store.index('wordOrPhrase') // 使用索引
+      const _request = index.get(wordOrPhrase.trim().toLocaleLowerCase())
+
+      _request.onsuccess = (event) => {
+        const existed = (event.target as IDBRequest).result
+        if (existed) {
+          const deleteRequest = store.delete(existed.id)
+
+          deleteRequest.onsuccess = () => {
+            console.log(`Record with wordOrPhrase "${wordOrPhrase}" deleted successfully`)
+            resolve()
+          }
+
+          deleteRequest.onerror = (event) => {
+            console.error('Delete error:', (event.target as IDBRequest).error)
+            reject('Delete error')
+          }
+        } else {
+          reject('Record not found')
+        }
+      }
+
+      _request.onerror = (event) => {
+        reject((event.target as IDBRequest).error)
+      }
+    })
+  }
+
   async getDataByWord(word: string):Promise<any> {
     const db = await this.openDatabase()
     return new Promise((resolve, reject) => {

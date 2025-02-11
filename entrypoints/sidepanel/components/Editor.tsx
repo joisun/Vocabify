@@ -1,4 +1,4 @@
-import { Edit, LoaderPinwheel, Save, Volume2 } from 'lucide-react'
+import { Edit, LoaderPinwheel, Save, Trash } from 'lucide-react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Typed from 'typed.js'
 // https://github.com/FormidableLabs/use-editable?tab=readme-ov-file
@@ -11,12 +11,12 @@ import { marked } from 'marked'
 import { toast } from 'sonner'
 import { useEditable } from 'use-editable'
 import preprocessMsg from '../utils/preprocessMsg'
-import { speak } from '../utils/tts'
 
 type EditorProps = {
   Record: { wordOrPhrase: string; meaning?: string }
+  onDelete: () => void
 }
-export default function Editor({ Record }: EditorProps) {
+export default function Editor({ Record, onDelete }: EditorProps) {
   const textRef = useRef<HTMLDivElement>(null)
   const [text, setText] = useState(Record.meaning || '')
   const [htmlContent, setHtmlContent] = useState(marked.parse(text))
@@ -35,7 +35,6 @@ export default function Editor({ Record }: EditorProps) {
 
   const [ailoading, setAiloading] = useState(false)
   const [isAnswering, setIsAnswering] = useState(false)
-  const [ttsLoading, setTtsLoading] = useState(false)
 
   const MessageHandler = {
     sendToAi: async (payload: any) => {
@@ -113,7 +112,7 @@ export default function Editor({ Record }: EditorProps) {
       })
     } else if (response.status === 'error') {
       toast('Failed😵‍💫😵‍💫😵‍💫', {
-        description: 'Something happend while saving.',
+        description: 'Something happened while saving.',
       })
     }
   }
@@ -122,8 +121,23 @@ export default function Editor({ Record }: EditorProps) {
     await MessageHandler.sendToAi(Record.wordOrPhrase)
   }
 
-  const handlePlayAudio = async () => {
-    await speak(Record.wordOrPhrase, setTtsLoading)
+  const handleDelete = async () => {
+    const response = await chrome.runtime.sendMessage({
+      action: 'deleteWordOrPhrase',
+      payload: {
+        wordOrPhrase: Record.wordOrPhrase,
+      },
+    })
+    if (response.status === 'success') {
+      toast('Deleted Successfully', {
+        description: 'The record has been deleted.',
+      })
+      onDelete()
+    } else if (response.status === 'error') {
+      toast('Failed to Delete', {
+        description: 'Something happened while deleting.',
+      })
+    }
   }
 
   return (
@@ -165,8 +179,8 @@ export default function Editor({ Record }: EditorProps) {
               <Button variant="ghost" size="sm" disabled={isAnswering || ailoading} onClick={() => setEdit(true)}>
                 Edit <Edit />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handlePlayAudio} disabled={ttsLoading}>
-                {ttsLoading ? <LoaderPinwheel className="animate-spin" /> : <Volume2 />}
+              <Button variant="ghost" size="sm" disabled={isAnswering || ailoading} onClick={handleDelete}>
+                Delete <Trash />
               </Button>
             </>
           )}
