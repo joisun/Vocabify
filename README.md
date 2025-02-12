@@ -1,21 +1,20 @@
-# WXT + React
-
-This template should help get you started developing with React in WXT.
-
-
-手动引入了 shadcn:
-https://ui.shadcn.com/docs/installation/manual
-
-
-
----
 # Vocabify - Your Smart Vocabulary Learning Assistant
 
 <p align="center">
-  <img src="path/to/your/logo.png" alt="Vocabify Logo" width="200"/>
+  <img src="./README.assets/wxt.svg" alt="Vocabify Logo" width="200"/>
 </p>
-
 Vocabify is a premium browser extension that helps you learn and manage vocabulary while browsing the web. With AI-powered explanations and smart organization features, it makes vocabulary learning seamless and efficient.
+
+<div style="overflow: hidden;width: 1280px;height: 800px;">
+   <div style="height: 100%;display: flex; gap: 1em; overflow-x: scroll;">
+     <img style="height: 100%;" src="./README.assets/1.jpg" alt="" />
+     <img style="height: 100%;" src="./README.assets/2.jpg" alt="" />
+     <img style="height: 100%;" src="./README.assets/3.jpg" alt="" />
+     <img style="height: 100%;" src="./README.assets/4.jpg" alt="" />
+     <img style="height: 100%;" src="./README.assets/5.jpg" alt="" />
+     <img style="height: 100%;" src="./README.assets/6.jpg" alt="" />
+   </div>
+ </div>
 
 ## ✨ Features
 
@@ -43,6 +42,20 @@ Vocabify is a premium browser extension that helps you learn and manage vocabula
 - AI API key configuration
 - Dark/Light theme support
 
+### 🔄 GitHub Synchronization
+- Automatically syncs your vocabulary data with GitHub
+- Ensures easy access and backup of your data
+
+### 🔊 Google TTS Integration
+- Provides accurate word pronunciations using Google TTS API
+- Enhances learning with correct pronunciation support
+
+## Tech Stack
+
+ React,Vite, TypeScript, TailwindCSS, Shadcn UI, LangChain
+
+
+
 ## 🚀 Installation
 
 1. Clone the repository:
@@ -67,31 +80,21 @@ pnpm build            # For Chrome
 pnpm build:firefox    # For Firefox
 ```
 
+### Additional Scripts
+
+- **Compile TypeScript**: `npm run compile`
+- **Zip for Distribution**: `npm run zip`
+- **Post-Install Setup**: `npm run postinstall`
+
 ## 🛒 Chrome Web Store
 
-Vocabify is available on the Chrome Web Store as a premium extension. Enjoy a 7-day free trial and unlock all features with a subscription.
+Vocabify is available on the Chrome Web Store for free. 
 
 [![Chrome Web Store](path/to/chrome-web-store-badge.png)](https://chrome.google.com/webstore/detail/vocabify/your-extension-id)
 
-## 🔧 Configuration
 
-### AI Service Setup
 
-1. Open the extension options
-2. Navigate to "API Keys Configuration"
-3. Add your API keys for supported services:
-   - ChatAnywhere
-   - Kimi
-   - XunfeiSpark
-   - OpenAI
 
-### Customizing Templates
-
-1. Go to extension options
-2. Find "Prompt Template" section
-3. Customize the template using available placeholders:
-   - `#SELECTION#`: Selected text
-   - `#LANGUAGE#`: Target language
 
 ## 🤝 Contributing
 
@@ -103,6 +106,8 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -111,13 +116,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [WXT](https://wxt.dev/) - Browser Extension Framework
 - [shadcn/ui](https://ui.shadcn.com/) - UI Components
-- **Tailwind CSS** - Styling Framework
+- [Tailwind CSS](https://tailwindcss.com/) - Styling Framework
+- [LangChain](https://github.com/langchain/langchain)
+- [OpenAI](https://github.com/openai/openai)
+- [Lucide Icons](https://lucide.dev/)
 
 ## 📞 Contact
 
-- Project Link: [https://github.com/yourusername/vocabify](https://github.com/yourusername/vocabify)
-- Author: Your Name
-- Email: your.email@example.com
+- Project Link: [https://github.com/joisun/Vocabify](https://github.com/joisun/Vocabify)
+- Author: joisun
+- Email: joi-sun@outlook.com
 
 ---
 
