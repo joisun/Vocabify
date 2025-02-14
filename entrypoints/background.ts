@@ -9,9 +9,9 @@ export default defineBackground(() => {
 
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error))
 
-  chrome.runtime.onInstalled.addListener(() => {
-    chrome.tabs.create({ url: 'https://react.dev/learn/render-and-commit' })
-  })
+  // chrome.runtime.onInstalled.addListener(() => {
+  //   chrome.tabs.create({ url: 'https://react.dev/learn/render-and-commit' })
+  // })
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { payload } = message
