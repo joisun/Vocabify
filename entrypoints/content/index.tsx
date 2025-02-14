@@ -18,6 +18,9 @@ export default defineContentScript({
       const isDisabled = checkIsDisabled(target)
       if (isDisabled) return
 
+      // 如果时输入框，不做处理
+      if (target.nodeName === 'INPUT' || target.nodeName === 'TEXTAREA') return
+
       // if targetNode not exist or is not textNode or textContent is empty, then return
       const selection = window.getSelection()
       // if selection content is empty, then return
