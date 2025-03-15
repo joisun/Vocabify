@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import TooltipBtn from './components/TooltipBtn'
 import TooltipIndicator from './components/TooltipIndicator'
 
+import { sendMessageWithResponse } from '@/lib/messaging'
 import { highlightStyleSettingsType } from '@/utils/storage'
 import { checkIsDisabled, getAllTextNodes, isCrossElementsCheck, isSelectionIntersectWithElement } from './utils'
 export default defineContentScript({
@@ -96,10 +97,21 @@ export default defineContentScript({
       }
 
       async function vocabifyHandler(text: string) {
-        chrome.runtime.sendMessage({
-          action: 'triggerSelection',
-          payload: selectedText,
-        })
+        sendMessageWithResponse('triggerSelection', text)
+          .then((response) => {
+            if (response.status === 'success') {
+              console.log('Selection triggered successfully:', response)
+            } else if (response.status === 'error') {
+              console.error('Failed to trigger selection:', response)
+            }
+          })
+          .catch((error) => {
+            console.error('Error triggering selection:', error)
+          })
+        // chrome.runtime.sendMessage({
+        //   action: 'triggerSelection',
+        //   payload: selectedText,
+        // })
       }
 
       const ui = createIntegratedUi(ctx, {
@@ -122,7 +134,13 @@ export default defineContentScript({
     })
 
     await hightlightRecords()
+
+
   },
+
+
+
+
 })
 
 async function hightlightRecords() {

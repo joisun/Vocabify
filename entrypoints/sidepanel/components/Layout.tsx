@@ -2,8 +2,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { checkTokenValidity, createRepo, repoExists, syncLocalAndRemoteData } from '@/lib/githubapi'
-import { firstCheckRecord, firstSelection, githubAccessToken } from '@/utils/storage'
-import { Settings, RefreshCw } from 'lucide-react'
+import { sendMessageWithResponse } from '@/lib/messaging'
+import { githubAccessToken } from '@/utils/storage'
+import { RefreshCw, Settings } from 'lucide-react'
 import { isValidElement } from 'react'
 import { toast } from 'sonner'
 
@@ -89,7 +90,7 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
     setLoading(true)
     try {
       let token = await githubAccessToken.getValue()
-      if (!token  || !(await checkTokenValidity(token))) {
+      if (!token || !(await checkTokenValidity(token))) {
         token = await login()
       }
       const exist = await repoExists(token)
@@ -120,28 +121,29 @@ export const Layout = ({ children }: { children: React.ReactElement[] }) => {
     },
   }
   useEffect(() => {
-    const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
-      const { payload } = message
+    sendMessageWithResponse('sidePanelPrepared', undefined)
+    // const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+    //   const { payload } = message
 
-      const action = message.action as keyof typeof MessageHandler
-      MessageHandler[action] && MessageHandler[action](payload)
-    }
-    chrome.runtime.onMessage.addListener(messageListener)
+    //   const action = message.action as keyof typeof MessageHandler
+    //   MessageHandler[action] && MessageHandler[action](payload)
+    // }
+    // chrome.runtime.onMessage.addListener(messageListener)
 
-    firstSelection.getValue().then((value) => {
-      if (value.trim()) {
-        MessageHandler.sendToAi()
-      }
-    })
-    firstCheckRecord.getValue().then((value) => {
-      if (value.trim()) {
-        MessageHandler.checkWord()
-      }
-    })
+    // firstSelection.getValue().then((value) => {
+    //   if (value.trim()) {
+    //     MessageHandler.sendToAi()
+    //   }
+    // })
+    // firstCheckRecord.getValue().then((value) => {
+    //   if (value.trim()) {
+    //     MessageHandler.checkWord()
+    //   }
+    // })
 
-    return () => {
-      chrome.runtime.onMessage.removeListener(messageListener)
-    }
+    // return () => {
+    //   chrome.runtime.onMessage.removeListener(messageListener)
+    // }
   }, [])
 
   return (
