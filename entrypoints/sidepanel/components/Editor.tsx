@@ -99,22 +99,29 @@ export default function Editor({ Record, onDelete }: EditorProps) {
 
   const handleSave = async () => {
     setEdit(false)
-    const response = await chrome.runtime.sendMessage({
+    chrome.runtime.sendMessage({
       action: 'saveWordOrPhrase',
       payload: {
         wordOrPhrase: Record.wordOrPhrase,
         meaning: text,
       },
     })
-    if (response.status === 'success') {
-      toast(response.message.title, {
-        description: response.message.detail,
+      .then((response) => {
+        if (response.status === 'success') {
+          toast(response.message.title, {
+            description: response.message.detail,
+          })
+        } else if (response.status === 'error') {
+          toast('Failed😵‍💫😵‍💫😵‍💫', {
+            description: 'Something happened while saving.',
+          })
+        }
       })
-    } else if (response.status === 'error') {
-      toast('Failed😵‍💫😵‍💫😵‍💫', {
-        description: 'Something happened while saving.',
+      .catch((error) => {
+        toast('Failed😵‍💫😵‍💫😵‍💫', {
+          description: 'Error while saving: ' + error.message,
+        })
       })
-    }
   }
 
   const handleAiRegenrate = async () => {
@@ -122,22 +129,29 @@ export default function Editor({ Record, onDelete }: EditorProps) {
   }
 
   const handleDelete = async () => {
-    const response = await chrome.runtime.sendMessage({
+    chrome.runtime.sendMessage({
       action: 'deleteWordOrPhrase',
       payload: {
         wordOrPhrase: Record.wordOrPhrase,
       },
     })
-    if (response.status === 'success') {
-      toast('Deleted Successfully', {
-        description: 'The record has been deleted.',
+      .then((response) => {
+        if (response.status === 'success') {
+          toast('Deleted Successfully', {
+            description: 'The record has been deleted.',
+          })
+          onDelete()
+        } else if (response.status === 'error') {
+          toast('Failed to Delete', {
+            description: 'Something happened while deleting.',
+          })
+        }
       })
-      onDelete()
-    } else if (response.status === 'error') {
-      toast('Failed to Delete', {
-        description: 'Something happened while deleting.',
+      .catch((error) => {
+        toast('Failed to Delete', {
+          description: 'Error while deleting: ' + error.message,
+        })
       })
-    }
   }
 
   return (

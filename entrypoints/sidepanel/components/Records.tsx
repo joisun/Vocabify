@@ -6,6 +6,19 @@ import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, XIcon } fr
 
 import { Input } from '@/components/ui/input'
 import Editor from './Editor'
+
+const sendMessageWithResponse = (action: string, payload: any) => {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ action, payload }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError)
+      } else {
+        resolve(response)
+      }
+    })
+  })
+}
+
 export default function Records() {
   const [records, setRecords] = useState([])
   const [total, setTotal] = useState(1)
@@ -24,18 +37,22 @@ export default function Records() {
 
   const findByPage = async (pageNum: number) => {
     const pageSize = (await recordPageSize.getValue()) || 5
-    const response = await chrome.runtime.sendMessage({
-      action: 'findByPage',
-      payload: {
-        pageNum: pageNum,
-        pageSize: pageSize,
-      },
+    sendMessageWithResponse('findByPage', {
+      pageNum: pageNum,
+      pageSize: pageSize,
     })
-    if (response.status === 'success') {
-      const total = response.message.total
-      setTotal(total)
-      setRecords(response.message.records || [])
-    }
+      .then((response) => {
+        if (response.status === 'success') {
+          const total = response.message.total
+          setTotal(total)
+          setRecords(response.message.records || [])
+        } else if (response.status === 'error') {
+          console.error('Failed to fetch page:', response)
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching page:', error)
+      })
   }
 
   const handleSearch = async (e: any) => {
@@ -50,54 +67,61 @@ export default function Records() {
 
     await fuzzySearchByKeyword(searchText)
   }
+
+  const fuzzySearchByKeyword = async (keyword: string) => {
+    sendMessageWithResponse('fuzzySearchByKeyword', keyword)
+      .then((response) => {
+        if (response.status === 'success') {
+          const total = response.message.total
+          setTotal(total)
+          setRecords(response.message || [])
+        } else if (response.status === 'error') {
+          console.error('Failed to search:', response)
+        }
+      })
+      .catch((error) => {
+        console.error('Error searching:', error)
+      })
+  }
+
   const handleClear = async () => {
     setOnSearch(false)
     setSearchText('')
     await findByPage(1)
   }
-  const fuzzySearchByKeyword = async (keyword: string) => {
-    const response = await chrome.runtime.sendMessage({
-      action: 'fuzzySearchByKeyword',
-      payload: keyword,
-    })
-    if (response.status === 'success') {
-      const total = response.message.total
-      setTotal(total)
-      setRecords(response.message || [])
-    }
-  }
-  const MessageHandler = {
-    checkWord: async (payload: any) => {
-      setSearchText(payload)
-      await fuzzySearchByKeyword(payload)
-    },
-  }
+
+  // const MessageHandler = {
+  //   checkWord: async (payload: any) => {
+  //     setSearchText(payload)
+  //     await fuzzySearchByKeyword(payload)
+  //   },
+  // }
 
   const onDelete = () => {
     findByPage(pageNum)
   }
 
   useEffect(() => {
-    const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
-      const { payload } = message
-      const action = message.action as keyof typeof MessageHandler
-      MessageHandler[action] && MessageHandler[action](payload)
-    }
-    chrome.runtime.onMessage.addListener(messageListener)
+    // const messageListener = async (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+    //   const { payload } = message
+    //   const action = message.action as keyof typeof MessageHandler
+    //   MessageHandler[action] && MessageHandler[action](payload)
+    // }
+    // chrome.runtime.onMessage.addListener(messageListener)
 
     // side panel 首次初始化的时候，去检查 firstCheckWord 中有没有用户待查询，如果有，取出执行
     firstCheckRecord.getValue().then(async (firstCheckRecordData) => {
       if (!firstCheckRecordData.trim()) {
         findByPage(pageNum)
       } else {
-        await MessageHandler.checkWord(firstCheckRecordData)
+        // await MessageHandler.checkWord(firstCheckRecordData)
         // 执行完毕后删除缓存值
         firstCheckRecord.removeValue()
       }
     })
 
     return () => {
-      chrome.runtime.onMessage.removeListener(messageListener)
+      // chrome.runtime.onMessage.removeListener(messageListener)
     }
   }, [])
 

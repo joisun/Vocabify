@@ -40,7 +40,7 @@ export default class VocabifyIndexDB {
       }
     })
   }
-  async addOrUpdateData(data: addOrUpdateDataRecord) {
+  async addOrUpdateData(data: addOrUpdateDataRecord): Promise<{ title: string, detail: string }> {
     const db = await this.openDatabase()
     return new Promise(async (resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readwrite')
@@ -84,7 +84,7 @@ export default class VocabifyIndexDB {
     })
   }
 
-  async deleteData(wordOrPhrase: string): Promise<void> {
+  async deleteData(wordOrPhrase: string): Promise<undefined | string> {
     const db = await this.openDatabase()
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readwrite')
@@ -117,7 +117,7 @@ export default class VocabifyIndexDB {
     })
   }
 
-  async getDataByWord(word: string):Promise<any> {
+  async getDataByWord(word: string): Promise<any> {
     const db = await this.openDatabase()
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readonly')
@@ -128,7 +128,7 @@ export default class VocabifyIndexDB {
       request.onerror = (event) => reject((event.target as IDBRequest).error)
     })
   }
-  async fuzzySearchByKeyword(keywords: string) {
+  async fuzzySearchByKeyword(keywords: string): Promise<{ records: any[]; total: number }> {
     console.log('keywords', keywords)
     const db = await this.openDatabase()
     return new Promise((resolve, reject) => {
@@ -148,7 +148,7 @@ export default class VocabifyIndexDB {
     })
   }
 
-  async findByPage(pageNum: number, pageSize: number) {
+  async findByPage(pageNum: number, pageSize: number): Promise<{ records: any[]; total: number }> {
     const db = await this.openDatabase()
 
     return new Promise(async (resolve, reject) => {
@@ -219,7 +219,7 @@ export default class VocabifyIndexDB {
     })
   }
 
-  async getAllData() {
+  async getAllData(): Promise<any[]> {
     const db = await this.openDatabase()
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readonly')
