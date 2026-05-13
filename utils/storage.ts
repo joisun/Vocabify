@@ -1,4 +1,4 @@
-import { AiAgentApiKeys } from '@/typings/aiModelAdaptor'
+import { AiAgentApiKeys, AgentsType } from '@/typings/aiModelAdaptor'
 import { DefaultPromptTemplate, DefaultLanguage } from '@/const'
 
 /**--------------------------- OPTION PAGE ---------------------------*/
@@ -16,11 +16,11 @@ export const targetLanguage = storage.defineItem<string>('local:targetLanguage',
 export const agentsStorage = storage.defineItem<AiAgentApiKeys>('local:agents', {
   fallback: [
     {
-      agentName: 'XunFeiSpark',
+      agentName: AgentsType.XunFeiSpark,
       apiKey: 'MTrricoschHlfxWNvIJD:ZXklDofIqPdoBxkWsjTA',
     },
     {
-      agentName: 'ChatAnywhere GPT-3.5 Turbo',
+      agentName: AgentsType.ChatAnywhere_GPT35Turbo,
       apiKey: 'sk-M72D5lilVXr4dKsWwPJgs8PRzvnLQleW0UrpBKdjjm7hHWWL',
     },
   ],

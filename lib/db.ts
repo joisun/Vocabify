@@ -99,7 +99,7 @@ export default class VocabifyIndexDB {
 
           deleteRequest.onsuccess = () => {
             console.log(`Record with wordOrPhrase "${wordOrPhrase}" deleted successfully`)
-            resolve()
+            resolve(undefined)
           }
 
           deleteRequest.onerror = (event) => {
@@ -201,7 +201,7 @@ export default class VocabifyIndexDB {
   }
 
   // 获取所有条目的总数
-  async getTotalCount() {
+  async getTotalCount(): Promise<number> {
     const db = await this.openDatabase()
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('dataStore', 'readonly')

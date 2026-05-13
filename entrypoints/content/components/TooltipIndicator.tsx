@@ -1,9 +1,6 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { CopyIcon, XIcon, Aperture, SquareArrowOutUpRight } from 'lucide-react'
-import { copyHandler } from '../utils'
-import { marked } from 'marked'
+import { SquareArrowOutUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import { highlightStyleSettingsType } from '@/utils/storage'
@@ -63,8 +60,9 @@ function TooltipIndicator({
               'dark:prose-invert prose-strong:text-indigo-500',
               'max-h-[calc(100vh-18rem)] overflow-auto scrollbar-thin'
             )}
-            dangerouslySetInnerHTML={{ __html: marked.parse(record.meaning) as string }}
-          ></div>
+          >
+            {record.meaning}
+          </div>
           <Button
             onClick={() => handleJump(record.wordOrPhrase)}
             variant="link"

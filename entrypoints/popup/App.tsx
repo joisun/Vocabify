@@ -1,36 +1,52 @@
-import { useState } from 'react';
-import reactLogo from '@/assets/react.svg';
-import wxtLogo from '/wxt.svg';
-import './App.css';
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Settings, BookOpen } from 'lucide-react'
 
 function App() {
-  const [count, setCount] = useState(0);
+  function openOptions() {
+    chrome.runtime.openOptionsPage()
+  }
+
+  function openVocabList() {
+    // Send message to content script to open In-page UI
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'openVocabList' })
+      }
+    })
+    window.close()
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://wxt.dev" target="_blank">
-          <img src={wxtLogo} className="logo" alt="WXT logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1 className='text-red-300'>WXT + React</h1>
-      <div className="card">
-        <a href="chrome://extensions/" target="_blank">chrome://extensions/</a>
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the WXT and React logos to learn more
-      </p>
-    </>
-  );
+    <div className="w-[320px] p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Vocabify</CardTitle>
+          <CardDescription>
+            Your AI-powered vocabulary learning assistant
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Button
+            className="w-full"
+            variant="default"
+            onClick={openVocabList}
+          >
+            <BookOpen className="mr-2 h-4 w-4" />
+            Open Vocabulary List
+          </Button>
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={openOptions}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
 
-export default App;
+export default App

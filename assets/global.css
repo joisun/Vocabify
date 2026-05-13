@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Custom Highlight API styles */
+::highlight(vocab-highlight) {
+  background-color: rgba(255, 191, 0, 0.3);
+  color: inherit;
+}
+
+/* Fallback for browsers without Custom Highlight API */
+.vocabify-highlight {
+  background-color: rgba(255, 191, 0, 0.3);
+  cursor: pointer;
+}
+
 /* https://ui.shadcn.com/docs/installation/manual */
 
 @layer base {
