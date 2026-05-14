@@ -32,7 +32,7 @@ const PageSizeSetter = ({ ...props }) => {
   }
 
   useEffect(() => {
-    recordPageSize.getValue().then((res) => {
+    recordPageSize.getValue().then((res: number | null) => {
       res && setPageSize(res)
     })
   }, [])

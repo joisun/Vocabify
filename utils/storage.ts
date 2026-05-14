@@ -54,17 +54,8 @@ export const hightlightStyle = storage.defineItem<highlightStyleSettingsType>('l
     type: 'underline',
   },
 })
-/**--------------------------- SIDE PANEL ---------------------------*/
 export const recordPageSize = storage.defineItem<number>('local:recordPageSize', {
   fallback: 5,
-})
-
-/** 首次程序调用打开 sidepanel 缓存的任务*/
-export const firstSelection = storage.defineItem<string>('session:firstSelection', {
-  fallback: '',
-})
-export const firstCheckRecord = storage.defineItem<string>('session:firstCheckRecord', {
-  fallback: '',
 })
 
 export const githubAccessToken = storage.defineItem<string | null>('local:githubAccessToken', {

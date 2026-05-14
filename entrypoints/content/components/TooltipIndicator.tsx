@@ -24,7 +24,8 @@ function TooltipIndicator({
   highlightStyleSettings: highlightStyleSettingsType
 }) {
   const handleJump = (wordOrPhrase: string) => {
-    chrome.runtime.sendMessage({ action: 'triggerCheck', payload: wordOrPhrase })
+    // Open In-page UI with AI explanation for this word
+    ;(window as any).__vocabifyOpenAI?.(wordOrPhrase)
   }
 
   const typeSet = {
@@ -68,7 +69,7 @@ function TooltipIndicator({
             variant="link"
             className="absolute top-0 right-0 p-0 text-indigo-600 hover:text-indigo-500"
             size="icon"
-            title="View in Sidepanel"
+            title="View explanation"
           >
             <SquareArrowOutUpRight />
           </Button>

@@ -4,7 +4,6 @@ import ReactDOM from 'react-dom/client'
 import TooltipBtn from './components/TooltipBtn'
 import { InPageUI } from '@/components/InPageUI'
 import { highlightService } from '@/lib/highlightService'
-import { hightlightStyle } from '@/utils/storage'
 import { checkIsDisabled, isCrossElementsCheck, isSelectionIntersectWithElement } from './utils'
 
 export default defineContentScript({
