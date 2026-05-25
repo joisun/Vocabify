@@ -1,21 +1,26 @@
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { hightlightStyle, recordPageSize } from '@/utils/storage'
-import { Minus, Plus } from 'lucide-react'
+import { Brush, Highlighter, Minus, Plus } from 'lucide-react'
 import { RgbaColorPicker } from 'react-colorful'
 import { toast } from 'sonner'
 import HeadlingTitle from './common/HeadlingTitle'
+import Subtitle from './common/Subtitle'
 import OptionSection from './OptionSection'
 
 export default function UserInterfaceSettings() {
   return (
     <OptionSection>
-      <HeadlingTitle>UI Settings</HeadlingTitle>
-      <div className="grid grid-cols-1 justify-items-start">
+      <HeadlingTitle>
+        <Brush className="h-5 w-5 text-primary" />
+        Appearance
+      </HeadlingTitle>
+      <Subtitle>Personalise how saved words are highlighted on every page.</Subtitle>
+
+      <div className="grid gap-3">
         <PageSizeSetter />
         <HighlightStyleSetter />
       </div>
@@ -23,34 +28,58 @@ export default function UserInterfaceSettings() {
   )
 }
 
-const PageSizeSetter = ({ ...props }) => {
+const PageSizeSetter = () => {
   const [pageSize, setPageSize] = useState(3)
+
   const handleSetPageSize = (isIncrement: boolean) => {
-    const newPageSize = isIncrement ? pageSize + 1 : pageSize - 1 > 0 ? pageSize - 1 : pageSize
+    const newPageSize = isIncrement
+      ? pageSize + 1
+      : pageSize - 1 > 0
+      ? pageSize - 1
+      : pageSize
     setPageSize(newPageSize)
     recordPageSize.setValue(newPageSize)
   }
 
   useEffect(() => {
     recordPageSize.getValue().then((res: number | null) => {
-      res && setPageSize(res)
+      if (res) setPageSize(res)
     })
   }, [])
+
   return (
-    <Card className={cn('px-4 py-2 w-full flex items-center  space-x-2 mt-2', props.className)}>
-      <label className="text-sm whitespace-nowrap font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-        Records Page Size：
-      </label>
-      <Button className="" variant="ghost" size="icon" onClick={() => handleSetPageSize(false)}>
-        <Minus />
-      </Button>
-      <span className="mx-1">{pageSize}</span>
-      <Button className="" variant="ghost" size="icon" onClick={() => handleSetPageSize(true)}>
-        <Plus />
-      </Button>
-    </Card>
+    <div className="flex items-center justify-between rounded-xl border border-border/70 bg-secondary/30 px-4 py-3">
+      <div>
+        <Label className="text-[14px] font-medium text-foreground">Records per page</Label>
+        <p className="text-[12px] text-muted-foreground">How many words to show in the list.</p>
+      </div>
+      <div className="inline-flex items-center gap-1 rounded-full bg-background border border-border/60 p-0.5 shadow-apple-xs">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-full"
+          onClick={() => handleSetPageSize(false)}
+          aria-label="Decrease page size"
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </Button>
+        <span className="tabular w-6 text-center text-[14px] font-medium" aria-live="polite">
+          {pageSize}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-full"
+          onClick={() => handleSetPageSize(true)}
+          aria-label="Increase page size"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
   )
 }
+
 const HighlightStyleSetter = () => {
   const [initialized, setInitialized] = useState(false)
   const [settings, setSettings] = useState({
@@ -58,7 +87,7 @@ const HighlightStyleSetter = () => {
     style: 'solid',
     offset: '1',
     thickness: '1',
-    color: { r: 200, g: 150, b: 35, a: 0.5 },
+    color: { r: 0, g: 122, b: 255, a: 0.45 },
     invertColor: false,
   })
 
@@ -78,17 +107,14 @@ const HighlightStyleSetter = () => {
 
   useEffect(() => {
     if (!initialized) return
-    console.log('settings', settings)
     hightlightStyle
       .setValue(settings)
       .then(() => {
-        toast('Done🎉', {
-          description: 'Highlight style settings saved.',
-        })
+        toast.success('Highlight style saved')
       })
       .catch(() => {
-        toast('Failed', {
-          description: 'Save failed. Please try again.',
+        toast.error('Save failed', {
+          description: 'Please try again.',
         })
       })
   }, [initialized, settings])
@@ -97,143 +123,148 @@ const HighlightStyleSetter = () => {
     setSettings((prev) => ({ ...prev, ...updates }))
   }
 
+  const decoColor = `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.color.a})`
+
   return (
-    <Card className={cn('px-4 py-2 mt-2 w-full')}>
-      <p className="flex gap-4 mb-2 items-center bg-white/10 px-4 rounded-md">
-        <Label>Highlight Style</Label>
-        <span
-          className={cn('whitespace-nowrap text-foreground my-4 space-x-4')}
+    <div className="rounded-xl border border-border/70 bg-secondary/30 p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <Highlighter className="h-4 w-4 text-primary" />
+        <Label className="text-[14px] font-medium text-foreground">Highlight style</Label>
+      </div>
+
+      {/* Live preview */}
+      <div className="rounded-lg bg-background border border-border/60 px-4 py-3">
+        <p
+          className="leading-relaxed"
           style={{
-            color: settings.invertColor ? `rgba(${255 - settings.color.r}, ${255 - settings.color.g}, ${255 - settings.color.b})` : undefined,
+            color: settings.invertColor
+              ? `rgba(${255 - settings.color.r}, ${255 - settings.color.g}, ${255 - settings.color.b})`
+              : undefined,
             textDecorationLine: settings.type !== 'background' ? typeSet[settings.type as keyof typeof typeSet] : undefined,
-            textDecorationColor:
-              settings.type !== 'background' ? `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.color.a})` : undefined,
+            textDecorationColor: settings.type !== 'background' ? decoColor : undefined,
             textDecorationStyle: settings.type !== 'background' ? (settings.style as any) : undefined,
             textDecorationThickness: settings.type !== 'background' ? `${settings.thickness}px` : undefined,
             textUnderlineOffset: settings.type !== 'background' ? `${settings.offset}px` : undefined,
-            backgroundColor:
-              settings.type === 'background' ? `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.color.a})` : undefined,
+            backgroundColor: settings.type === 'background' ? decoColor : undefined,
           }}
         >
-          <span className='font-bold text-2xl'>Headling level 1</span>
-          <span className='font-semibold text-xl'>Headling level 2</span>
-          <span className='font-medium text-lg'>Headling level 3</span>
-          <span className=''>Paragraph Lorem ipsum dolor.</span>
-        </span>
-      </p>
+          <span className="font-display text-2xl font-semibold tracking-tight">Vocabulary</span>{' '}
+          <span className="text-muted-foreground">— preview your highlight in context.</span>
+        </p>
+      </div>
 
-      <div className="grid grid-cols-2 justify-items-start space-y-1">
-        <div className="flex items-center flex-nowrap">
-          <label className="text-sm whitespace-nowrap font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            Decoration Type：
-          </label>
-          <Select onValueChange={(value) => updateSettings({ type: value })} value={settings.type}>
-            <SelectTrigger>
-              <SelectValue placeholder="" />
-            </SelectTrigger>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <FieldRow label="Decoration">
+          <Select onValueChange={(v) => updateSettings({ type: v })} value={settings.type}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="underline">underline</SelectItem>
-                <SelectItem value="under-over">under-over line</SelectItem>
-                <SelectItem value="background">background</SelectItem>
+                <SelectItem value="underline">Underline</SelectItem>
+                <SelectItem value="under-over">Under + Over line</SelectItem>
+                <SelectItem value="background">Background</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
-        </div>
+        </FieldRow>
 
         {settings.type !== 'background' && (
-          <div className="flex items-center flex-nowrap">
-            <label className="text-sm whitespace-nowrap font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Decoration Line Style：
-            </label>
-            <Select onValueChange={(value) => updateSettings({ style: value })} value={settings.style}>
-              <SelectTrigger>
-                <SelectValue placeholder="Decoration Style" />
-              </SelectTrigger>
+          <FieldRow label="Line style">
+            <Select onValueChange={(v) => updateSettings({ style: v })} value={settings.style}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="solid">solid</SelectItem>
-                  <SelectItem value="double">double</SelectItem>
-                  <SelectItem value="dotted">dotted</SelectItem>
-                  <SelectItem value="dashed">dashed</SelectItem>
-                  <SelectItem value="wavy">wavy</SelectItem>
+                  <SelectItem value="solid">Solid</SelectItem>
+                  <SelectItem value="double">Double</SelectItem>
+                  <SelectItem value="dotted">Dotted</SelectItem>
+                  <SelectItem value="dashed">Dashed</SelectItem>
+                  <SelectItem value="wavy">Wavy</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
-          </div>
+          </FieldRow>
         )}
 
         {settings.type !== 'background' && (
-          <div className="flex items-center flex-nowrap">
-            <label className="text-sm whitespace-nowrap font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Decoration Offset：
-            </label>
-            <Select onValueChange={(value) => updateSettings({ offset: value })} value={settings.offset}>
-              <SelectTrigger>
-                <SelectValue placeholder="" />
-              </SelectTrigger>
+          <FieldRow label="Offset">
+            <Select onValueChange={(v) => updateSettings({ offset: v })} value={settings.offset}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="0">0</SelectItem>
-                  <SelectItem value="1">1</SelectItem>
-                  <SelectItem value="2">2</SelectItem>
-                  <SelectItem value="4">4</SelectItem>
-                  <SelectItem value="8">8</SelectItem>
+                  <SelectItem value="0">0 px</SelectItem>
+                  <SelectItem value="1">1 px</SelectItem>
+                  <SelectItem value="2">2 px</SelectItem>
+                  <SelectItem value="4">4 px</SelectItem>
+                  <SelectItem value="8">8 px</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
-          </div>
+          </FieldRow>
         )}
 
         {settings.type !== 'background' && (
-          <div className="flex items-center flex-nowrap">
-            <label className="text-sm whitespace-nowrap font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Decoration Thickness：
-            </label>
-            <Select onValueChange={(value) => updateSettings({ thickness: value })} value={settings.thickness}>
-              <SelectTrigger>
-                <SelectValue placeholder="Decoration Thickness" />
-              </SelectTrigger>
+          <FieldRow label="Thickness">
+            <Select onValueChange={(v) => updateSettings({ thickness: v })} value={settings.thickness}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="1">1</SelectItem>
-                  <SelectItem value="2">2</SelectItem>
-                  <SelectItem value="4">4</SelectItem>
-                  <SelectItem value="8">8</SelectItem>
+                  <SelectItem value="1">1 px</SelectItem>
+                  <SelectItem value="2">2 px</SelectItem>
+                  <SelectItem value="4">4 px</SelectItem>
+                  <SelectItem value="8">8 px</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
-          </div>
+          </FieldRow>
         )}
 
-        <div className="flex items-center flex-nowrap">
-          <label className="text-sm whitespace-nowrap font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            Decoration Color：
-          </label>
+        <FieldRow label="Color">
           <Select>
-            <SelectTrigger style={{ backgroundColor: `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.color.a})` }}>
-              <SelectValue placeholder="Decoration Color" />
+            <SelectTrigger className="relative">
+              <span
+                className="absolute left-3 inline-block h-4 w-4 rounded-full ring-1 ring-border"
+                style={{ backgroundColor: decoColor }}
+                aria-hidden
+              />
+              <SelectValue placeholder="Pick a color" />
+              <span className="ml-7 font-mono text-[12px] text-muted-foreground">
+                rgba({settings.color.r}, {settings.color.g}, {settings.color.b}, {settings.color.a})
+              </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectGroup>
+              <div className="p-3">
                 <RgbaColorPicker color={settings.color} onChange={(color) => updateSettings({ color })} />
-              </SelectGroup>
+              </div>
             </SelectContent>
           </Select>
-        </div>
+        </FieldRow>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2 sm:col-span-2 mt-1">
           <Checkbox
-            id="terms"
-            className="rounded-sm h-6 w-6"
+            id="invert-color"
+            className="rounded-md h-5 w-5"
             checked={settings.invertColor}
             onCheckedChange={(val: boolean) => updateSettings({ invertColor: val })}
           />
-          <label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+          <label
+            htmlFor="invert-color"
+            className={cn(
+              "text-[13px] font-medium leading-none text-foreground/90 cursor-pointer",
+              "peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            )}
+          >
             Invert text color from decoration color
           </label>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }
+
+const FieldRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="flex flex-col gap-1.5">
+    <span className="text-[12px] font-medium text-muted-foreground uppercase tracking-wide">
+      {label}
+    </span>
+    {children}
+  </div>
+)

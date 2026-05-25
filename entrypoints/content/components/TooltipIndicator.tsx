@@ -1,13 +1,12 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
-import { SquareArrowOutUpRight } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import { highlightStyleSettingsType } from '@/utils/storage'
+
 function TooltipIndicator({
   text,
-  cancelHandler,
-  vocabifyHandler,
   record,
   highlightStyleSettings,
 }: {
@@ -24,7 +23,6 @@ function TooltipIndicator({
   highlightStyleSettings: highlightStyleSettingsType
 }) {
   const handleJump = (wordOrPhrase: string) => {
-    // Open In-page UI with AI explanation for this word
     ;(window as any).__vocabifyOpenAI?.(wordOrPhrase)
   }
 
@@ -34,45 +32,67 @@ function TooltipIndicator({
   }
 
   const { color, invertColor, offset, style, thickness, type } = highlightStyleSettings
+
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger className="" asChild>
+        <TooltipTrigger asChild>
           <span
-            className={cn('underline ')}
             style={{
-              color: invertColor ? `rgba(${255 - color.r}, ${255 - color.g}, ${255 - color.b})` : undefined,
+              color: invertColor
+                ? `rgba(${255 - color.r}, ${255 - color.g}, ${255 - color.b})`
+                : undefined,
               textDecorationLine: type !== 'background' ? typeSet[type as keyof typeof typeSet] : undefined,
               textDecorationColor: type !== 'background' ? `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})` : undefined,
               textDecorationStyle: type !== 'background' ? (style as any) : undefined,
               textDecorationThickness: type !== 'background' ? `${thickness}px` : undefined,
               textUnderlineOffset: type !== 'background' ? `${offset}px` : undefined,
               backgroundColor: type === 'background' ? `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})` : undefined,
+              cursor: 'help',
             }}
           >
             {text}
           </span>
         </TooltipTrigger>
-        <TooltipContent onWheel={(e) => e.stopPropagation()} align="start" className="p-0 shadow-xl  bg-transparent relative">
+
+        <TooltipContent
+          onWheel={(e) => e.stopPropagation()}
+          align="start"
+          sideOffset={6}
+          className="p-0 bg-transparent shadow-none border-0"
+        >
           <div
             className={cn(
               NO_SELECTION_CONTAINER,
-              'html-wrapper rounded-md  bg-background p-2 pt-6 prose prose-sm w-96',
-              'dark:prose-invert prose-strong:text-indigo-500',
-              'max-h-[calc(100vh-18rem)] overflow-auto scrollbar-thin'
+              'relative w-96 max-h-[calc(100vh-18rem)]',
+              'glass border border-border/60 rounded-xl shadow-apple-lg',
+              'overflow-hidden animate-spring-in'
             )}
           >
-            {record.meaning}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60">
+              <p className="font-display text-[14px] font-semibold tracking-tight truncate">
+                {record.wordOrPhrase}
+              </p>
+              <Button
+                onClick={() => handleJump(record.wordOrPhrase)}
+                variant="ghost"
+                className="h-7 px-2 text-[12px] text-primary hover:text-primary"
+                title="Open full explanation"
+              >
+                Open
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div
+              className={cn(
+                'px-4 py-3 prose prose-sm max-w-none dark:prose-invert',
+                'prose-p:my-1 prose-strong:text-primary prose-headings:font-display',
+                'overflow-auto scrollbar-thin'
+              )}
+            >
+              {record.meaning}
+            </div>
           </div>
-          <Button
-            onClick={() => handleJump(record.wordOrPhrase)}
-            variant="link"
-            className="absolute top-0 right-0 p-0 text-indigo-600 hover:text-indigo-500"
-            size="icon"
-            title="View explanation"
-          >
-            <SquareArrowOutUpRight />
-          </Button>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

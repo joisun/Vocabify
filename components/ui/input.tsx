@@ -8,7 +8,15 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       <input
         type={type}
         className={cn(
-          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          // Apple-style filled input — neutral muted background, no harsh border,
+          // gains a tinted ring when focused.
+          "flex h-9 w-full rounded-lg border border-border bg-secondary/60 px-3 py-1 text-sm text-foreground shadow-none",
+          "placeholder:text-muted-foreground",
+          "transition-[box-shadow,border-color,background-color] duration-150 ease-spring",
+          "file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:border-ring/60 focus-visible:bg-background",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "md:text-sm",
           className
         )}
         ref={ref}

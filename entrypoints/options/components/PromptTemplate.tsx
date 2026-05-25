@@ -1,37 +1,40 @@
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DefaultPromptTemplate, Language_Placeholder, Selection_Placeholder } from '@/const'
 import { promptTemplate } from '@/utils/storage'
+import { useDebounce } from '@uidotdev/usehooks'
+import { AlertCircle, RotateCcw, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import HeadlingTitle from './common/HeadlingTitle'
 import Subtitle from './common/Subtitle'
 import OptionSection from './OptionSection'
-import { useDebounce } from '@uidotdev/usehooks'
 
 const PromptTemplate = () => {
   const [inputValue, setInputValue] = useState<string>(DefaultPromptTemplate)
   const debouncedInputValue = useDebounce(inputValue, 1500)
+
   useEffect(() => {
     promptTemplate.getValue().then((storedVal) => {
       if (storedVal) setInputValue(storedVal)
     })
   }, [])
 
+  const hasSelectionPlaceholder = inputValue.includes(Selection_Placeholder)
+  const hasLanguagePlaceholder = inputValue.includes(Language_Placeholder)
+
   useEffect(() => {
     if (hasSelectionPlaceholder && hasLanguagePlaceholder) {
       promptTemplate
         .setValue(inputValue)
-        .then((res) => {
-          console.log('res', res)
-          toast('Done🎉🎉🎉', {
-            description: 'Auto save custom prompt template successfully.',
+        .then(() => {
+          toast.success('Prompt template saved', {
+            description: 'Your custom prompt is now active.',
           })
         })
-        .catch((err) => {
-          toast('Failed😱😱😱', {
-            description: 'Save custom prompt template failed.',
+        .catch(() => {
+          toast.error('Save failed', {
+            description: 'Could not save the prompt template.',
           })
         })
     }
@@ -43,55 +46,71 @@ const PromptTemplate = () => {
 
   const handleReset = () => {
     setInputValue(DefaultPromptTemplate)
-
     promptTemplate
       .setValue(DefaultPromptTemplate)
-      .then((res) => {
-        console.log('res', res)
-        toast('Reset Done♻️', {
-          description: 'Prompt has been reset to default.',
+      .then(() => {
+        toast('Reset to default', {
+          description: 'The prompt template has been restored.',
         })
       })
-      .catch((err) => {
-        toast('Failed🤔🤔🤔', {
-          description: 'Something happend suddenly. You might try to reload the extention and try again.',
+      .catch(() => {
+        toast.error('Reset failed', {
+          description: 'Try reloading the extension.',
         })
       })
   }
 
-  // Check if Selection_Placeholder exists in the input text
-  const hasSelectionPlaceholder = inputValue.includes(Selection_Placeholder)
-
-  // Check if Language_Placeholder exists in the input text
-  const hasLanguagePlaceholder = inputValue.includes(Language_Placeholder)
+  const missing = !hasSelectionPlaceholder || !hasLanguagePlaceholder
+  const missingLabel = !hasSelectionPlaceholder && !hasLanguagePlaceholder
+    ? `${Selection_Placeholder} and ${Language_Placeholder}`
+    : !hasSelectionPlaceholder
+    ? Selection_Placeholder
+    : Language_Placeholder
 
   return (
     <OptionSection>
-      <HeadlingTitle>Prompt Template</HeadlingTitle>
-      <Subtitle>{`You can customize the prompt by replacing the selected words with ${Selection_Placeholder} and the language with ${Language_Placeholder} as placeholders.`}</Subtitle>
+      <HeadlingTitle>
+        <Wand2 className="h-5 w-5 text-primary" />
+        Prompt Template
+      </HeadlingTitle>
+      <Subtitle>
+        Customise how Vocabify asks the AI for explanations. Use{" "}
+        <code className="rounded bg-secondary/80 px-1.5 py-0.5 font-mono text-[12px] text-foreground">
+          {Selection_Placeholder}
+        </code>{" "}
+        for the selected text and{" "}
+        <code className="rounded bg-secondary/80 px-1.5 py-0.5 font-mono text-[12px] text-foreground">
+          {Language_Placeholder}
+        </code>{" "}
+        for the target language. Changes save automatically.
+      </Subtitle>
 
-      {/* Render the highlighted text with #SELECTION# */}
       <div className="relative">
         <Textarea
           value={inputValue}
           onChange={handleInputChange}
-          placeholder="请输入您的内容"
-          rows={15}
-          className="w-full mt-2 scrollbar-thin" // Adjust width as needed
+          placeholder="Enter your prompt template..."
+          rows={12}
+          className="w-full font-mono text-[13px] leading-relaxed scrollbar-thin"
+          aria-label="Prompt template"
         />
-        {(!hasSelectionPlaceholder || !hasLanguagePlaceholder) && (
-          <p className='mt-2 p-2 text-destructive bg-destructive/10 rounded-md'>{`Please include ${
-            !hasSelectionPlaceholder && !hasLanguagePlaceholder
-              ? `${Selection_Placeholder} and ${Language_Placeholder}`
-              : !hasSelectionPlaceholder
-              ? Selection_Placeholder
-              : Language_Placeholder
-          } in your prompt.`}</p>
+        {missing && (
+          <p className="mt-2 flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-[13px] text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Please include{" "}
+              <code className="rounded bg-destructive/15 px-1.5 py-0.5 font-mono text-[12px]">
+                {missingLabel}
+              </code>{" "}
+              in your prompt.
+            </span>
+          </p>
         )}
       </div>
 
-      <Button variant="outline" onClick={handleReset} className="mt-2">
-        Reset to default prompt
+      <Button variant="outline" onClick={handleReset} size="sm">
+        <RotateCcw className="h-3.5 w-3.5" />
+        Reset to default
       </Button>
     </OptionSection>
   )
