@@ -81,6 +81,14 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
           && viewport.width - sheetBox.x - sheetBox.width > 8
           && viewport.height - sheetBox.y - sheetBox.height > 8
       }, { timeout: 3_000 }).toBe(true)
+      await expect(page.locator('#vocabify-root').getByRole('tab', { name: 'Search' })).toBeVisible()
+      await expect(page.locator('#vocabify-root').getByRole('tab', { name: 'My Wordlist' })).toBeVisible()
+      await expect(page.locator('#vocabify-root').getByRole('button', { name: 'Open settings' })).toBeVisible()
+      await expect(page.locator('#vocabify-root').getByRole('button', { name: 'Close sheet' })).toBeVisible()
+      const sheetBox = await sheet.boundingBox()
+      const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
+      expect(sheetBox).not.toBeNull()
+      expect(sheetBox!.height).toBeLessThanOrEqual(Math.round(viewport.height * 0.66))
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-panel"]')).toBeVisible()
       expect(radixA11yWarnings).toEqual([])
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-result"]')).toContainText(/meaning|usage|example|phrase/i, {

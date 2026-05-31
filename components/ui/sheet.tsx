@@ -1,7 +1,6 @@
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
 import LiquidGlass from "liquid-glass-react"
 
 import { cn } from "@/lib/utils"
@@ -20,7 +19,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     className={cn(
-      "fixed inset-0 z-50 bg-[radial-gradient(circle_at_72%_18%,hsl(var(--primary)/0.18),transparent_32%),linear-gradient(135deg,hsl(var(--background)/0.50),hsl(var(--background)/0.18))] backdrop-blur-[6px]",
+      "fixed inset-0 z-50 bg-[radial-gradient(circle_at_72%_18%,hsl(var(--primary)/0.16),transparent_32%),linear-gradient(135deg,hsl(var(--background)/0.52),hsl(var(--background)/0.20))]",
       "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
@@ -42,7 +41,7 @@ const sheetVariants = cva(
           "inset-x-3 bottom-3 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:inset-x-4 sm:bottom-4",
         left: "bottom-3 left-3 top-3 w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:bottom-4 sm:left-4 sm:top-4 sm:w-[min(460px,calc(100vw-2rem))]",
         right:
-          "bottom-3 right-3 top-3 w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:bottom-4 sm:right-4 sm:top-4 sm:w-[min(460px,calc(100vw-2rem))]",
+          "right-3 top-[20vh] h-[min(60vh,640px)] max-h-[calc(100vh-24px)] w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:right-4 sm:w-[min(460px,calc(100vw-2rem))]",
       },
     },
     defaultVariants: {
@@ -73,43 +72,103 @@ const SheetContent = React.forwardRef<
 ))
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
+const DRAG_MARGIN = 12
+
 const SheetContentBody = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, onOpenAutoFocus, ...props }, ref) => {
+>(({
+  side = "right",
+  className,
+  children,
+  onOpenAutoFocus,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  style,
+  ...props
+}, ref) => {
   const contentRef = React.useRef<React.ElementRef<typeof SheetPrimitive.Content>>(null)
+  const dragRef = React.useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    rect: DOMRect
+  } | null>(null)
+  const [dragFrame, setDragFrame] = React.useState<React.CSSProperties | null>(null)
 
   React.useImperativeHandle(ref, () => contentRef.current as React.ElementRef<typeof SheetPrimitive.Content>)
   useShadowDialogA11yMirror(contentRef)
+
+  const updateDragFrame = React.useCallback((left: number, top: number, rect: DOMRect) => {
+    const maxLeft = Math.max(DRAG_MARGIN, window.innerWidth - rect.width - DRAG_MARGIN)
+    const maxTop = Math.max(DRAG_MARGIN, window.innerHeight - rect.height - DRAG_MARGIN)
+    setDragFrame({
+      bottom: "auto",
+      height: rect.height,
+      left: clamp(left, DRAG_MARGIN, maxLeft),
+      right: "auto",
+      top: clamp(top, DRAG_MARGIN, maxTop),
+      width: rect.width,
+    })
+  }, [])
 
   return (
     <SheetPrimitive.Content
       ref={contentRef}
       className={cn(sheetVariants({ side }), className)}
+      style={{ ...style, ...dragFrame }}
       onOpenAutoFocus={(event) => {
         onOpenAutoFocus?.(event)
         if (event.defaultPrevented) return
         event.preventDefault()
         contentRef.current?.focus({ preventScroll: true })
       }}
+      onPointerDown={(event) => {
+        onPointerDown?.(event)
+        if (event.defaultPrevented || event.button !== 0) return
+        const target = event.target as HTMLElement
+        if (!target.closest("[data-vocabify-sheet-drag-handle]")) return
+        if (target.closest("button,a,input,textarea,select,[role='tab'],[role='combobox']")) return
+
+        const content = contentRef.current
+        if (!content) return
+        const rect = content.getBoundingClientRect()
+        dragRef.current = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          rect,
+        }
+        content.setPointerCapture(event.pointerId)
+        event.preventDefault()
+      }}
+      onPointerMove={(event) => {
+        onPointerMove?.(event)
+        const drag = dragRef.current
+        if (!drag || drag.pointerId !== event.pointerId) return
+        updateDragFrame(
+          drag.rect.left + event.clientX - drag.startX,
+          drag.rect.top + event.clientY - drag.startY,
+          drag.rect,
+        )
+      }}
+      onPointerUp={(event) => {
+        onPointerUp?.(event)
+        const drag = dragRef.current
+        if (!drag || drag.pointerId !== event.pointerId) return
+        const rect = contentRef.current?.getBoundingClientRect()
+        dragRef.current = null
+        contentRef.current?.releasePointerCapture(event.pointerId)
+        if (!rect) return
+        const snapLeft = rect.left + rect.width / 2 < window.innerWidth / 2
+          ? DRAG_MARGIN
+          : window.innerWidth - rect.width - DRAG_MARGIN
+        updateDragFrame(snapLeft, rect.top, rect)
+      }}
       {...props}
     >
-      <LiquidGlassFrame>
-        <SheetPrimitive.Close
-          className={cn(
-            "absolute right-4 top-4 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full",
-            "border border-white/30 bg-white/[0.38] text-foreground/70 shadow-apple-xs backdrop-blur-xl hover:bg-white/[0.58] hover:text-foreground",
-            "transition-[background-color,color,transform,box-shadow] duration-150 ease-spring active:scale-95",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            "disabled:pointer-events-none dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/16"
-          )}
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-        {children}
-      </LiquidGlassFrame>
+      <LiquidGlassFrame>{children}</LiquidGlassFrame>
     </SheetPrimitive.Content>
   )
 })
@@ -146,6 +205,10 @@ function LiquidGlassFrame({ children }: { children: React.ReactNode }) {
       </LiquidGlass>
     </div>
   )
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
 }
 
 function useShadowDialogA11yMirror(contentRef: React.RefObject<HTMLElement>) {

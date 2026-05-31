@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { saveRecord } from '@/lib/vocabifyDb'
-import { AlertCircle, Check, Copy, Edit3, RotateCcw, Save, Settings, Volume2 } from 'lucide-react'
+import { AlertCircle, Check, Copy, Edit3, RotateCcw, Save, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -123,25 +123,13 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
     )
   }
 
-  function openSettings() {
-    chrome.runtime.openOptionsPage?.()
-  }
-
   const isSaved = savedKey === selectedText
   const isLoading = status === 'loading' || status === 'streaming'
   const canSave = status === 'success' && explanation.trim() && !isSaved
-  const statusLabel = useMemo(() => {
-    if (status === 'loading') return 'Contacting AI provider'
-    if (status === 'streaming') return 'Streaming explanation'
-    if (status === 'success') return 'Ready to save'
-    if (status === 'error') return 'Needs attention'
-    return 'Waiting'
-  }, [status])
-
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4" data-testid="vocabify-ai-panel">
+    <div className="flex h-full min-h-0 flex-col gap-3" data-testid="vocabify-ai-panel">
       <section
-        className="liquid-card relative overflow-hidden rounded-2xl p-4 text-card-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
+        className="liquid-card relative overflow-hidden rounded-2xl p-3 text-card-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
         aria-label="Selected text"
       >
         <div className="flex items-start justify-between gap-3">
@@ -149,7 +137,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
             <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
               Selection
             </p>
-            <p className="mt-1 font-display text-[17px] leading-snug font-semibold tracking-tight text-foreground break-words">
+            <p className="mt-1 font-display text-[16px] leading-snug font-semibold tracking-tight text-foreground break-words">
               {selectedText}
             </p>
           </div>
@@ -178,24 +166,13 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
         </div>
       </section>
 
-      <section className="flex min-h-0 flex-1 flex-col gap-3">
-        <header className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
-              AI Explanation
-            </p>
-            <p className="mt-0.5 text-[12px] text-muted-foreground" aria-live="polite">
-              {statusLabel}
-            </p>
-          </div>
-          {isLoading ? <StreamingIndicator /> : null}
-        </header>
-
+      <section className="flex min-h-0 flex-1 flex-col gap-2">
+        {isLoading ? <StreamingIndicator /> : null}
         <div className="liquid-card relative min-h-0 flex-1 overflow-hidden rounded-2xl shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]">
           {status === 'loading' ? (
             <LoadingState />
           ) : status === 'error' ? (
-            <ErrorState error={error} onRetry={() => startAIStream()} onOpenSettings={openSettings} />
+            <ErrorState error={error} />
           ) : editing ? (
             <Textarea
               value={explanation}
@@ -302,33 +279,17 @@ const LoadingState = () => (
   </div>
 )
 
-function ErrorState({ error, onRetry, onOpenSettings }: { error: string | null; onRetry: () => void; onOpenSettings: () => void }) {
+function ErrorState({ error }: { error: string | null }) {
   return (
-    <div className="flex h-full flex-col justify-between gap-4 p-4" data-testid="vocabify-ai-error">
-      <div>
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-destructive shadow-apple-xs backdrop-blur-lg">
-          <AlertCircle className="mt-0.5 shrink-0" />
-          <div>
-            <p className="text-[13px] font-semibold">AI explanation failed</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-destructive/85">
-              {error || 'Check your provider key, model access, or network connection.'}
-            </p>
-          </div>
+    <div className="flex h-full flex-col justify-center p-4" data-testid="vocabify-ai-error">
+      <div className="flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-destructive shadow-apple-xs backdrop-blur-lg">
+        <AlertCircle className="mt-0.5 shrink-0" />
+        <div>
+          <p className="text-[13px] font-semibold">AI explanation failed</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-destructive/85">
+            {error || 'Check your provider key, model access, or network connection.'}
+          </p>
         </div>
-        <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-          The failed response is not saved. Retry after checking the API key or provider order in settings.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" onClick={onOpenSettings}>
-          <Settings data-icon="inline-start" />
-          Settings
-        </Button>
-        <Button onClick={onRetry}>
-          <RotateCcw data-icon="inline-start" />
-          Retry
-        </Button>
       </div>
     </div>
   )

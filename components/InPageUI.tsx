@@ -3,6 +3,8 @@ import { VocabifySheet } from './VocabifySheet'
 import { VocabList } from './VocabList'
 import { AIExplanation } from './AIExplanation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Settings, X } from 'lucide-react'
 
 interface InPageUIProps {
   open: boolean
@@ -11,7 +13,7 @@ interface InPageUIProps {
 }
 
 export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
-  const [activeTab, setActiveTab] = useState<'vocab' | 'ai'>('vocab')
+  const [activeTab, setActiveTab] = useState<'ai' | 'vocab'>('ai')
 
   // Switch to AI tab when new text is selected
   React.useEffect(() => {
@@ -21,38 +23,60 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
   }, [selectedText])
 
   return (
-    <VocabifySheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Vocabify"
-      description="Your AI vocabulary library"
-    >
+    <VocabifySheet open={open} onOpenChange={onOpenChange}>
       <Tabs
         value={activeTab}
-        onValueChange={(v) => setActiveTab(v as 'vocab' | 'ai')}
+        onValueChange={(v) => setActiveTab(v as 'ai' | 'vocab')}
         className="flex h-full flex-col"
       >
-        <div className="px-6 pt-4 pb-2 shrink-0">
-          <TabsList className="w-full grid grid-cols-2 h-9">
-            <TabsTrigger value="vocab">Vocabulary</TabsTrigger>
-            <TabsTrigger value="ai">AI Explanation</TabsTrigger>
+        <div
+          data-vocabify-sheet-drag-handle
+          className="flex shrink-0 items-center gap-2 border-b border-white/18 px-4 py-3 dark:border-white/10"
+        >
+          <TabsList className="grid h-9 flex-1 grid-cols-2 rounded-full bg-white/[0.26] p-0.5 backdrop-blur-xl dark:bg-white/[0.08]">
+            <TabsTrigger value="ai">Search</TabsTrigger>
+            <TabsTrigger value="vocab">My Wordlist</TabsTrigger>
           </TabsList>
+
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={openSettings}
+            aria-label="Open settings"
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close sheet"
+            title="Close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
-        <TabsContent value="vocab" className="flex-1 overflow-hidden mt-0 px-6 pb-6">
-          <VocabList />
-        </TabsContent>
-
-        <TabsContent value="ai" className="flex-1 overflow-hidden mt-0 px-6 pb-6">
+        <TabsContent value="ai" className="flex-1 overflow-hidden mt-0 px-4 pb-4">
           {selectedText ? (
             <AIExplanation selectedText={selectedText} />
           ) : (
             <EmptySelection />
           )}
         </TabsContent>
+
+        <TabsContent value="vocab" className="flex-1 overflow-hidden mt-0 px-4 pb-4">
+          <VocabList />
+        </TabsContent>
       </Tabs>
     </VocabifySheet>
   )
+}
+
+function openSettings() {
+  chrome.runtime.openOptionsPage?.()
 }
 
 const EmptySelection = () => (
