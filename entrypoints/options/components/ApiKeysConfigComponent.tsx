@@ -15,8 +15,7 @@ import {
   AI_PROVIDER_TEMPLATES,
   DEFAULT_PROVIDER_TEMPLATE,
   getProviderTemplate,
-  type AIProviderCategory,
-  type AIProviderProtocol,
+  type AIProviderId,
   type AiAgentApiKey,
   type AiAgentApiKeys,
 } from '@/typings/aiModelAdaptor'
@@ -36,7 +35,31 @@ type CustomProviderDraft = {
   defaultModel: string
 }
 
+type ActiveProvider = {
+  providerId: AIProviderId | `custom:${string}`
+  providerLabel: string
+  baseURL: string
+  defaultModel: string
+  staticModels: string[]
+}
+
 const CUSTOM_PROVIDER_VALUE = '__custom__'
+
+const MODEL_ENDPOINTS: Partial<Record<AIProviderId, string>> = {
+  openai: 'https://api.openai.com/v1/models',
+  anthropic: 'https://api.anthropic.com/v1/models',
+  google: 'https://generativelanguage.googleapis.com/v1beta/models',
+  xai: 'https://api.x.ai/v1/models',
+  groq: 'https://api.groq.com/openai/v1/models',
+  mistral: 'https://api.mistral.ai/v1/models',
+  cohere: 'https://api.cohere.com/v1/models',
+  deepseek: 'https://api.deepseek.com/v1/models',
+  fireworks: 'https://api.fireworks.ai/inference/v1/models',
+  togetherai: 'https://api.together.xyz/v1/models',
+  cerebras: 'https://api.cerebras.ai/v1/models',
+  perplexity: 'https://api.perplexity.ai/models',
+  deepinfra: 'https://api.deepinfra.com/v1/openai/models',
+}
 
 function uniqueModels(models: string[]) {
   return Array.from(new Set(models.map((item) => item.trim()).filter(Boolean)))
@@ -54,53 +77,43 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, '') || 'provider'
 }
 
-function getInitialModels(protocol: AIProviderProtocol, selectedTemplateId: string, draft: CustomProviderDraft) {
+function getStaticModels(selectedTemplateId: string, draft: CustomProviderDraft) {
   const template = getProviderTemplate(selectedTemplateId)
   if (template) return template.staticModels
-
-  if (protocol === 'gemini-native') return ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro']
-  if (protocol === 'anthropic') return ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022']
   return uniqueModels([draft.defaultModel, 'gpt-4o-mini', 'gpt-4o', 'o4-mini'])
 }
 
-function getModelsEndpoint(protocol: AIProviderProtocol, baseURL: string) {
-  const normalizedBaseURL = normalizeBaseURL(baseURL)
-
-  if (protocol === 'gemini-native') {
-    return `${normalizedBaseURL}/v1beta/models`
-  }
-  if (protocol === 'anthropic') {
-    return `${normalizedBaseURL}/models`
-  }
-  return `${normalizedBaseURL}/models`
+function getModelsEndpoint(providerId: ActiveProvider['providerId'], baseURL: string) {
+  if (providerId.startsWith('custom:')) return `${normalizeBaseURL(baseURL)}/models`
+  return MODEL_ENDPOINTS[providerId as AIProviderId]
 }
 
 async function fetchProviderModels(params: {
-  protocol: AIProviderProtocol
+  providerId: ActiveProvider['providerId']
   baseURL: string
   apiKey: string
 }) {
-  const { protocol, baseURL, apiKey } = params
-  const endpoint = getModelsEndpoint(protocol, baseURL)
+  const { providerId, baseURL, apiKey } = params
+  const endpoint = getModelsEndpoint(providerId, baseURL)
+  if (!endpoint) throw new Error('当前 provider 暂未提供模型列表接口')
 
-  if (protocol === 'gemini-native') {
+  if (providerId === 'google') {
     const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`)
-    if (!response.ok) throw new Error(`Gemini request failed: ${response.status}`)
+    if (!response.ok) throw new Error(`Google model request failed: ${response.status}`)
     const data = await response.json() as { models?: Array<{ name?: string, supportedGenerationMethods?: string[] }> }
-    const modelNames = (data.models || [])
-      .filter((item) => item.supportedGenerationMethods?.includes('generateContent'))
-      .map((item) => (item.name || '').replace(/^models\//, ''))
-    return uniqueModels(modelNames)
+    return uniqueModels((data.models || [])
+      .filter((item) => !item.supportedGenerationMethods || item.supportedGenerationMethods.includes('generateContent'))
+      .map((item) => (item.name || '').replace(/^models\//, '')))
   }
 
-  if (protocol === 'anthropic') {
+  if (providerId === 'anthropic') {
     const response = await fetch(endpoint, {
       headers: {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
     })
-    if (!response.ok) throw new Error(`Anthropic request failed: ${response.status}`)
+    if (!response.ok) throw new Error(`Anthropic model request failed: ${response.status}`)
     const data = await response.json() as { data?: Array<{ id?: string }> }
     return uniqueModels((data.data || []).map((item) => item.id || ''))
   }
@@ -110,9 +123,12 @@ async function fetchProviderModels(params: {
       Authorization: `Bearer ${apiKey}`,
     },
   })
-  if (!response.ok) throw new Error(`OpenAI-compatible request failed: ${response.status}`)
-  const data = await response.json() as { data?: Array<{ id?: string }> }
-  return uniqueModels((data.data || []).map((item) => item.id || ''))
+  if (!response.ok) throw new Error(`Model request failed: ${response.status}`)
+  const data = await response.json() as { data?: Array<{ id?: string }>, models?: Array<{ id?: string, name?: string }> }
+  return uniqueModels([
+    ...(data.data || []).map((item) => item.id || ''),
+    ...(data.models || []).map((item) => item.id || item.name || ''),
+  ])
 }
 
 const ApiKeysConfigComponent = () => {
@@ -126,23 +142,20 @@ const ApiKeysConfigComponent = () => {
 
   const [customDraft, setCustomDraft] = useState<CustomProviderDraft>({
     label: '',
-    baseURL: 'https://api.openai.com/v1',
+    baseURL: 'https://api.example.com/v1',
     defaultModel: 'gpt-4o-mini',
   })
 
   const fetchTimer = useRef<number | null>(null)
-  const providerOptions = AI_PROVIDER_TEMPLATES
   const isCustom = selectedProvider === CUSTOM_PROVIDER_VALUE
 
-  const activeProvider = useMemo(() => {
+  const activeProvider = useMemo<ActiveProvider>(() => {
     const template = getProviderTemplate(selectedProvider)
     if (template) {
       return {
         providerId: template.id,
         providerLabel: template.label,
-        category: template.category,
-        protocol: template.protocol,
-        baseURL: template.baseURL || '',
+        baseURL: '',
         defaultModel: template.defaultModel,
         staticModels: template.staticModels,
       }
@@ -151,11 +164,9 @@ const ApiKeysConfigComponent = () => {
     return {
       providerId: `custom:${slugify(customDraft.label)}`,
       providerLabel: customDraft.label.trim() || 'Custom Provider',
-      category: 'openai-compatible' as AIProviderCategory,
-      protocol: 'openai-compatible' as AIProviderProtocol,
       baseURL: customDraft.baseURL.trim(),
       defaultModel: customDraft.defaultModel.trim() || 'gpt-4o-mini',
-      staticModels: getInitialModels('openai-compatible', selectedProvider, customDraft),
+      staticModels: getStaticModels(selectedProvider, customDraft),
     }
   }, [selectedProvider, customDraft])
 
@@ -167,7 +178,7 @@ const ApiKeysConfigComponent = () => {
 
   const persistAgents = (next: AiAgentApiKeys) => {
     agentsStorage.setValue(next).then(() => {
-      browser.runtime.sendMessage({ from: 'popup', type: 'agents-changed' })
+      // Storage is the source of truth; consumers read the updated value on demand.
     })
   }
 
@@ -183,7 +194,7 @@ const ApiKeysConfigComponent = () => {
     setModels(activeProvider.staticModels)
     setModel(activeProvider.defaultModel)
     setFetchState({ loading: false, error: '' })
-  }, [activeProvider.providerId, activeProvider.protocol, activeProvider.defaultModel, isCustom])
+  }, [activeProvider.providerId, activeProvider.defaultModel, isCustom])
 
   useEffect(() => {
     const trimmedKey = apiKey.trim()
@@ -193,9 +204,9 @@ const ApiKeysConfigComponent = () => {
       return
     }
 
-    if (!activeProvider.baseURL) {
+    if (activeProvider.providerId.startsWith('custom:') && !activeProvider.baseURL) {
       setModels(activeProvider.staticModels)
-      setFetchState({ loading: false, error: '缺少 baseURL，无法拉取模型列表' })
+      setFetchState({ loading: false, error: 'Custom Provider 需要 baseURL 才能拉取模型列表' })
       return
     }
 
@@ -204,7 +215,7 @@ const ApiKeysConfigComponent = () => {
       try {
         setFetchState({ loading: true, error: '' })
         const fetchedModels = await fetchProviderModels({
-          protocol: activeProvider.protocol,
+          providerId: activeProvider.providerId,
           baseURL: activeProvider.baseURL,
           apiKey: trimmedKey,
         })
@@ -223,6 +234,10 @@ const ApiKeysConfigComponent = () => {
         setModels(activeProvider.staticModels)
       }
     }, 500)
+
+    return () => {
+      if (fetchTimer.current) window.clearTimeout(fetchTimer.current)
+    }
   }, [activeProvider, apiKey])
 
   const canAddCustom = !isCustom || (
@@ -237,17 +252,15 @@ const ApiKeysConfigComponent = () => {
 
     const uniqueSuffix = Date.now().toString(36).slice(-4)
     const providerId = isCustom
-      ? `${activeProvider.providerId}-${uniqueSuffix}`
+      ? `${activeProvider.providerId}-${uniqueSuffix}` as `custom:${string}`
       : activeProvider.providerId
 
     const newItem: AiAgentApiKey = {
       providerId,
       providerLabel: activeProvider.providerLabel,
-      category: activeProvider.category,
-      protocol: activeProvider.protocol,
       apiKey: apiKey.trim(),
       model: model.trim() || activeProvider.defaultModel,
-      ...(activeProvider.baseURL ? { baseURL: normalizeBaseURL(activeProvider.baseURL) } : {}),
+      ...(isCustom ? { baseURL: normalizeBaseURL(activeProvider.baseURL) } : {}),
     }
 
     setAndPersistAgents((prev) => [...prev, newItem])
@@ -283,7 +296,7 @@ const ApiKeysConfigComponent = () => {
         API Providers
       </HeadlingTitle>
       <Subtitle>
-        Add provider credentials and choose the model Vocabify should use first.
+        Select a supported Vercel AI SDK provider, paste its API key, then choose the model Vocabify should try first.
       </Subtitle>
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-[180px_minmax(320px,1fr)_220px_auto]">
@@ -292,12 +305,12 @@ const ApiKeysConfigComponent = () => {
             <SelectValue placeholder="Select provider" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={CUSTOM_PROVIDER_VALUE}>Custom Provider</SelectItem>
-            {providerOptions.map((item) => (
+            {AI_PROVIDER_TEMPLATES.map((item) => (
               <SelectItem key={item.id} value={item.id}>
                 {item.label}
               </SelectItem>
             ))}
+            <SelectItem value={CUSTOM_PROVIDER_VALUE}>Custom Provider</SelectItem>
           </SelectContent>
         </Select>
 
@@ -346,7 +359,7 @@ const ApiKeysConfigComponent = () => {
             type="text"
             value={customDraft.baseURL}
             onChange={(event) => setCustomDraft((prev) => ({ ...prev, baseURL: event.target.value }))}
-            placeholder="Base URL, e.g. https://api.example.com/v1"
+            placeholder="OpenAI-compatible base URL"
             aria-label="Custom provider base URL"
           />
 
@@ -358,9 +371,7 @@ const ApiKeysConfigComponent = () => {
             aria-label="Custom provider default model"
           />
         </div>
-      ) : (
-        <></>
-      )}
+      ) : <></>}
 
       <div className="flex min-h-5 items-center gap-2 text-xs text-muted-foreground">
         {fetchState.loading ? (
@@ -374,7 +385,7 @@ const ApiKeysConfigComponent = () => {
             {fetchState.error}
           </>
         ) : (
-          '模型拉取失败时会自动回退为内置模型列表。'
+          '模型列表会在输入 API key 后自动拉取；失败时回退到内置常用模型。'
         )}
       </div>
 
@@ -392,10 +403,10 @@ const ApiKeysConfigComponent = () => {
                   return (
                     <Draggable key={`${item.providerId}-${item.model}-${index}`} draggableId={`${item.providerId}-${item.model}-${index}`} index={index}>
                       {(dragProvided, snapshot) => (
-          <li
-            ref={dragProvided.innerRef}
-            {...dragProvided.draggableProps}
-            className={cn(
+                        <li
+                          ref={dragProvided.innerRef}
+                          {...dragProvided.draggableProps}
+                          className={cn(
                             'group/provider grid grid-cols-[32px_minmax(0,1fr)_36px] items-center gap-2 rounded-xl border border-border/70 bg-secondary/35 px-3 py-2 transition-[background-color,border-color,box-shadow] duration-150 hover:border-border hover:bg-secondary/55 md:grid-cols-[32px_96px_minmax(300px,1fr)_160px_36px]',
                             snapshot.isDragging && 'bg-card shadow-apple-lg',
                           )}

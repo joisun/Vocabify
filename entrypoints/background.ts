@@ -18,23 +18,41 @@ export default defineBackground(() => {
   // Handle AI streaming via Port
   chrome.runtime.onConnect.addListener((port) => {
     if (port.name === 'ai-stream') {
+      let disconnected = false
+      const abortController = new AbortController()
+      const postToPort = (message: unknown) => {
+        if (disconnected) return
+        try {
+          port.postMessage(message)
+        } catch (error) {
+          disconnected = true
+          console.warn('AI stream port is no longer available:', error)
+        }
+      }
+
+      port.onDisconnect.addListener(() => {
+        disconnected = true
+        abortController.abort()
+      })
+
       port.onMessage.addListener(async (msg) => {
         if (msg.type === 'start' && msg.text) {
           try {
             await aiService.streamExplanation({
               text: msg.text,
+              abortSignal: abortController.signal,
               onChunk: (chunk) => {
-                port.postMessage({ type: 'chunk', chunk })
+                postToPort({ type: 'chunk', chunk })
               },
               onComplete: (fullText) => {
-                port.postMessage({ type: 'complete', fullText })
+                postToPort({ type: 'complete', fullText })
               },
               onError: (error) => {
-                port.postMessage({ type: 'error', error: error.message })
+                postToPort({ type: 'error', error: error.message })
               }
             })
           } catch (error) {
-            port.postMessage({
+            postToPort({
               type: 'error',
               error: error instanceof Error ? error.message : String(error)
             })

@@ -1,12 +1,25 @@
-import { streamText } from 'ai'
+import { streamText, type LanguageModel } from 'ai'
 import { createAnthropic } from '@ai-sdk/anthropic'
+import { createCerebras } from '@ai-sdk/cerebras'
+import { createCohere } from '@ai-sdk/cohere'
+import { createDeepInfra } from '@ai-sdk/deepinfra'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { createFireworks } from '@ai-sdk/fireworks'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
+import { createMistral } from '@ai-sdk/mistral'
+import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { createPerplexity } from '@ai-sdk/perplexity'
+import { createTogetherAI } from '@ai-sdk/togetherai'
+import { createXai } from '@ai-sdk/xai'
 import { promptTemplate, targetLanguage, getNormalizedAgents } from '@/utils/storage'
 import { AiAgentApiKey } from '@/typings/aiModelAdaptor'
 import { Language_Placeholder, Selection_Placeholder } from '@/const'
 
 export interface AIStreamOptions {
   text: string
+  abortSignal?: AbortSignal
   onChunk?: (chunk: string) => void
   onComplete?: (fullText: string) => void
   onError?: (error: Error) => void
@@ -23,120 +36,59 @@ export class AIService {
     return `${resolvedTemplate}\n\nTarget Language: ${language}\n\nText to explain: ${text}`
   }
 
-  private async streamWithGemini(
-    agent: AiAgentApiKey,
-    prompt: string,
-    options: AIStreamOptions,
-  ): Promise<void> {
-    const baseURL = agent.baseURL?.replace(/\/$/, '') || 'https://generativelanguage.googleapis.com'
-    const response = await fetch(
-      `${baseURL}/v1beta/models/${agent.model}:streamGenerateContent?alt=sse`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'x-goog-api-key': agent.apiKey,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.35,
-            topP: 0.9,
-            maxOutputTokens: 900,
-          },
-        }),
-      },
-    )
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => response.statusText)
-      throw new Error(`Gemini request failed (${response.status}): ${errorText || response.statusText}`)
+  private createModel(agent: AiAgentApiKey): LanguageModel {
+    switch (agent.providerId) {
+      case 'openai':
+        return createOpenAI({ apiKey: agent.apiKey })(agent.model)
+      case 'anthropic':
+        return createAnthropic({ apiKey: agent.apiKey })(agent.model)
+      case 'google':
+        return createGoogleGenerativeAI({ apiKey: agent.apiKey })(agent.model)
+      case 'xai':
+        return createXai({ apiKey: agent.apiKey })(agent.model)
+      case 'groq':
+        return createGroq({ apiKey: agent.apiKey })(agent.model)
+      case 'mistral':
+        return createMistral({ apiKey: agent.apiKey })(agent.model)
+      case 'cohere':
+        return createCohere({ apiKey: agent.apiKey })(agent.model)
+      case 'deepseek':
+        return createDeepSeek({ apiKey: agent.apiKey })(agent.model)
+      case 'fireworks':
+        return createFireworks({ apiKey: agent.apiKey })(agent.model)
+      case 'togetherai':
+        return createTogetherAI({ apiKey: agent.apiKey })(agent.model)
+      case 'cerebras':
+        return createCerebras({ apiKey: agent.apiKey })(agent.model)
+      case 'perplexity':
+        return createPerplexity({ apiKey: agent.apiKey })(agent.model)
+      case 'deepinfra':
+        return createDeepInfra({ apiKey: agent.apiKey })(agent.model)
+      default:
+        if (agent.providerId.startsWith('custom:')) {
+          if (!agent.baseURL) throw new Error(`${agent.providerLabel} requires a baseURL`)
+          return createOpenAICompatible({
+            name: agent.providerId,
+            baseURL: agent.baseURL,
+            apiKey: agent.apiKey,
+          })(agent.model)
+        }
+        throw new Error(`Unsupported AI provider: ${agent.providerId}`)
     }
-
-    if (!response.body) {
-      throw new Error('Gemini streaming response is not readable')
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let fullText = ''
-
-    const consumeEvent = (event: string) => {
-      const data = event
-        .split(/\r?\n/)
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice(5).trimStart())
-        .join('\n')
-        .trim()
-
-      if (!data || data === '[DONE]') return
-
-      const parsed = JSON.parse(data)
-      const promptFeedback = parsed?.promptFeedback
-      if (promptFeedback?.blockReason) {
-        throw new Error(`Gemini blocked the prompt: ${promptFeedback.blockReason}`)
-      }
-
-      const chunk = extractGeminiText(parsed)
-      if (!chunk) return
-
-      fullText += chunk
-      options.onChunk?.(chunk)
-    }
-
-    while (true) {
-      const { done, value } = await reader.read()
-      buffer += decoder.decode(value, { stream: !done })
-
-      const events = buffer.split(/\r?\n\r?\n/)
-      buffer = events.pop() || ''
-
-      for (const event of events) {
-        consumeEvent(event)
-      }
-
-      if (done) break
-    }
-
-    if (buffer.trim()) {
-      consumeEvent(buffer)
-    }
-
-    if (!fullText.trim()) {
-      throw new Error('Gemini returned an empty explanation')
-    }
-
-    options.onComplete?.(fullText)
   }
 
   private async streamWithVercelSdk(agent: AiAgentApiKey, prompt: string, options: AIStreamOptions) {
-    let model: Parameters<typeof streamText>[0]['model']
+    const { textStream } = await streamText({
+      model: this.createModel(agent),
+      prompt,
+      maxRetries: 0,
+      abortSignal: options.abortSignal,
+      timeout: {
+        totalMs: 18_000,
+        chunkMs: 8_000,
+      },
+    })
 
-    if (agent.protocol === 'anthropic') {
-      const anthropic = createAnthropic({
-        apiKey: agent.apiKey,
-        ...(agent.baseURL ? { baseURL: agent.baseURL } : {}),
-      })
-      model = anthropic(agent.model)
-    } else if (agent.protocol === 'openai-compatible') {
-      const openaiCompatible = createOpenAICompatible({
-        name: agent.providerId,
-        baseURL: agent.baseURL || 'https://api.openai.com/v1',
-        apiKey: agent.apiKey,
-      })
-      model = openaiCompatible(agent.model)
-    } else {
-      throw new Error(`Unsupported protocol for Vercel SDK: ${agent.protocol}`)
-    }
-
-    const { textStream } = await streamText({ model, prompt })
     let fullText = ''
     for await (const chunk of textStream) {
       fullText += chunk
@@ -163,11 +115,6 @@ export class AIService {
 
     for (const agent of agents) {
       try {
-        if (agent.protocol === 'gemini-native') {
-          await this.streamWithGemini(agent, prompt, options)
-          return
-        }
-
         await this.streamWithVercelSdk(agent, prompt, options)
         return
       } catch (error) {
@@ -181,9 +128,3 @@ export class AIService {
 }
 
 export const aiService = new AIService()
-
-function extractGeminiText(response: any): string {
-  return response?.candidates?.[0]?.content?.parts
-    ?.map((part: { text?: string }) => part.text || '')
-    .join('') || ''
-}

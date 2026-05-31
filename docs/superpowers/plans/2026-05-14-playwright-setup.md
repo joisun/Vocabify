@@ -79,15 +79,15 @@ const browser = await chromium.connectOverCDP(webSocketDebuggerUrl)
 
 Current runtime contract:
 
-- Provider selection is fixed and shown as a single list.
-- Custom providers remain supported as OpenAI-compatible endpoints.
-- Model discovery happens dynamically after API key entry.
-- Gemini continues to use the native SSE endpoint.
+- Provider selection is fixed and shown as a single Vercel AI SDK first-party provider list plus Custom Provider.
+- Custom providers remain supported as OpenAI-compatible endpoints with a user-provided `baseURL`.
+- Model discovery happens dynamically after API key entry, with static fallbacks.
+- First-party providers use their official `@ai-sdk/*` packages through `streamText`; only Custom Provider uses `@ai-sdk/openai-compatible`.
 
 Run:
 
 ```bash
-VOCABIFY_GEMINI_API_KEY='...' fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
+fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
 ```
 
 ## Task 4: Validation Commands
@@ -96,7 +96,7 @@ Run in order:
 
 ```bash
 fnm exec --using v24.13.1 pnpm compile
-VOCABIFY_GEMINI_API_KEY='...' fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
+fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
 fnm exec --using v24.13.1 pnpm build
 ```
 

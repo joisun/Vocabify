@@ -47,6 +47,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
     try {
       const port = chrome.runtime.connect({ name: 'ai-stream' })
       portRef.current = port
+      let settled = false
 
       port.onMessage.addListener((msg) => {
         if (requestRef.current !== requestId) return
@@ -55,10 +56,12 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
           setStatus('streaming')
           setExplanation((prev) => prev + msg.chunk)
         } else if (msg.type === 'complete') {
+          settled = true
           setStatus('success')
           port.disconnect()
           if (portRef.current === port) portRef.current = null
         } else if (msg.type === 'error') {
+          settled = true
           console.error('AI stream error:', msg.error)
           setError(normalizeError(msg.error))
           setStatus('error')
@@ -68,6 +71,10 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
       })
 
       port.onDisconnect.addListener(() => {
+        if (!settled && requestRef.current === requestId) {
+          setError('The AI connection closed before returning a response. Check the provider key, model access, or background service worker logs.')
+          setStatus('error')
+        }
         if (portRef.current === port) portRef.current = null
       })
 

@@ -7,7 +7,7 @@ Establish a robust automated E2E suite for the Vocabify browser extension using 
 2. Show the compact selection toolbar inside the content-script Shadow DOM.
 3. Click Explain.
 4. Open the Vocabify sheet.
-5. Stream a Gemini explanation.
+5. Stream an AI explanation.
 6. Enable saving the result.
 
 ## Architecture
@@ -40,25 +40,23 @@ Content UI uses WXT `cssInjectionMode: "ui"` and `createShadowRootUi` so Tailwin
 The sheet portal is mounted inside `#vocabify-root` under `#vocabify-portal-root`, so Playwright should query content UI with selectors rooted at `#vocabify-root`.
 
 ### 4. AI Provider Strategy
-The selection flow test defaults to a mocked Gemini SSE endpoint hosted by the local fixture server, and seeds `chrome.storage.local` with:
+The selection flow test defaults to a mocked OpenAI-compatible endpoint hosted by the local fixture server, and seeds `chrome.storage.local` with:
 
-- `providerId: gemini`
-- `providerLabel: Google Gemini`
-- `category: first-party`
-- `protocol: gemini-native`
-- `model: gemini-2.5-flash-lite`
-- `baseURL: <fixture>/gemini` (default mocked mode)
+- `providerId: custom:mock-compatible`
+- `providerLabel: Mock Compatible`
+- `model: mock-model`
+- `baseURL: <fixture>/compatible/v1` (default mocked mode)
 - target language `English`
 
 The mocked endpoint returns chunked SSE data so UI streaming behavior is still validated end-to-end through the runtime port flow.
-Live Gemini mode remains available by setting `VOCABIFY_LIVE_GEMINI=1` and `VOCABIFY_GEMINI_API_KEY`.
+Live Google mode remains available by setting `VOCABIFY_LIVE_GOOGLE=1` and `VOCABIFY_GOOGLE_API_KEY`.
 
 Provider configuration follows Vercel AI SDK terminology without exposing implementation-only choices in the UI:
 
-- Providers are selected from a fixed list; internal provider categories are stored for routing metadata only.
+- First-party providers are selected from a fixed Vercel AI SDK provider list and only store `providerId`, label, API key, and model.
 - Custom providers remain supported as OpenAI-compatible endpoints with `baseURL`, API key, and model fields.
 - Model lists are fetched dynamically after an API key is entered, then fall back to static defaults if discovery fails.
-- OpenAI-compatible providers use `@ai-sdk/openai-compatible`, Anthropic uses `@ai-sdk/anthropic`, and Gemini uses the native streaming endpoint.
+- First-party providers use their official `@ai-sdk/*` packages through `streamText`; only custom providers use `@ai-sdk/openai-compatible`.
 
 ## Current E2E Coverage
 
@@ -69,7 +67,8 @@ Provider configuration follows Vercel AI SDK terminology without exposing implem
 - Selecting `nuanced phrase` opens `[data-testid="vocabify-selection-popover"]`.
 - The selection popover is a compact `role="toolbar"` and stays within controlled dimensions.
 - Clicking `[data-testid="vocabify-explain-action"]` opens `[data-testid="vocabify-sheet"]` inside ShadowRoot.
-- `[data-testid="vocabify-ai-result"]` receives Gemini output.
+- Opening the sheet must not emit Radix Dialog title/description accessibility warnings.
+- `[data-testid="vocabify-ai-result"]` receives streamed AI output.
 - `[data-testid="vocabify-save-action"]` becomes enabled.
 
 ## Running
@@ -86,10 +85,10 @@ Run default mocked flow test:
 fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
 ```
 
-Run live Gemini flow test:
+Run live Google flow test:
 
 ```bash
-VOCABIFY_LIVE_GEMINI=1 VOCABIFY_GEMINI_API_KEY='...' fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
+VOCABIFY_LIVE_GOOGLE=1 VOCABIFY_GOOGLE_API_KEY='...' fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
 ```
 
 ## Error Handling

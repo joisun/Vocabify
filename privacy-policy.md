@@ -28,7 +28,7 @@ Vocabify ("we", "our", "us") is committed to protecting your privacy. This Priva
 
 ### 1. Third-Party Services
 - **GitHub:** We use GitHub for authentication and syncing vocabulary data. Your GitHub username and access token are shared with GitHub's API.
-- **AI Service Providers:** We use configured AI service providers such as Google Gemini, OpenAI, Anthropic, OpenAI-compatible endpoints, and community providers to fetch explanations for selected text. The selected provider, API key, and model are used to authenticate requests to these services.
+- **AI Service Providers:** We use configured AI service providers such as Google Gemini, OpenAI, Anthropic, other first-party Vercel AI SDK providers, and user-defined OpenAI-compatible endpoints to fetch explanations for selected text. The selected provider, API key, model, and custom endpoint URL when configured are used to authenticate requests to these services.
 
 ### 2. Legal Requirements
 - **Compliance:** We may disclose your information if required to do so by law or in response to valid requests by public authorities.

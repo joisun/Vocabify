@@ -62,8 +62,30 @@ const SheetContent = React.forwardRef<
 >(({ side = "right", className, children, ...props }, ref) => (
   <SheetPortal container={getVocabifyPortalContainer()}>
     <SheetOverlay />
-    <SheetPrimitive.Content
+    <SheetContentBody
       ref={ref}
+      side={side}
+      className={className}
+      {...props}
+    >
+      {children}
+    </SheetContentBody>
+  </SheetPortal>
+))
+SheetContent.displayName = SheetPrimitive.Content.displayName
+
+const SheetContentBody = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Content>,
+  SheetContentProps
+>(({ side = "right", className, children, ...props }, ref) => {
+  const contentRef = React.useRef<React.ElementRef<typeof SheetPrimitive.Content>>(null)
+
+  React.useImperativeHandle(ref, () => contentRef.current as React.ElementRef<typeof SheetPrimitive.Content>)
+  useShadowDialogA11yMirror(contentRef)
+
+  return (
+    <SheetPrimitive.Content
+      ref={contentRef}
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >
@@ -82,16 +104,63 @@ const SheetContent = React.forwardRef<
       </SheetPrimitive.Close>
       {children}
     </SheetPrimitive.Content>
-  </SheetPortal>
-))
-SheetContent.displayName = SheetPrimitive.Content.displayName
+  )
+})
+SheetContentBody.displayName = "SheetContentBody"
+
+function useShadowDialogA11yMirror(contentRef: React.RefObject<HTMLElement>) {
+  React.useLayoutEffect(() => {
+    if (process.env.NODE_ENV === "production") return
+    const content = contentRef.current
+    if (!content || !content.getRootNode || !(content.getRootNode() instanceof ShadowRoot)) return
+
+    const titleId = content.getAttribute("aria-labelledby")
+    const descriptionId = content.getAttribute("aria-describedby")
+    if (!titleId && !descriptionId) return
+
+    const mirror = document.createElement("div")
+    mirror.setAttribute("data-radix-shadow-dialog-a11y-mirror", "")
+    mirror.setAttribute("aria-hidden", "true")
+    mirror.style.position = "absolute"
+    mirror.style.width = "1px"
+    mirror.style.height = "1px"
+    mirror.style.margin = "-1px"
+    mirror.style.padding = "0"
+    mirror.style.overflow = "hidden"
+    mirror.style.clip = "rect(0 0 0 0)"
+    mirror.style.whiteSpace = "nowrap"
+    mirror.style.border = "0"
+
+    if (titleId && !document.getElementById(titleId)) {
+      const title = document.createElement("h2")
+      title.id = titleId
+      title.textContent = "Vocabify"
+      mirror.appendChild(title)
+    }
+
+    if (descriptionId && !document.getElementById(descriptionId)) {
+      const description = document.createElement("p")
+      description.id = descriptionId
+      description.textContent = "Your AI vocabulary library"
+      mirror.appendChild(description)
+    }
+
+    if (!mirror.childNodes.length) return
+    document.body.appendChild(mirror)
+    return () => {
+      mirror.remove()
+    }
+  }, [contentRef])
+}
 
 function getVocabifyPortalContainer() {
   if (typeof document === "undefined") return undefined
-  return document
-    .querySelector("#vocabify-root")
-    ?.shadowRoot
-    ?.querySelector<HTMLElement>("#vocabify-portal-root") || undefined
+  return (
+    document
+      .querySelector("#vocabify-root")
+      ?.shadowRoot
+      ?.querySelector<HTMLElement>("#vocabify-portal-root") || undefined
+  )
 }
 
 const SheetHeader = ({

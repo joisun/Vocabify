@@ -7,23 +7,23 @@ import fs from 'node:fs/promises'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..')
 const devtoolsUrl = process.env.VOCABIFY_DEVTOOLS_URL || 'http://127.0.0.1:9222'
-const runLiveGemini = process.env.VOCABIFY_LIVE_GEMINI === '1'
-const geminiApiKey = process.env.VOCABIFY_GEMINI_API_KEY
+const runLiveGoogle = process.env.VOCABIFY_LIVE_GOOGLE === '1'
+const googleApiKey = process.env.VOCABIFY_GOOGLE_API_KEY
 
-test.describe('selection to Gemini AI lookup flow on WXT dev extension', () => {
+test.describe('selection to AI lookup flow on WXT dev extension', () => {
   test.setTimeout(90_000)
 
   let server: http.Server | undefined
   let pageUrl: string
-  let mockGeminiBaseUrl: string
+  let mockCompatibleBaseUrl: string
   let browser: Browser
   let context: BrowserContext
 
   test.beforeAll(async () => {
-    test.skip(runLiveGemini && !geminiApiKey, 'VOCABIFY_GEMINI_API_KEY is required when VOCABIFY_LIVE_GEMINI=1')
+    test.skip(runLiveGoogle && !googleApiKey, 'VOCABIFY_GOOGLE_API_KEY is required when VOCABIFY_LIVE_GOOGLE=1')
     const fixture = await startFixtureServer()
     pageUrl = fixture.pageUrl
-    mockGeminiBaseUrl = fixture.mockGeminiBaseUrl
+    mockCompatibleBaseUrl = fixture.mockCompatibleBaseUrl
     browser = await chromium.connectOverCDP(await getBrowserWebSocketUrl(devtoolsUrl))
     context = browser.contexts()[0]
     if (!context) throw new Error(`No browser context found at ${devtoolsUrl}. Start WXT with pnpm run dev first.`)
@@ -39,9 +39,10 @@ test.describe('selection to Gemini AI lookup flow on WXT dev extension', () => {
   test('opens selection popover, triggers AI lookup, and enables saving result', async () => {
     const page = await context.newPage()
     try {
+      const radixA11yWarnings: string[] = []
       page.on('pageerror', (error) => console.error('pageerror:', error.message))
       page.on('console', (message) => {
-        if (isKnownShadowDomRadixA11yNoise(message.text())) return
+        if (isRadixDialogA11yWarning(message.text())) radixA11yWarnings.push(message.text())
         if (['error', 'warning'].includes(message.type())) {
           console.log(`browser ${message.type()}:`, message.text())
         }
@@ -52,9 +53,10 @@ test.describe('selection to Gemini AI lookup flow on WXT dev extension', () => {
       await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
 
       const extensionId = await getExtensionId(context)
-      await seedGeminiProvider(context, extensionId, {
-        apiKey: runLiveGemini ? geminiApiKey! : 'mock-gemini-key',
-        baseURL: runLiveGemini ? undefined : mockGeminiBaseUrl,
+      await seedAiProvider(context, extensionId, {
+        apiKey: runLiveGoogle ? googleApiKey! : 'mock-gemini-key',
+        liveGoogle: runLiveGoogle,
+        baseURL: runLiveGoogle ? undefined : mockCompatibleBaseUrl,
       })
 
       await selectText(page, 'nuanced phrase')
@@ -70,6 +72,7 @@ test.describe('selection to Gemini AI lookup flow on WXT dev extension', () => {
       await expect(page.locator('#vocabify-root #vocabify-portal-root')).toBeAttached()
       await expect(page.locator('#vocabify-root [data-testid="vocabify-sheet"]')).toBeVisible({ timeout: 10_000 })
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-panel"]')).toBeVisible()
+      expect(radixA11yWarnings).toEqual([])
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-result"]')).toContainText(/meaning|usage|example|phrase/i, {
         timeout: 45_000,
       })
@@ -97,8 +100,7 @@ test.describe('selection to Gemini AI lookup flow on WXT dev extension', () => {
 
       if (
         request.method === 'POST'
-        && requestUrl.pathname === '/gemini/v1beta/models/gemini-2.5-flash-lite:streamGenerateContent'
-        && requestUrl.searchParams.get('alt') === 'sse'
+        && requestUrl.pathname === '/compatible/v1/chat/completions'
       ) {
         response.writeHead(200, {
           'Content-Type': 'text/event-stream; charset=utf-8',
@@ -108,8 +110,9 @@ test.describe('selection to Gemini AI lookup flow on WXT dev extension', () => {
         })
 
         const chunks = [
-          'data: {"candidates":[{"content":{"parts":[{"text":"### Meaning\\nA nuanced phrase conveys a subtle or precise expression.\\n\\n"}]}}]}\n\n',
-          'data: {"candidates":[{"content":{"parts":[{"text":"### Usage\\n- Usually adjective + noun\\n- Often used in analytical writing\\n\\n### Examples\\n- Her nuanced phrase changed the tone.\\n- The report used a nuanced phrase to avoid overstatement."}]}}]}\n\n',
+          'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{"content":"### Meaning\\nA nuanced phrase conveys a subtle or precise expression.\\n\\n"},"finish_reason":null}]}\n\n',
+          'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{"content":"### Usage\\n- Usually adjective + noun\\n- Often used in analytical writing\\n\\n### Examples\\n- Her nuanced phrase changed the tone.\\n- The report used a nuanced phrase to avoid overstatement."},"finish_reason":null}]}\n\n',
+          'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
           'data: [DONE]\n\n',
         ]
 
@@ -134,7 +137,7 @@ test.describe('selection to Gemini AI lookup flow on WXT dev extension', () => {
     if (!address || typeof address === 'string') throw new Error('Unable to start fixture server')
     return {
       pageUrl: `http://127.0.0.1:${address.port}`,
-      mockGeminiBaseUrl: `http://127.0.0.1:${address.port}/gemini`,
+      mockCompatibleBaseUrl: `http://127.0.0.1:${address.port}/compatible/v1`,
     }
   }
 })
@@ -153,26 +156,31 @@ async function getBrowserWebSocketUrl(baseUrl: string) {
   return metadata.webSocketDebuggerUrl as string
 }
 
-async function seedGeminiProvider(
+async function seedAiProvider(
   context: BrowserContext,
   extensionId: string,
-  config: { apiKey: string; baseURL?: string },
+  config: { apiKey: string; liveGoogle: boolean; baseURL?: string },
 ) {
   const page = await context.newPage()
   await page.goto(`chrome-extension://${extensionId}/options.html`)
   await page.evaluate((seedConfig) => {
+    const agent = seedConfig.liveGoogle
+      ? {
+        providerId: 'google',
+        providerLabel: 'Google Generative AI',
+        apiKey: seedConfig.apiKey,
+        model: 'gemini-2.5-flash-lite',
+      }
+      : {
+        providerId: 'custom:mock-compatible',
+        providerLabel: 'Mock Compatible',
+        apiKey: seedConfig.apiKey,
+        model: 'mock-model',
+        baseURL: seedConfig.baseURL,
+      }
+
     return chrome.storage.local.set({
-      agents: [
-        {
-          providerId: 'gemini',
-          providerLabel: 'Google Gemini',
-          category: 'first-party',
-          protocol: 'gemini-native',
-          apiKey: seedConfig.apiKey,
-          model: 'gemini-2.5-flash-lite',
-          ...(seedConfig.baseURL ? { baseURL: seedConfig.baseURL } : {}),
-        },
-      ],
+      agents: [agent],
       targetLanguage: 'English',
     })
   }, config)
@@ -222,7 +230,7 @@ async function selectText(page: Page, text: string) {
   }, text)
 }
 
-function isKnownShadowDomRadixA11yNoise(text: string) {
+function isRadixDialogA11yWarning(text: string) {
   return text.includes('`DialogContent` requires a `DialogTitle`')
     || text.includes('Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.')
 }

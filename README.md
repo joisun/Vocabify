@@ -24,9 +24,9 @@ Vocabify is a premium browser extension that helps you learn and manage vocabula
 - Customizable highlight styles
 
 ### 🤖 AI-Powered Explanations
-- Multiple AI provider types support: `first-party`, `openai-compatible`, and `community`
-- Fixed provider list with dynamic model discovery after API key entry
-- Custom providers remain supported for self-hosted or proxy endpoints
+- Fixed first-party Vercel AI SDK provider list, including OpenAI, Anthropic, Google, xAI, Groq, Mistral, Cohere, DeepSeek, Fireworks, Together.ai, Cerebras, Perplexity, and DeepInfra
+- Dynamic model discovery after API key entry, with static fallback models when provider discovery fails
+- Custom providers remain supported through OpenAI-compatible `baseURL` endpoints
 - Customizable explanation templates
 - Multi-language support
 - Real-time explanation generation
