@@ -59,7 +59,7 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
           </Button>
         </div>
 
-        <TabsContent value="ai" className="flex-1 overflow-hidden mt-0 px-4 pb-4">
+        <TabsContent value="ai" className="flex-1 min-h-0 overflow-hidden mt-0 px-4 pb-4">
           {selectedText ? (
             <AIExplanation selectedText={selectedText} />
           ) : (
@@ -67,7 +67,7 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="vocab" className="flex-1 overflow-hidden mt-0 px-4 pb-4">
+        <TabsContent value="vocab" className="flex-1 min-h-0 overflow-hidden mt-0 px-4 pb-4">
           <VocabList />
         </TabsContent>
       </Tabs>

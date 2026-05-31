@@ -166,7 +166,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
         </div>
       </section>
 
-      <section className="flex min-h-0 flex-1 flex-col gap-2">
+      <section className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
         {isLoading ? <StreamingIndicator /> : null}
         <div className="liquid-card relative min-h-0 flex-1 overflow-hidden rounded-2xl shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]">
           {status === 'loading' ? (
@@ -305,9 +305,9 @@ function MarkdownResult({ text, streaming }: { text: string; streaming: boolean 
   const blocks = parseMarkdownBlocks(text)
 
   return (
-    <div className="h-full min-h-0 overflow-hidden" data-testid="vocabify-ai-result">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" data-testid="vocabify-ai-result">
       <div
-        className="h-full min-h-0 overflow-y-auto overscroll-contain px-4 py-4 pr-5 scrollbar-thin [scrollbar-gutter:stable]"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pr-5 scrollbar-thin [scrollbar-gutter:stable]"
         data-testid="vocabify-ai-result-scroll"
       >
         <div className="flex min-h-full flex-col gap-3 text-[13px] leading-relaxed text-foreground">
