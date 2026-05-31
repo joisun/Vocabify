@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { saveRecord } from '@/lib/vocabifyDb'
+import { MeshGradient } from '@paper-design/shaders-react'
 import { AlertCircle, Check, Copy, Edit3, RotateCcw, Save, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -263,21 +264,61 @@ const StreamingIndicator = () => (
 )
 
 const LoadingState = () => (
-  <div className="flex h-full flex-col gap-4 p-4" data-testid="vocabify-ai-loading">
-    <div className="rounded-xl border border-white/[0.24] bg-white/[0.28] p-3 shadow-apple-xs backdrop-blur-lg dark:border-white/10 dark:bg-white/[0.08]">
-      <p className="text-[13px] font-medium text-foreground">Generating a concise vocabulary explanation</p>
-      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-        Vocabify is reading the selection, applying your target language, and contacting the first available AI provider.
-      </p>
-    </div>
-    <div className="flex flex-col gap-2">
-      <div className="h-3 w-3/4 rounded-md bg-secondary animate-ai-pulse" />
-      <div className="h-3 w-full rounded-md bg-secondary animate-ai-pulse" />
-      <div className="h-3 w-5/6 rounded-md bg-secondary animate-ai-pulse" />
-      <div className="h-3 w-2/3 rounded-md bg-secondary animate-ai-pulse" />
+  <div className="flex h-full min-h-0 items-center justify-center p-4" data-testid="vocabify-ai-loading">
+    <div className="relative flex w-full max-w-[280px] flex-col items-center gap-4 rounded-[24px] border border-white/20 bg-white/[0.18] px-5 py-5 text-center shadow-[0_14px_40px_hsl(var(--shadow-color)/0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]">
+      <div className="relative flex h-[148px] w-[148px] items-center justify-center overflow-hidden rounded-[38px] border border-white/20 bg-black/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_12px_30px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-white/[0.04]">
+        <div className="absolute inset-0 opacity-90">
+          <ShaderBlob />
+        </div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_45%,hsl(var(--background)/0.18)_78%,hsl(var(--background)/0.42)_100%)]" />
+      </div>
+      <div className="space-y-1">
+        <p className="text-[13px] font-semibold tracking-tight text-foreground">Generating explanation</p>
+        <p className="text-[12px] leading-relaxed text-muted-foreground">
+          Reading the selection and preparing a concise answer.
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ai-pulse" />
+        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ai-pulse [animation-delay:.15s]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ai-pulse [animation-delay:.3s]" />
+        <span>Shader render in progress</span>
+      </div>
     </div>
   </div>
 )
+
+const ShaderBlob = () => {
+  const clipId = React.useId()
+  const colors = ['#FFB3D9', '#87CEEB', '#4A90E2', '#2C3E50', '#1A1A2E']
+
+  return (
+    <div className="vocabify-shader-blob h-full w-full text-foreground/80" aria-hidden>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="231"
+        height="289"
+        viewBox="0 0 231 289"
+        className="mx-auto h-full w-auto"
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <path d="M230.809 115.385V249.411C230.809 269.923 214.985 287.282 194.495 288.411C184.544 288.949 175.364 285.718 168.26 280C159.746 273.154 147.769 273.461 139.178 280.23C132.638 285.384 124.381 288.462 115.379 288.462C106.377 288.462 98.1451 285.384 91.6055 280.23C82.912 273.385 70.9353 273.385 62.2415 280.23C55.7532 285.334 47.598 288.411 38.7246 288.462C17.4132 288.615 0 270.667 0 249.359V115.385C0 51.6667 51.6756 0 115.404 0C179.134 0 230.809 51.6667 230.809 115.385Z" />
+          </clipPath>
+        </defs>
+
+        <foreignObject width="231" height="289" clipPath={`url(#${clipId})`}>
+          <div className="h-full w-full">
+            <MeshGradient colors={colors} className="h-full w-full" speed={0.75} distortion={0.9} swirl={0.45} />
+          </div>
+        </foreignObject>
+
+        <ellipse cx="80" cy="120" rx="20" ry="30" fill="currentColor" className="vocabify-shader-eye" />
+        <ellipse cx="150" cy="120" rx="20" ry="30" fill="currentColor" className="vocabify-shader-eye" />
+      </svg>
+    </div>
+  )
+}
 
 function ErrorState({ error }: { error: string | null }) {
   return (
@@ -303,11 +344,23 @@ const EmptyResult = () => (
 
 function MarkdownResult({ text, streaming }: { text: string; streaming: boolean }) {
   const blocks = parseMarkdownBlocks(text)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden" data-testid="vocabify-ai-result">
+    <div
+      className="flex h-full min-h-0 flex-col overflow-hidden"
+      data-testid="vocabify-ai-result"
+      onWheelCapture={(event) => {
+        const scrollNode = scrollRef.current
+        if (!scrollNode) return
+        if (scrollNode.scrollHeight <= scrollNode.clientHeight) return
+        scrollNode.scrollTop += event.deltaY
+        event.stopPropagation()
+      }}
+    >
       <div
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pr-5 scrollbar-thin [scrollbar-gutter:stable]"
+        ref={scrollRef}
+        className="vocabify-fade-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pr-5"
         data-testid="vocabify-ai-result-scroll"
       >
         <div className="flex min-h-full flex-col gap-3 text-[13px] leading-relaxed text-foreground">

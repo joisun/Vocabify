@@ -162,6 +162,68 @@
   .scrollbar-thin::-webkit-scrollbar-track { @apply bg-transparent; }
   .scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-foreground/20 rounded-full; }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { @apply bg-foreground/35; }
+
+  .vocabify-fade-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    touch-action: pan-y;
+    scroll-behavior: smooth;
+  }
+
+  .vocabify-fade-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .vocabify-fade-scroll::before,
+  .vocabify-fade-scroll::after {
+    content: "";
+    position: sticky;
+    z-index: 2;
+    display: block;
+    height: 24px;
+    pointer-events: none;
+  }
+
+  .vocabify-fade-scroll::before {
+    top: 0;
+    margin-bottom: -24px;
+    background: linear-gradient(to bottom, hsl(var(--card) / 0.82), hsl(var(--card) / 0));
+  }
+
+  .vocabify-fade-scroll::after {
+    bottom: 0;
+    margin-top: -24px;
+    background: linear-gradient(to top, hsl(var(--card) / 0.82), hsl(var(--card) / 0));
+  }
+
+  .vocabify-shader-blob {
+    animation: vocabify-shader-float 2.8s ease-in-out infinite;
+    transform-origin: top center;
+  }
+
+  .vocabify-shader-eye {
+    animation: vocabify-shader-blink 3s ease-in-out infinite;
+  }
+
+  @keyframes vocabify-shader-float {
+    0%, 100% {
+      transform: translateY(0) scaleY(1);
+    }
+    50% {
+      transform: translateY(-5px) scaleY(1.04);
+    }
+  }
+
+  @keyframes vocabify-shader-blink {
+    0%, 90%, 100% {
+      ry: 30;
+    }
+    95% {
+      ry: 3;
+    }
+  }
 }
 
 /* ───────────────────────────── Reusable utilities ─────────────────────────── */

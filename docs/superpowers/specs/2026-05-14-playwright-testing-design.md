@@ -69,8 +69,9 @@ Provider configuration follows Vercel AI SDK terminology without exposing implem
 - Clicking `[data-testid="vocabify-explain-action"]` opens `[data-testid="vocabify-sheet"]` inside ShadowRoot.
 - The sheet is a floating liquid-glass panel with viewport spacing on all sides instead of being edge-attached.
 - Opening the sheet must not emit Radix Dialog title/description accessibility warnings.
+- `[data-testid="vocabify-ai-loading"]` appears in the Explanation area before streamed AI output arrives.
 - `[data-testid="vocabify-ai-result"]` receives streamed AI output.
-- Long AI output scrolls inside `[data-testid="vocabify-ai-result-scroll"]` without clipping the result container.
+- Long AI output scrolls inside `[data-testid="vocabify-ai-result-scroll"]` without clipping the result container, including a real mouse-wheel interaction.
 - `[data-testid="vocabify-save-action"]` becomes enabled.
 
 ## Running

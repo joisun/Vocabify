@@ -72,6 +72,7 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       await expect(page.locator('#vocabify-root #vocabify-portal-root')).toBeAttached()
       const sheet = page.locator('#vocabify-root [data-testid="vocabify-sheet"]')
       await expect(sheet).toBeVisible({ timeout: 10_000 })
+      await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-loading"]')).toBeVisible()
       await expect.poll(async () => {
         const sheetBox = await sheet.boundingBox()
         const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
@@ -101,6 +102,12 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
         node.scrollTop = node.scrollHeight
       })
       await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop > 0)).toBe(true)
+      const aiResultBox = await aiResultScroll.boundingBox()
+      expect(aiResultBox).not.toBeNull()
+      await page.mouse.move(aiResultBox!.x + aiResultBox!.width / 2, aiResultBox!.y + aiResultBox!.height / 2)
+      const beforeWheel = await aiResultScroll.evaluate((node) => node.scrollTop)
+      await page.mouse.wheel(0, 480)
+      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(beforeWheel)
       await expect(page.locator('#vocabify-root [data-testid="vocabify-save-action"]')).toBeEnabled()
     } finally {
       await page.close().catch(() => undefined)
@@ -141,6 +148,7 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
           'data: [DONE]\n\n',
         ]
 
+        await new Promise((resolve) => setTimeout(resolve, 500))
         for (const chunk of chunks) {
           response.write(chunk)
           await new Promise((resolve) => setTimeout(resolve, 40))
