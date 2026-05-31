@@ -1,49 +1,103 @@
 # Vocabify Playwright Testing Design
 
 ## Goal
-Establish a robust automated testing suite for the Vocabify browser extension using Playwright. This suite will ensure that core user journeys—selection-based vocabulary capture and management—remain functional throughout development.
+Establish a robust automated E2E suite for the Vocabify browser extension using Playwright. The primary regression path is:
+
+1. Select text on a normal web page.
+2. Show the compact selection toolbar inside the content-script Shadow DOM.
+3. Click Explain.
+4. Open the Vocabify sheet.
+5. Stream a Gemini explanation.
+6. Enable saving the result.
 
 ## Architecture
 
-### 1. Extension Loading Fixture
-We will create a custom Playwright fixture that:
-- Locates the built extension in `.output/chrome-mv3`.
-- Launches a persistent Chromium context with the `--load-extension` flag.
-- Provides a way to retrieve the extension's unique ID for navigating to internal pages (Popup, Options).
+### 1. Dev Extension Runtime
+Tests should run against the WXT development extension launched by `pnpm run dev`.
 
-### 2. Mocking Strategy
-- **AI Service Mock**: Intercept requests to OpenAI/Anthropic/etc. and return predictable JSON responses.
-- **WXT Background Communication**: Use Playwright's ability to interact with Service Workers if necessary, though most testing will focus on the UI layers.
+Required runtime assumptions:
 
-### 3. Components to Test
-- **In-Page UI (Shadow DOM)**: Verify that selecting text triggers the UI and that the Shadow DOM elements are interactable.
-- **Options Page**: Verify that saved words appear in the `VocabList` and that database operations (Dexie) are reflected in the UI.
+- WXT dev server is running.
+- Chromium is started by WXT, not by the test.
+- `wxt.config.ts` exposes a CDP port with `--remote-debugging-port=9222`.
+- Playwright connects to the existing browser through `chromium.connectOverCDP`.
 
-## Approaches Considered
+Do not use the old `.output/chrome-mv3` + `--load-extension` approach for development validation. That path misses WXT dev behavior and can hide content-script loading issues.
 
-### Approach 1: Standard Playwright Test Runner (@playwright/test) - **Recommended**
-- **Pros**: Built-in reporting, parallel execution, easy integration with GitHub Actions, powerful fixtures.
-- **Cons**: Requires installing `@playwright/test` and browsers.
-- **Recommendation**: This is the industry standard and provides the best long-term stability.
+### 2. Extension ID Detection
+The extension id should be read from the MV3 service worker URL:
 
-### Approach 2: Custom Playwright Script
-- **Pros**: Minimal overhead, no runner configuration.
-- **Cons**: No built-in assertions, reporting, or parallelization.
+```ts
+const worker = context.serviceWorkers().find((sw) => sw.url().startsWith('chrome-extension://'))
+const extensionId = new URL(worker!.url()).host
+```
 
-## Data Flow
-1. **User Action**: Select text on a test page.
-2. **Detection**: Content script detects selection and shows `InPageUI`.
-3. **Interaction**: User clicks "Analyze".
-4. **Mocked AI**: Playwright intercepts the network request and returns a mock explanation.
-5. **UI Update**: `AIExplanation` component displays the mock data.
-6. **Persistence**: User saves the word; background script writes to Dexie.
-7. **Verification**: Test navigates to Options page and verifies the word exists.
+Do not infer the extension id from a Shadow DOM stylesheet link. With `cssInjectionMode: "ui"`, WXT injects content CSS as text into the ShadowRoot, so a `<link>` is not guaranteed to exist.
+
+### 3. Shadow DOM Styling
+Content UI uses WXT `cssInjectionMode: "ui"` and `createShadowRootUi` so Tailwind output is injected into the ShadowRoot. This is required for production-like tooltip and sheet styling.
+
+The sheet portal is mounted inside `#vocabify-root` under `#vocabify-portal-root`, so Playwright should query content UI with selectors rooted at `#vocabify-root`.
+
+### 4. AI Provider Strategy
+The selection flow test defaults to a mocked Gemini SSE endpoint hosted by the local fixture server, and seeds `chrome.storage.local` with:
+
+- `providerId: gemini`
+- `providerLabel: Google Gemini`
+- `category: first-party`
+- `protocol: gemini-native`
+- `model: gemini-2.5-flash-lite`
+- `baseURL: <fixture>/gemini` (default mocked mode)
+- target language `English`
+
+The mocked endpoint returns chunked SSE data so UI streaming behavior is still validated end-to-end through the runtime port flow.
+Live Gemini mode remains available by setting `VOCABIFY_LIVE_GEMINI=1` and `VOCABIFY_GEMINI_API_KEY`.
+
+Provider configuration follows Vercel AI SDK terminology without exposing implementation-only choices in the UI:
+
+- Providers are selected from a fixed list; internal provider categories are stored for routing metadata only.
+- Custom providers remain supported as OpenAI-compatible endpoints with `baseURL`, API key, and model fields.
+- Model lists are fetched dynamically after an API key is entered, then fall back to static defaults if discovery fails.
+- OpenAI-compatible providers use `@ai-sdk/openai-compatible`, Anthropic uses `@ai-sdk/anthropic`, and Gemini uses the native streaming endpoint.
+
+## Current E2E Coverage
+
+`tests/selection-ai-flow.spec.ts` verifies:
+
+- Existing WXT dev Chrome is reachable through CDP.
+- The content script injects `#vocabify-root`.
+- Selecting `nuanced phrase` opens `[data-testid="vocabify-selection-popover"]`.
+- The selection popover is a compact `role="toolbar"` and stays within controlled dimensions.
+- Clicking `[data-testid="vocabify-explain-action"]` opens `[data-testid="vocabify-sheet"]` inside ShadowRoot.
+- `[data-testid="vocabify-ai-result"]` receives Gemini output.
+- `[data-testid="vocabify-save-action"]` becomes enabled.
+
+## Running
+
+Start WXT dev first:
+
+```bash
+pnpm run dev
+```
+
+Run default mocked flow test:
+
+```bash
+fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
+```
+
+Run live Gemini flow test:
+
+```bash
+VOCABIFY_LIVE_GEMINI=1 VOCABIFY_GEMINI_API_KEY='...' fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
+```
 
 ## Error Handling
-- Verification that loading states are shown correctly.
-- Verification that network errors (Mocked 500s) are handled gracefully by the UI.
 
-## Testing Strategy
-- **Unit Tests**: Existing TypeScript/React logic (can be handled by Vitest separately).
-- **E2E Tests**: This Playwright suite.
-- **Regression**: Running these tests before every release.
+Tests should fail on product-visible console errors. Radix Dialog dev warnings caused by ShadowRoot `document.getElementById` false positives may be filtered only when the actual `SheetTitle` and `SheetDescription` are present in the ShadowRoot.
+
+## Regression Strategy
+
+- Run `pnpm compile` before E2E.
+- Run the live dev-CDP E2E before release work that touches content script UI, AI streaming, Sheet portal behavior, or WXT configuration.
+- Run `fnm exec --using v24.13.1 pnpm build` for production bundle validation.

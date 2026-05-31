@@ -19,7 +19,10 @@ export default defineConfig({
   },
   webExt: {
     startUrls: ["https://www.tool-ui.com/docs/overview"],
-    chromiumArgs: ["--enable-unsafe-extension-debugging"],
+    chromiumArgs: [
+      "--enable-unsafe-extension-debugging",
+      "--remote-debugging-port=9222",
+    ],
   },
   vite: () => ({
     // Override config here, same as `defineConfig({ ... })`

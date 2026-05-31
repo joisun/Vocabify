@@ -1,6 +1,6 @@
-import { AgentsType } from "@/typings/aiModelAdaptor";
+import { AIProviderProtocol } from "@/typings/aiModelAdaptor";
 import { LoggerType } from "@/typings/app";
-import { agentsStorage } from "@/utils/storage";
+import { getNormalizedAgents } from "@/utils/storage";
 
 export function log(msg: string, type: LoggerType = "info") {
   const message = `[${new Date().toLocaleTimeString()} Findjob-bot]: ${msg}`;
@@ -30,7 +30,10 @@ function sendLog(msg: { message: string; type: LoggerType }) {
   });
 }
 
-export async function getAgentApiKey(Agent: AgentsType) {
-  const keys = await agentsStorage.getValue();
-  return keys.find((agent) => agent.agentName === Agent)?.apiKey;
+export async function getAgentApiKey(providerId: string, protocol?: AIProviderProtocol) {
+  const keys = await getNormalizedAgents();
+  return keys.find((agent) => {
+    if (protocol && agent.protocol !== protocol) return false;
+    return agent.providerId === providerId;
+  })?.apiKey;
 }

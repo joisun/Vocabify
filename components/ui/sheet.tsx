@@ -60,7 +60,7 @@ const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
 >(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
+  <SheetPortal container={getVocabifyPortalContainer()}>
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}
@@ -85,6 +85,14 @@ const SheetContent = React.forwardRef<
   </SheetPortal>
 ))
 SheetContent.displayName = SheetPrimitive.Content.displayName
+
+function getVocabifyPortalContainer() {
+  if (typeof document === "undefined") return undefined
+  return document
+    .querySelector("#vocabify-root")
+    ?.shadowRoot
+    ?.querySelector<HTMLElement>("#vocabify-portal-root") || undefined
+}
 
 const SheetHeader = ({
   className,

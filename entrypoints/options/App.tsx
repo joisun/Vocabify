@@ -13,7 +13,7 @@ function App() {
       <div className="min-h-screen bg-background text-foreground">
         {/* Translucent header bar (mimics macOS / iOS Settings) */}
         <header className="sticky top-0 z-30 glass border-b border-border/60">
-          <div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-3">
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
             <div
               aria-hidden
               className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-[hsl(211_100%_60%)] shadow-apple-sm"
@@ -31,7 +31,7 @@ function App() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-3xl px-6 py-8 pb-32 space-y-6">
+        <main className="mx-auto max-w-5xl px-6 py-8 pb-32 space-y-6">
           <ApiKeysConfigComponent />
           <TargetLanguageSetting />
           <PromptTemplate />

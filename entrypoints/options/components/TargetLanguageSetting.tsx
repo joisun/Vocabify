@@ -75,7 +75,7 @@ const TargetLanguageSetting = () => {
             <Subtitle>The language Vocabify will translate selected text into.</Subtitle>
 
             <Select value={selectedLanguage} onValueChange={handleSelect}>
-                <SelectTrigger className="max-w-sm">
+                <SelectTrigger className="w-full md:w-1/2">
                     <SelectValue>
                         <span className="flex items-center gap-2">
                             {current?.flag && (

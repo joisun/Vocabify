@@ -24,7 +24,9 @@ Vocabify is a premium browser extension that helps you learn and manage vocabula
 - Customizable highlight styles
 
 ### 🤖 AI-Powered Explanations
-- Multiple AI service providers support (ChatAnywhere, Kimi, XunfeiSpark, OpenAI)
+- Multiple AI provider types support: `first-party`, `openai-compatible`, and `community`
+- Fixed provider list with dynamic model discovery after API key entry
+- Custom providers remain supported for self-hosted or proxy endpoints
 - Customizable explanation templates
 - Multi-language support
 - Real-time explanation generation
@@ -82,9 +84,9 @@ pnpm build:firefox    # For Firefox
 
 ### Additional Scripts
 
-- **Compile TypeScript**: `npm run compile`
-- **Zip for Distribution**: `npm run zip`
-- **Post-Install Setup**: `npm run postinstall`
+- **Compile TypeScript**: `pnpm run compile`
+- **Zip for Distribution**: `pnpm run zip`
+- **Post-Install Setup**: `pnpm run postinstall`
 
 ## 🛒 Chrome Web Store
 

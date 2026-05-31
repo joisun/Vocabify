@@ -1,4 +1,4 @@
-import { AiAgentApiKeys, AgentsType } from '@/typings/aiModelAdaptor'
+import { AiAgentApiKeys, DEFAULT_GEMINI_AGENT, normalizeAgentConfigs } from '@/typings/aiModelAdaptor'
 import { DefaultPromptTemplate, DefaultLanguage } from '@/const'
 
 /**--------------------------- OPTION PAGE ---------------------------*/
@@ -14,17 +14,18 @@ export const targetLanguage = storage.defineItem<string>('local:targetLanguage',
 
 /** apikey 设定缓存 */
 export const agentsStorage = storage.defineItem<AiAgentApiKeys>('local:agents', {
-  fallback: [
-    {
-      agentName: AgentsType.XunFeiSpark,
-      apiKey: 'MTrricoschHlfxWNvIJD:ZXklDofIqPdoBxkWsjTA',
-    },
-    {
-      agentName: AgentsType.ChatAnywhere_GPT35Turbo,
-      apiKey: 'sk-M72D5lilVXr4dKsWwPJgs8PRzvnLQleW0UrpBKdjjm7hHWWL',
-    },
-  ],
+  fallback: [],
 })
+
+export async function getNormalizedAgents() {
+  const raw = await agentsStorage.getValue()
+  const normalized = normalizeAgentConfigs(raw)
+  if (normalized.length > 0) return normalized
+
+  const seededAgents: AiAgentApiKeys = [DEFAULT_GEMINI_AGENT]
+  await agentsStorage.setValue(seededAgents)
+  return seededAgents
+}
 /** 回显样式 */
 export type highlightStyleSettingsType = {
   color: {

@@ -1,8 +1,9 @@
 import { streamText } from 'ai'
-import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { agentsStorage, promptTemplate, targetLanguage } from '@/utils/storage'
-import { AgentsType } from '@/typings/aiModelAdaptor'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { promptTemplate, targetLanguage, getNormalizedAgents } from '@/utils/storage'
+import { AiAgentApiKey } from '@/typings/aiModelAdaptor'
+import { Language_Placeholder, Selection_Placeholder } from '@/const'
 
 export interface AIStreamOptions {
   text: string
@@ -15,125 +16,174 @@ export class AIService {
   private async getPrompt(text: string): Promise<string> {
     const template = await promptTemplate.getValue()
     const language = await targetLanguage.getValue()
+    const resolvedTemplate = template
+      .split(Selection_Placeholder).join(text)
+      .split(Language_Placeholder).join(language)
 
-    return `${template}\n\nTarget Language: ${language}\n\nText to explain: ${text}`
+    return `${resolvedTemplate}\n\nTarget Language: ${language}\n\nText to explain: ${text}`
   }
 
-  private getModelProvider(agentName: AgentsType, apiKey: string) {
-    // OpenAI models
-    if (agentName.startsWith('OpenAI')) {
-      const openai = createOpenAI({ apiKey })
-      return openai(this.mapToOpenAIModel(agentName))
+  private async streamWithGemini(
+    agent: AiAgentApiKey,
+    prompt: string,
+    options: AIStreamOptions,
+  ): Promise<void> {
+    const baseURL = agent.baseURL?.replace(/\/$/, '') || 'https://generativelanguage.googleapis.com'
+    const response = await fetch(
+      `${baseURL}/v1beta/models/${agent.model}:streamGenerateContent?alt=sse`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'x-goog-api-key': agent.apiKey,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.35,
+            topP: 0.9,
+            maxOutputTokens: 900,
+          },
+        }),
+      },
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => response.statusText)
+      throw new Error(`Gemini request failed (${response.status}): ${errorText || response.statusText}`)
     }
 
-    // Anthropic models
-    if (agentName.startsWith('Anthropic')) {
-      const anthropic = createAnthropic({ apiKey })
-      return anthropic(this.mapToAnthropicModel(agentName))
+    if (!response.body) {
+      throw new Error('Gemini streaming response is not readable')
     }
 
-    // ChatAnywhere (OpenAI compatible)
-    if (agentName.startsWith('ChatAnywhere')) {
-      const chatAnywhere = createOpenAI({
-        apiKey,
-        baseURL: 'https://api.chatanywhere.tech/v1'
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let fullText = ''
+
+    const consumeEvent = (event: string) => {
+      const data = event
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart())
+        .join('\n')
+        .trim()
+
+      if (!data || data === '[DONE]') return
+
+      const parsed = JSON.parse(data)
+      const promptFeedback = parsed?.promptFeedback
+      if (promptFeedback?.blockReason) {
+        throw new Error(`Gemini blocked the prompt: ${promptFeedback.blockReason}`)
+      }
+
+      const chunk = extractGeminiText(parsed)
+      if (!chunk) return
+
+      fullText += chunk
+      options.onChunk?.(chunk)
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+
+      const events = buffer.split(/\r?\n\r?\n/)
+      buffer = events.pop() || ''
+
+      for (const event of events) {
+        consumeEvent(event)
+      }
+
+      if (done) break
+    }
+
+    if (buffer.trim()) {
+      consumeEvent(buffer)
+    }
+
+    if (!fullText.trim()) {
+      throw new Error('Gemini returned an empty explanation')
+    }
+
+    options.onComplete?.(fullText)
+  }
+
+  private async streamWithVercelSdk(agent: AiAgentApiKey, prompt: string, options: AIStreamOptions) {
+    let model: Parameters<typeof streamText>[0]['model']
+
+    if (agent.protocol === 'anthropic') {
+      const anthropic = createAnthropic({
+        apiKey: agent.apiKey,
+        ...(agent.baseURL ? { baseURL: agent.baseURL } : {}),
       })
-      return chatAnywhere(this.mapToChatAnywhereModel(agentName))
-    }
-
-    // Kimi Moonshot (OpenAI compatible)
-    if (agentName.startsWith('Kimi')) {
-      const kimi = createOpenAI({
-        apiKey,
-        baseURL: 'https://api.moonshot.cn/v1'
+      model = anthropic(agent.model)
+    } else if (agent.protocol === 'openai-compatible') {
+      const openaiCompatible = createOpenAICompatible({
+        name: agent.providerId,
+        baseURL: agent.baseURL || 'https://api.openai.com/v1',
+        apiKey: agent.apiKey,
       })
-      return kimi(this.mapToKimiModel(agentName))
+      model = openaiCompatible(agent.model)
+    } else {
+      throw new Error(`Unsupported protocol for Vercel SDK: ${agent.protocol}`)
     }
 
-    throw new Error(`Unsupported agent: ${agentName}`)
-  }
-
-  private mapToOpenAIModel(agentName: AgentsType): string {
-    const mapping: Record<string, string> = {
-      [AgentsType.OpenAI_GPT4o]: 'gpt-4o',
-      [AgentsType.OpenAI_GPT4o_Mini]: 'gpt-4o-mini',
-      [AgentsType.OpenAI_GPT4_Turbo]: 'gpt-4-turbo',
-      [AgentsType.OpenAI_GPT4]: 'gpt-4',
-      [AgentsType.OpenAI_GPT4_32K]: 'gpt-4-32k',
-      [AgentsType.OpenAI_GPT3_5_Turbo]: 'gpt-3.5-turbo',
-      [AgentsType.OpenAI_GPT3_5_Turbo_Instruct]: 'gpt-3.5-turbo-instruct',
-      [AgentsType.OpenAI_O1]: 'o1',
-      [AgentsType.OpenAI_O1_Mini]: 'o1-mini',
-      [AgentsType.OpenAI_O3_Mini]: 'o3-mini',
+    const { textStream } = await streamText({ model, prompt })
+    let fullText = ''
+    for await (const chunk of textStream) {
+      fullText += chunk
+      options.onChunk?.(chunk)
     }
-    return mapping[agentName] || 'gpt-4o-mini'
-  }
 
-  private mapToAnthropicModel(agentName: AgentsType): string {
-    // Add Anthropic model mapping if needed
-    return 'claude-3-5-sonnet-20241022'
-  }
-
-  private mapToChatAnywhereModel(agentName: AgentsType): string {
-    const mapping: Record<string, string> = {
-      [AgentsType.ChatAnywhere_GPT4oMini]: 'gpt-4o-mini',
-      [AgentsType.ChatAnywhere_GPT35Turbo]: 'gpt-3.5-turbo',
-      [AgentsType.ChatAnywhere_GPT4o]: 'gpt-4o',
-      [AgentsType.ChatAnywhere_GPT4]: 'gpt-4',
+    if (!fullText.trim()) {
+      throw new Error(`${agent.providerLabel} returned an empty explanation`)
     }
-    return mapping[agentName] || 'gpt-3.5-turbo'
-  }
 
-  private mapToKimiModel(agentName: AgentsType): string {
-    const mapping: Record<string, string> = {
-      [AgentsType.Kimi_Moonshot_8K]: 'moonshot-v1-8k',
-      [AgentsType.Kimi_Moonshot_32K]: 'moonshot-v1-32k',
-      [AgentsType.Kimi_Moonshot_128K]: 'moonshot-v1-128k',
-    }
-    return mapping[agentName] || 'moonshot-v1-8k'
+    options.onComplete?.(fullText)
   }
 
   async streamExplanation(options: AIStreamOptions): Promise<void> {
-    const agents = await agentsStorage.getValue()
+    const agents = await getNormalizedAgents()
     const prompt = await this.getPrompt(options.text)
+
+    if (!agents.length) {
+      options.onError?.(new Error('No AI providers configured'))
+      return
+    }
 
     let lastError: Error | null = null
 
-    // Try each agent in order (fallback logic)
     for (const agent of agents) {
       try {
-        // Skip XunFeiSpark (WebSocket not supported by Vercel AI SDK)
-        if (agent.agentName.startsWith('XunFeiSpark')) {
-          continue
+        if (agent.protocol === 'gemini-native') {
+          await this.streamWithGemini(agent, prompt, options)
+          return
         }
 
-        const model = this.getModelProvider(agent.agentName, agent.apiKey)
-
-        const { textStream } = await streamText({
-          model,
-          prompt,
-        })
-
-        let fullText = ''
-
-        for await (const chunk of textStream) {
-          fullText += chunk
-          options.onChunk?.(chunk)
-        }
-
-        options.onComplete?.(fullText)
-        return // Success, exit
-
+        await this.streamWithVercelSdk(agent, prompt, options)
+        return
       } catch (error) {
-        console.error(`Failed with ${agent.agentName}:`, error)
+        console.error(`Failed with ${agent.providerLabel} (${agent.model}):`, error)
         lastError = error instanceof Error ? error : new Error(String(error))
-        // Continue to next agent
       }
     }
 
-    // All agents failed
-    options.onError?.(lastError || new Error('All AI agents failed'))
+    options.onError?.(lastError || new Error('All AI providers failed'))
   }
 }
 
 export const aiService = new AIService()
+
+function extractGeminiText(response: any): string {
+  return response?.candidates?.[0]?.content?.parts
+    ?.map((part: { text?: string }) => part.text || '')
+    .join('') || ''
+}

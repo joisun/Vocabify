@@ -1,160 +1,115 @@
 # Playwright E2E Testing Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Current plan reflects the WXT development-extension workflow. Do not implement E2E by launching a separate persistent Chromium context with `.output/chrome-mv3` and `--load-extension`.
 
-**Goal:** Set up a professional Playwright testing suite for the Vocabify browser extension and implement the first core E2E tests.
+**Goal:** Maintain a professional Playwright E2E suite for Vocabify's real browser-extension workflow.
 
-**Architecture:** Use `@playwright/test` with a custom fixture for loading the extension and stable ID detection.
+**Architecture:** Run `pnpm run dev`, connect Playwright to WXT's existing Chromium through CDP, and test the dev extension in place.
 
-**Tech Stack:** Playwright, TypeScript, WXT.
+**Tech Stack:** Playwright, TypeScript, WXT, Chrome DevTools Protocol.
 
----
-
-### Task 1: Environment Setup
+## Task 1: Environment Setup
 
 **Files:**
-- Modify: `package.json`
 
-- [ ] **Step 1: Install Playwright dependencies**
-Run: `pnpm add -D @playwright/test`
-Expected: Success
+- `package.json`
+- `pnpm-lock.yaml`
+- `wxt.config.ts`
 
-- [ ] **Step 2: Install Playwright browsers**
-Run: `npx playwright install chromium`
-Expected: Success
+Implementation:
 
-- [ ] **Step 3: Add test script to package.json**
-Modify `package.json`:
-```json
-"scripts": {
-  ...
-  "test:e2e": "playwright test"
+- Add `@playwright/test`.
+- Add `"test:e2e": "playwright test"`.
+- Ensure `wxt.config.ts` includes:
+
+```ts
+webExt: {
+  chromiumArgs: [
+    "--enable-unsafe-extension-debugging",
+    "--remote-debugging-port=9222",
+  ],
 }
 ```
 
-### Task 2: Playwright Configuration & Fixture
+## Task 2: Content UI Runtime
 
 **Files:**
-- Create: `playwright.config.ts`
-- Create: `tests/fixtures.ts`
 
-- [ ] **Step 1: Create playwright.config.ts**
-```typescript
-import { defineConfig, devices } from '@playwright/test';
+- `entrypoints/content/index.tsx`
+- `components/ui/sheet.tsx`
 
-export default defineConfig({
-  testDir: './tests',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
-  use: {
-    trace: 'on-first-retry',
-  },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
-});
-```
+Implementation:
 
-- [ ] **Step 2: Create extension fixture in tests/fixtures.ts**
-```typescript
-import { test as base, expect, chromium, type BrowserContext } from '@playwright/test';
-import path from 'path';
+- Use `cssInjectionMode: "ui"` on the content script.
+- Mount content UI with `createShadowRootUi`.
+- Set the Shadow host id to `vocabify-root`.
+- Create a dedicated `#vocabify-react-root` for React.
+- Create `#vocabify-portal-root` inside the ShadowRoot and point Sheet portals at it.
 
-export const test = base.extend<{
-  context: BrowserContext;
-  extensionId: string;
-}>({
-  context: async ({ }, use) => {
-    const pathToExtension = path.resolve('.output/chrome-mv3');
-    const context = await chromium.launchPersistentContext('', {
-      headless: false, // Extensions only work in headful mode
-      args: [
-        `--disable-extensions-except=${pathToExtension}`,
-        `--load-extension=${pathToExtension}`,
-      ],
-    });
-    await use(context);
-    await context.close();
-  },
-  extensionId: async ({ context }, use) => {
-    // For MV3, we can find the extension ID by looking at the service worker
-    let [background] = context.serviceWorkers();
-    if (!background)
-      background = await context.waitForEvent('serviceworker');
+Acceptance:
 
-    const extensionId = background.url().split('/')[2];
-    await use(extensionId);
-  },
-});
+- Tailwind classes apply inside ShadowRoot.
+- Selection toolbar and Sheet are queryable under `#vocabify-root`.
+- There is no React warning about mounting directly to `document.body`.
 
-export { expect };
-```
-
-### Task 3: Selection Flow Test (TDD)
+## Task 3: Selection AI Flow Test
 
 **Files:**
-- Create: `tests/selection.spec.ts`
-- Create: `tests/mock-page.html`
 
-- [ ] **Step 1: Create a simple mock page for testing**
-Create `tests/mock-page.html`:
-```html
-<!DOCTYPE html>
-<html>
-<body>
-  <h1>Test Page</h1>
-  <p id="target-text">Vocabify is a great tool.</p>
-</body>
-</html>
+- `tests/selection-ai-flow.spec.ts`
+- `tests/fixtures/selection-page.html`
+
+Implementation:
+
+- Connect to the existing WXT Chrome:
+
+```ts
+const response = await fetch("http://127.0.0.1:9222/json/version")
+const { webSocketDebuggerUrl } = await response.json()
+const browser = await chromium.connectOverCDP(webSocketDebuggerUrl)
 ```
 
-- [ ] **Step 2: Write the failing test for selection**
-Create `tests/selection.spec.ts`:
-```typescript
-import { test, expect } from './fixtures';
-import path from 'path';
+- Resolve extension id from the service worker URL.
+- Seed `chrome.storage.local` from the extension options page.
+- Select text on a local fixture page.
+- Assert the compact toolbar appears.
+- Click Explain.
+- Assert the sheet appears inside ShadowRoot.
+- Assert streamed AI result appears and Save becomes enabled.
 
-test('should show InPageUI when text is selected', async ({ page }) => {
-  await page.goto(`file://${path.resolve('tests/mock-page.html')}`);
-  
-  const target = page.locator('#target-text');
-  await target.selectText();
+Current runtime contract:
 
-  // Check for the shadow host (adjust selector based on actual implementation)
-  const shadowHost = page.locator('vocabify-in-page-ui'); 
-  await expect(shadowHost).toBeVisible();
-});
+- Provider selection is fixed and shown as a single list.
+- Custom providers remain supported as OpenAI-compatible endpoints.
+- Model discovery happens dynamically after API key entry.
+- Gemini continues to use the native SSE endpoint.
+
+Run:
+
+```bash
+VOCABIFY_GEMINI_API_KEY='...' fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
 ```
 
-- [ ] **Step 3: Run the test and verify it fails**
-Run: `pnpm test:e2e tests/selection.spec.ts`
-Expected: Should fail if the extension isn't loading or the selector is wrong.
+## Task 4: Validation Commands
 
-- [ ] **Step 4: Refine the test with actual Shadow DOM interaction**
-(Update the test with correct selectors discovered during Task 3 Step 3)
+Run in order:
 
-### Task 4: Options Page Test
-
-**Files:**
-- Create: `tests/options.spec.ts`
-
-- [ ] **Step 1: Write test for Options page**
-```typescript
-import { test, expect } from './fixtures';
-
-test('should load the options page', async ({ page, extensionId }) => {
-  await page.goto(`chrome-extension://${extensionId}/options.html`);
-  await expect(page).toHaveTitle(/Vocabify/);
-  await expect(page.locator('text=Vocabulary List')).toBeVisible();
-});
+```bash
+fnm exec --using v24.13.1 pnpm compile
+VOCABIFY_GEMINI_API_KEY='...' fnm exec --using v24.13.1 pnpm test:e2e tests/selection-ai-flow.spec.ts
+fnm exec --using v24.13.1 pnpm build
 ```
 
-- [ ] **Step 2: Run and verify**
-Run: `pnpm test:e2e tests/options.spec.ts`
-Expected: Pass
+Expected:
+
+- TypeScript compile passes.
+- E2E passes against the WXT dev extension.
+- Production build completes.
+
+Known build warnings:
+
+- Vite/Rolldown deprecation warnings from current toolchain.
+- Browserslist database age warning.
+- lightningcss warning for `::highlight(vocab-highlight)`.
+
+These warnings do not currently block the build, but should be revisited during build tooling cleanup.
