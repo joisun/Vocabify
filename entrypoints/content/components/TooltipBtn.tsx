@@ -71,7 +71,7 @@ function TooltipBtn({
       data-testid="vocabify-selection-popover"
       onMouseDown={(event) => event.preventDefault()}
     >
-      <div className="overflow-hidden rounded-[10px] border border-border/80 bg-popover text-popover-foreground shadow-apple-md backdrop-blur-xl animate-scale-in">
+      <div className="overflow-hidden rounded-[10px] liquid-glass-card text-popover-foreground shadow-apple-md animate-scale-in">
         <div className="flex items-start justify-between gap-2 px-3 pt-2.5 pb-2">
           <p className={cn(
             'line-clamp-2 min-w-0 break-words text-[14px] font-semibold leading-[18px]',
@@ -81,7 +81,7 @@ function TooltipBtn({
           </p>
           <button
             type="button"
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/20 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={cancelHandler}
             aria-label="Dismiss selection actions"
             title="Dismiss"
@@ -90,12 +90,12 @@ function TooltipBtn({
           </button>
         </div>
 
-        <div className="flex items-center gap-1 border-t border-border/60 p-1.5">
+        <div className="flex items-center gap-1 border-t border-white/16 p-1.5">
           <Button
             type="button"
             size="sm"
             variant="secondary"
-            className="h-8 flex-1 rounded-md px-2.5 text-[12px] font-semibold text-foreground shadow-none hover:bg-accent hover:text-accent-foreground"
+            className="liquid-glass-button h-8 flex-1 rounded-md px-2.5 text-[12px] font-semibold text-black shadow-none hover:text-black dark:text-black dark:hover:text-black"
             onClick={() => vocabifyHandler(text)}
             aria-label="Explain selection with AI"
             data-testid="vocabify-explain-action"
@@ -108,7 +108,7 @@ function TooltipBtn({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground"
+            className="liquid-glass-button h-8 w-8 rounded-md text-muted-foreground hover:text-foreground"
             onClick={() => copyHandler(text)}
             aria-label="Copy selected text"
             title="Copy"

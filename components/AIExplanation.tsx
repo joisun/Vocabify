@@ -22,6 +22,8 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
   const [editing, setEditing] = useState(false)
   const portRef = useRef<chrome.runtime.Port | null>(null)
   const requestRef = useRef(0)
+  const resultScrollRef = useRef<HTMLDivElement | null>(null)
+  const userScrolledRef = useRef(false)
 
   useEffect(() => {
     const requestId = requestRef.current + 1
@@ -44,6 +46,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
     setExplanation('')
     setSavedKey(null)
     setEditing(false)
+    userScrolledRef.current = false
 
     try {
       const port = chrome.runtime.connect({ name: 'ai-stream' })
@@ -127,8 +130,17 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
   const isSaved = savedKey === selectedText
   const isLoading = status === 'loading' || status === 'streaming'
   const canSave = status === 'success' && explanation.trim() && !isSaved
+
+  useEffect(() => {
+    if (editing) return
+    if (!explanation || userScrolledRef.current) return
+    const scrollNode = resultScrollRef.current
+    if (!scrollNode) return
+    scrollNode.scrollTop = scrollNode.scrollHeight
+  }, [editing, explanation])
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3" data-testid="vocabify-ai-panel">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3" data-testid="vocabify-ai-panel">
       <section
         className="liquid-card relative overflow-hidden rounded-2xl p-3 text-card-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
         aria-label="Selected text"
@@ -168,7 +180,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-        <div className="liquid-card relative min-h-0 flex-1 overflow-hidden rounded-2xl shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]">
+        <div className="liquid-glass-card relative min-h-0 flex-1 overflow-hidden rounded-2xl">
           {status === 'loading' ? (
             <LoadingState />
           ) : status === 'error' ? (
@@ -182,7 +194,12 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
               aria-label="Edit AI explanation"
             />
           ) : explanation.trim() ? (
-            <MarkdownResult text={explanation} streaming={status === 'streaming'} />
+            <MarkdownResult
+              text={explanation}
+              streaming={status === 'streaming'}
+              scrollRef={resultScrollRef}
+              userScrolledRef={userScrolledRef}
+            />
           ) : (
             <EmptyResult />
           )}
@@ -195,8 +212,8 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
           disabled={saving || !canSave}
           size="lg"
           className={cn(
-            'rounded-xl border border-white/[0.16] bg-[linear-gradient(180deg,hsl(var(--primary)/0.98),hsl(var(--primary)/0.84))] text-[14px] shadow-[0_12px_30px_hsl(var(--primary)/0.24)] backdrop-blur-xl',
-            isSaved && 'bg-success text-white hover:bg-success/90'
+            'liquid-glass-button rounded-xl text-[14px] text-black hover:text-black dark:text-black',
+            isSaved && 'text-black'
           )}
           data-testid="vocabify-save-action"
         >
@@ -389,18 +406,29 @@ const EmptyResult = () => (
   </div>
 )
 
-function MarkdownResult({ text, streaming }: { text: string; streaming: boolean }) {
+function MarkdownResult({
+  text,
+  streaming,
+  scrollRef,
+  userScrolledRef,
+}: {
+  text: string
+  streaming: boolean
+  scrollRef: React.MutableRefObject<HTMLDivElement | null>
+  userScrolledRef: React.MutableRefObject<boolean>
+}) {
   const blocks = parseMarkdownBlocks(text)
-  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden"
+      className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden"
       data-testid="vocabify-ai-result"
       onWheelCapture={(event) => {
         const scrollNode = scrollRef.current
         if (!scrollNode) return
         if (scrollNode.scrollHeight <= scrollNode.clientHeight) return
+        event.preventDefault()
+        userScrolledRef.current = true
         scrollNode.scrollTop += event.deltaY
         event.stopPropagation()
       }}
@@ -415,10 +443,10 @@ function MarkdownResult({ text, streaming }: { text: string; streaming: boolean 
       />
       <div
         ref={scrollRef}
-        className="vocabify-fade-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pr-5"
+        className="vocabify-fade-scroll min-h-0 w-full min-w-0 flex-1 overflow-y-scroll overscroll-contain px-4 py-4 pr-5"
         data-testid="vocabify-ai-result-scroll"
       >
-        <div className="flex min-h-full flex-col gap-3 text-[12px] leading-relaxed text-foreground">
+        <div className="flex min-h-full w-full min-w-0 flex-col gap-3 text-[12px] leading-relaxed text-foreground">
           {blocks.map((block, index) => {
             if (block.type === 'heading') {
               return (
@@ -439,7 +467,7 @@ function MarkdownResult({ text, streaming }: { text: string; streaming: boolean 
             }
 
             return (
-              <p key={index} className="text-muted-foreground">
+              <p key={index} className="min-w-0 break-words text-muted-foreground">
                 {block.text}
               </p>
             )

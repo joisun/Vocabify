@@ -74,5 +74,6 @@ export function getAllTextNodes() {
 }
 
 export function checkIsDisabled(target: any) {
-  return target.closest(`.${NO_SELECTION_CONTAINER}`)
+  if (!(target instanceof Element)) return false
+  return Boolean(target.closest(`.${NO_SELECTION_CONTAINER}`))
 }

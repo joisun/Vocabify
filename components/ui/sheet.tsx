@@ -17,9 +17,9 @@ const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-[radial-gradient(circle_at_72%_18%,hsl(var(--primary)/0.16),transparent_32%),linear-gradient(135deg,hsl(var(--background)/0.52),hsl(var(--background)/0.20))]",
+    <SheetPrimitive.Overlay
+      className={cn(
+      "fixed inset-0 z-50 bg-transparent",
       "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
@@ -39,9 +39,9 @@ const sheetVariants = cva(
         top: "inset-x-3 top-3 data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top sm:inset-x-4 sm:top-4",
         bottom:
           "inset-x-3 bottom-3 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:inset-x-4 sm:bottom-4",
-        left: "bottom-3 left-3 top-3 w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:bottom-4 sm:left-4 sm:top-4 sm:w-[min(460px,calc(100vw-2rem))]",
+        left: "bottom-3 left-3 top-3 w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:bottom-4 sm:left-4 sm:top-4 sm:w-[min(340px,calc(100vw-2rem))]",
         right:
-          "right-3 top-[20vh] h-[min(60vh,640px)] max-h-[calc(100vh-24px)] w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:right-4 sm:w-[min(460px,calc(100vw-2rem))]",
+          "right-3 top-[20vh] h-[min(60vh,640px)] max-h-[calc(100vh-24px)] w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:right-4 sm:w-[min(340px,calc(100vw-2rem))]",
       },
     },
     defaultVariants: {
@@ -177,16 +177,16 @@ SheetContentBody.displayName = "SheetContentBody"
 function LiquidGlassFrame({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="relative h-full min-h-0 w-full overflow-visible rounded-[28px] shadow-[0_24px_80px_hsl(var(--shadow-color)/0.22),0_8px_24px_hsl(var(--shadow-color)/0.12)]"
+      className="relative h-full min-h-0 w-full overflow-visible rounded-[28px] shadow-[0_24px_80px_hsl(var(--shadow-color)/0.16),0_8px_24px_hsl(var(--shadow-color)/0.08)]"
       data-liquid-glass-frame
     >
       <LiquidGlass
         className="vocabify-liquid-panel"
         displacementScale={38}
-        blurAmount={0.045}
-        saturation={150}
-        aberrationIntensity={1.2}
-        elasticity={0.08}
+        blurAmount={0}
+        saturation={220}
+        aberrationIntensity={2}
+        elasticity={0.16}
         cornerRadius={28}
         padding="0"
         mode="standard"
@@ -198,8 +198,8 @@ function LiquidGlassFrame({ children }: { children: React.ReactNode }) {
           height: "100%",
         }}
       >
-        <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[28px] border border-white/35 bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.62),hsl(var(--surface-glass)/0.42))] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.32),inset_0_-1px_0_rgba(255,255,255,0.12)] dark:border-white/10 dark:bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.76),hsl(var(--surface-glass)/0.50))]">
-          <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_22%_0%,rgba(255,255,255,0.42),transparent_32%),radial-gradient(circle_at_92%_18%,hsl(var(--primary)/0.16),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.18),transparent_46%)] dark:bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_92%_18%,hsl(var(--primary)/0.20),transparent_38%)]" />
+        <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[28px] border border-white/28 bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.40),hsl(var(--surface-glass)/0.20))] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-1px_0_rgba(255,255,255,0.10)] dark:border-white/8 dark:bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.50),hsl(var(--surface-glass)/0.24))]">
+          <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.55),transparent_28%),radial-gradient(circle_at_92%_16%,hsl(var(--primary)/0.20),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.28),transparent_38%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.18),transparent_26%),radial-gradient(circle_at_92%_16%,hsl(var(--primary)/0.22),transparent_34%)]" />
           <div className="relative z-10 flex h-full min-h-0 flex-col">{children}</div>
         </div>
       </LiquidGlass>

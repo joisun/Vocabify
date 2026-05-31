@@ -137,10 +137,11 @@ export default defineContentScript({
     })
 
     document.addEventListener('mouseup', function (event) {
-      const target = event.target as Node
+      const target = event.target
       if (checkIsDisabled(target)) return
+      if (!(target instanceof HTMLElement)) return
       if (target.nodeName === 'INPUT' || target.nodeName === 'TEXTAREA') return
-      if ((target as HTMLElement).isContentEditable) return
+      if (target.isContentEditable) return
 
       const selection = window.getSelection()
       if (!selection || !selection.rangeCount) return

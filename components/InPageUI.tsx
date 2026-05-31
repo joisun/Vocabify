@@ -34,7 +34,7 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
           data-vocabify-sheet-drag-handle
           className="flex shrink-0 items-center gap-2 border-b border-white/18 px-4 py-3 dark:border-white/10"
         >
-          <TabsList className="grid h-9 flex-1 grid-cols-2 rounded-full bg-white/[0.26] p-0.5 backdrop-blur-xl dark:bg-white/[0.08]">
+          <TabsList className="liquid-glass-control grid h-9 flex-1 grid-cols-2 rounded-full p-0.5">
             <TabsTrigger value="ai">Search</TabsTrigger>
             <TabsTrigger value="vocab">My Wordlist</TabsTrigger>
           </TabsList>
@@ -60,7 +60,7 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
           </Button>
         </div>
 
-        <TabsContent value="ai" className="flex-1 min-h-0 overflow-hidden mt-0 px-4 pb-4">
+        <TabsContent value="ai" forceMount className="mt-0 flex min-h-0 flex-1 overflow-hidden px-4 pb-4">
           {selectedText ? (
             <AIExplanation selectedText={selectedText} />
           ) : (
@@ -68,7 +68,7 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="vocab" className="flex-1 min-h-0 overflow-hidden mt-0 px-4 pb-4">
+        <TabsContent value="vocab" forceMount className="mt-0 flex min-h-0 flex-1 overflow-hidden px-4 pb-4">
           <VocabList />
         </TabsContent>
       </Tabs>

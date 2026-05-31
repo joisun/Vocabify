@@ -16,39 +16,37 @@ function App() {
   }
 
   return (
-    <div className="w-[320px] bg-background text-foreground">
-      {/* Apple-style hero header */}
-      <div className="relative px-5 pt-5 pb-3">
-        <div className="flex items-center gap-3">
-          <div
-            aria-hidden
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-[hsl(211_100%_60%)] shadow-apple-sm"
-          >
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div className="leading-tight">
-            <h1 className="font-display text-[17px] font-semibold tracking-tight">
-              Vocabify
-            </h1>
-            <p className="text-[12px] text-muted-foreground">
-              AI-powered vocabulary
-            </p>
-          </div>
+    <div className="relative isolate w-[340px] overflow-hidden rounded-[28px] border border-white/24 bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.38),hsl(var(--surface-glass)/0.18))] p-4 text-foreground shadow-[0_22px_70px_hsl(var(--shadow-color)/0.16)] backdrop-blur-2xl dark:border-white/10 dark:bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.52),hsl(var(--surface-glass)/0.24))]">
+      <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.60),transparent_34%),radial-gradient(circle_at_88%_12%,hsl(var(--primary)/0.18),transparent_28%)]" />
+      <div className="relative flex items-center gap-3 pb-4">
+        <div
+          aria-hidden
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/24 bg-white/[0.28] shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.10]"
+        >
+          <Sparkles className="h-5 w-5 text-foreground" />
+        </div>
+        <div className="leading-tight">
+          <h1 className="font-display text-[16px] font-semibold tracking-tight">
+            Vocabify
+          </h1>
+          <p className="text-[11px] text-muted-foreground">
+            AI vocabulary control center
+          </p>
         </div>
       </div>
 
-      <div className="px-4 pb-4 space-y-2">
+      <div className="relative space-y-2">
         <Button
-          className="w-full h-11 rounded-xl text-[14px] justify-start px-4 shadow-apple-sm"
+          className="liquid-glass-button w-full h-11 rounded-xl text-[14px] justify-start px-4 text-black dark:text-black"
           onClick={openVocabList}
         >
           <BookOpenText className="mr-1 h-4 w-4" />
-          Open Vocabulary List
+          Open My Wordlist
         </Button>
 
         <Button
           variant="outline"
-          className="w-full h-11 rounded-xl text-[14px] justify-start px-4"
+          className="liquid-glass-button w-full h-11 rounded-xl text-[14px] justify-start px-4 text-black dark:text-black"
           onClick={openOptions}
         >
           <Settings className="mr-1 h-4 w-4" />
