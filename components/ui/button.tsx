@@ -20,20 +20,20 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-apple-sm hover:bg-primary/90 hover:shadow-apple-md",
+          "border border-white/15 bg-primary text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.22)] hover:bg-primary/90 hover:shadow-[0_14px_28px_hsl(var(--primary)/0.26)]",
         destructive:
           "bg-destructive text-destructive-foreground shadow-apple-sm hover:bg-destructive/90",
         outline:
-          "border border-border bg-background/60 backdrop-blur-sm text-foreground hover:bg-accent/60 hover:text-accent-foreground",
+          "border border-white/[0.24] bg-white/[0.24] backdrop-blur-xl text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] hover:bg-white/[0.38] dark:border-white/10 dark:bg-white/[0.08] dark:hover:bg-white/[0.14]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border border-white/[0.18] bg-white/[0.20] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-xl hover:bg-white/[0.32] dark:border-white/10 dark:bg-white/[0.07] dark:hover:bg-white/[0.12]",
         ghost:
-          "text-foreground/80 hover:bg-secondary hover:text-foreground",
+          "text-foreground/80 hover:bg-white/[0.16] hover:text-foreground dark:hover:bg-white/[0.10]",
         link:
           "text-primary underline-offset-4 hover:underline px-1",
         // Apple "tinted" / accent button (subtle blue-tinted background)
         tinted:
-          "bg-accent text-accent-foreground hover:bg-accent/80",
+          "border border-white/[0.18] bg-[linear-gradient(180deg,hsl(var(--accent)/0.92),hsl(var(--accent)/0.74))] text-accent-foreground shadow-[0_10px_22px_hsl(var(--primary)/0.16)] backdrop-blur-xl hover:bg-accent/80",
       },
       size: {
         default: "h-9 px-4 py-2",

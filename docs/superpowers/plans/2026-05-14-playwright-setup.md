@@ -75,6 +75,7 @@ const browser = await chromium.connectOverCDP(webSocketDebuggerUrl)
 - Assert the compact toolbar appears.
 - Click Explain.
 - Assert the sheet appears inside ShadowRoot.
+- Assert the sheet settles as a floating liquid-glass panel with non-zero viewport spacing.
 - Assert streamed AI result appears and Save becomes enabled.
 
 Current runtime contract:

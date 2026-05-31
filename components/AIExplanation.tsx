@@ -141,7 +141,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-4" data-testid="vocabify-ai-panel">
       <section
-        className="rounded-2xl border border-border/70 bg-card text-card-foreground p-4 shadow-apple-xs"
+        className="liquid-card relative overflow-hidden rounded-2xl p-4 text-card-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
         aria-label="Selected text"
       >
         <div className="flex items-start justify-between gap-3">
@@ -191,7 +191,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
           {isLoading ? <StreamingIndicator /> : null}
         </header>
 
-        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/70 bg-background/70 shadow-apple-xs">
+        <div className="liquid-card relative min-h-0 flex-1 overflow-hidden rounded-2xl shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]">
           {status === 'loading' ? (
             <LoadingState />
           ) : status === 'error' ? (
@@ -217,7 +217,10 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
           onClick={handleSave}
           disabled={saving || !canSave}
           size="lg"
-          className={cn('rounded-xl', isSaved && 'bg-success text-white hover:bg-success/90')}
+          className={cn(
+            'rounded-xl border border-white/[0.16] bg-[linear-gradient(180deg,hsl(var(--primary)/0.98),hsl(var(--primary)/0.84))] shadow-[0_12px_30px_hsl(var(--primary)/0.24)] backdrop-blur-xl',
+            isSaved && 'bg-success text-white hover:bg-success/90'
+          )}
           data-testid="vocabify-save-action"
         >
           {saving ? (
@@ -275,7 +278,7 @@ function normalizeError(value: unknown) {
 }
 
 const StreamingIndicator = () => (
-  <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2 py-1 text-[11px] font-medium text-accent-foreground" aria-label="AI is responding">
+  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/[0.34] px-2 py-1 text-[11px] font-medium text-accent-foreground shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.10]" aria-label="AI is responding">
     <span className="h-1.5 w-1.5 rounded-full bg-current animate-ai-pulse" />
     <span className="h-1.5 w-1.5 rounded-full bg-current animate-ai-pulse [animation-delay:.15s]" />
     <span className="h-1.5 w-1.5 rounded-full bg-current animate-ai-pulse [animation-delay:.3s]" />
@@ -284,7 +287,7 @@ const StreamingIndicator = () => (
 
 const LoadingState = () => (
   <div className="flex h-full flex-col gap-4 p-4" data-testid="vocabify-ai-loading">
-    <div className="rounded-xl border border-border/60 bg-secondary/35 p-3">
+    <div className="rounded-xl border border-white/[0.24] bg-white/[0.28] p-3 shadow-apple-xs backdrop-blur-lg dark:border-white/10 dark:bg-white/[0.08]">
       <p className="text-[13px] font-medium text-foreground">Generating a concise vocabulary explanation</p>
       <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
         Vocabify is reading the selection, applying your target language, and contacting the first available AI provider.
@@ -303,7 +306,7 @@ function ErrorState({ error, onRetry, onOpenSettings }: { error: string | null; 
   return (
     <div className="flex h-full flex-col justify-between gap-4 p-4" data-testid="vocabify-ai-error">
       <div>
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-destructive">
+        <div className="flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-destructive shadow-apple-xs backdrop-blur-lg">
           <AlertCircle className="mt-0.5 shrink-0" />
           <div>
             <p className="text-[13px] font-semibold">AI explanation failed</p>
@@ -341,34 +344,39 @@ function MarkdownResult({ text, streaming }: { text: string; streaming: boolean 
   const blocks = parseMarkdownBlocks(text)
 
   return (
-    <div className="h-full overflow-auto p-4 scrollbar-thin" data-testid="vocabify-ai-result">
-      <div className="flex flex-col gap-3 text-[13px] leading-relaxed text-foreground">
-        {blocks.map((block, index) => {
-          if (block.type === 'heading') {
+    <div className="h-full min-h-0 overflow-hidden" data-testid="vocabify-ai-result">
+      <div
+        className="h-full min-h-0 overflow-y-auto overscroll-contain px-4 py-4 pr-5 scrollbar-thin [scrollbar-gutter:stable]"
+        data-testid="vocabify-ai-result-scroll"
+      >
+        <div className="flex min-h-full flex-col gap-3 text-[13px] leading-relaxed text-foreground">
+          {blocks.map((block, index) => {
+            if (block.type === 'heading') {
+              return (
+                <h3 key={index} className="font-display text-[14px] font-semibold tracking-tight text-foreground">
+                  {block.text}
+                </h3>
+              )
+            }
+
+            if (block.type === 'list') {
+              return (
+                <ul key={index} className="flex list-disc flex-col gap-1 pl-5 text-muted-foreground marker:text-primary">
+                  {block.items.map((item, itemIndex) => (
+                    <li key={itemIndex}>{item}</li>
+                  ))}
+                </ul>
+              )
+            }
+
             return (
-              <h3 key={index} className="font-display text-[14px] font-semibold tracking-tight text-foreground">
+              <p key={index} className="text-muted-foreground">
                 {block.text}
-              </h3>
+              </p>
             )
-          }
-
-          if (block.type === 'list') {
-            return (
-              <ul key={index} className="flex list-disc flex-col gap-1 pl-5 text-muted-foreground marker:text-primary">
-                {block.items.map((item, itemIndex) => (
-                  <li key={itemIndex}>{item}</li>
-                ))}
-              </ul>
-            )
-          }
-
-          return (
-            <p key={index} className="text-muted-foreground">
-              {block.text}
-            </p>
-          )
-        })}
-        {streaming ? <span className="inline-block h-4 w-1.5 rounded-full bg-primary animate-ai-pulse" aria-hidden /> : null}
+          })}
+          {streaming ? <span className="inline-block h-4 w-1.5 rounded-full bg-primary animate-ai-pulse" aria-hidden /> : null}
+        </div>
       </div>
     </div>
   )

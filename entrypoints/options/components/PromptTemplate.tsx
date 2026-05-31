@@ -4,7 +4,7 @@ import { DefaultPromptTemplate, Language_Placeholder, Selection_Placeholder } fr
 import { promptTemplate } from '@/utils/storage'
 import { useDebounce } from '@uidotdev/usehooks'
 import { AlertCircle, RotateCcw, Wand2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import HeadlingTitle from './common/HeadlingTitle'
 import Subtitle from './common/Subtitle'

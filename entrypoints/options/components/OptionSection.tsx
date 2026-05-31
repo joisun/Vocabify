@@ -1,9 +1,5 @@
 import { cn } from "@/lib/utils"
 
-/**
- * Apple-style grouped settings section.
- * Renders content inside a card with hairline border and soft shadow.
- */
 export default function OptionSection({
   children,
   className,
@@ -14,8 +10,8 @@ export default function OptionSection({
   return (
     <section
       className={cn(
-        "vocabify-option-section rounded-2xl border border-border/70 bg-card text-card-foreground shadow-apple-sm",
-        "p-6 space-y-3",
+        "vocabify-option-section liquid-card rounded-[24px] p-6 text-card-foreground",
+        "space-y-3 shadow-[0_18px_52px_hsl(var(--shadow-color)/0.08),inset_0_1px_0_rgba(255,255,255,0.24)]",
         className
       )}
     >

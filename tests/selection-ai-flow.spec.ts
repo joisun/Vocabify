@@ -70,12 +70,29 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       await page.locator('#vocabify-root [data-testid="vocabify-explain-action"]').click()
 
       await expect(page.locator('#vocabify-root #vocabify-portal-root')).toBeAttached()
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-sheet"]')).toBeVisible({ timeout: 10_000 })
+      const sheet = page.locator('#vocabify-root [data-testid="vocabify-sheet"]')
+      await expect(sheet).toBeVisible({ timeout: 10_000 })
+      await expect.poll(async () => {
+        const sheetBox = await sheet.boundingBox()
+        const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
+        if (!sheetBox) return false
+        return sheetBox.x > 8
+          && sheetBox.y > 8
+          && viewport.width - sheetBox.x - sheetBox.width > 8
+          && viewport.height - sheetBox.y - sheetBox.height > 8
+      }, { timeout: 3_000 }).toBe(true)
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-panel"]')).toBeVisible()
       expect(radixA11yWarnings).toEqual([])
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-result"]')).toContainText(/meaning|usage|example|phrase/i, {
         timeout: 45_000,
       })
+      const aiResultScroll = page.locator('#vocabify-root [data-testid="vocabify-ai-result-scroll"]')
+      await expect(aiResultScroll).toBeVisible()
+      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true)
+      await aiResultScroll.evaluate((node) => {
+        node.scrollTop = node.scrollHeight
+      })
+      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop > 0)).toBe(true)
       await expect(page.locator('#vocabify-root [data-testid="vocabify-save-action"]')).toBeEnabled()
     } finally {
       await page.close().catch(() => undefined)
@@ -110,8 +127,8 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
         })
 
         const chunks = [
-          'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{"content":"### Meaning\\nA nuanced phrase conveys a subtle or precise expression.\\n\\n"},"finish_reason":null}]}\n\n',
-          'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{"content":"### Usage\\n- Usually adjective + noun\\n- Often used in analytical writing\\n\\n### Examples\\n- Her nuanced phrase changed the tone.\\n- The report used a nuanced phrase to avoid overstatement."},"finish_reason":null}]}\n\n',
+          `data: ${JSON.stringify(createOpenAIChunk('### Meaning\\nA nuanced phrase conveys a subtle or precise expression.\\n\\n'))}\n\n`,
+          `data: ${JSON.stringify(createOpenAIChunk(createLongExplanationChunk()))}\n\n`,
           'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
           'data: [DONE]\n\n',
         ]
@@ -233,4 +250,38 @@ async function selectText(page: Page, text: string) {
 function isRadixDialogA11yWarning(text: string) {
   return text.includes('`DialogContent` requires a `DialogTitle`')
     || text.includes('Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.')
+}
+
+function createOpenAIChunk(content: string) {
+  return {
+    id: 'chatcmpl-test',
+    object: 'chat.completion.chunk',
+    created: 1710000000,
+    model: 'mock-model',
+    choices: [
+      {
+        index: 0,
+        delta: { content },
+        finish_reason: null,
+      },
+    ],
+  }
+}
+
+function createLongExplanationChunk() {
+  const examples = Array.from({ length: 18 }, (_, index) => {
+    return `- Example ${index + 1}: A nuanced phrase can carry context, tone, and implication without spelling everything out.`
+  }).join('\n')
+
+  return [
+    '### Usage',
+    '- Usually adjective + noun',
+    '- Often used in analytical writing',
+    '',
+    '### Examples',
+    examples,
+    '',
+    '### Notes',
+    'The phrase is useful when the wording matters as much as the literal definition.',
+  ].join('\n')
 }

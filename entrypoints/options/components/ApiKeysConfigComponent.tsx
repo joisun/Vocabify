@@ -390,7 +390,7 @@ const ApiKeysConfigComponent = () => {
       </div>
 
       {apiKeys.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/70 bg-secondary/30 px-4 py-8 text-center text-[13px] text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-white/30 bg-white/[0.20] px-4 py-8 text-center text-[13px] text-muted-foreground backdrop-blur-lg dark:border-white/10 dark:bg-white/[0.06]">
           还没有 provider 配置，请先添加至少一个。
         </div>
       ) : (
@@ -407,8 +407,8 @@ const ApiKeysConfigComponent = () => {
                           ref={dragProvided.innerRef}
                           {...dragProvided.draggableProps}
                           className={cn(
-                            'group/provider grid grid-cols-[32px_minmax(0,1fr)_36px] items-center gap-2 rounded-xl border border-border/70 bg-secondary/35 px-3 py-2 transition-[background-color,border-color,box-shadow] duration-150 hover:border-border hover:bg-secondary/55 md:grid-cols-[32px_96px_minmax(300px,1fr)_160px_36px]',
-                            snapshot.isDragging && 'bg-card shadow-apple-lg',
+                            'group/provider grid grid-cols-[32px_minmax(0,1fr)_36px] items-center gap-2 rounded-xl border border-white/24 bg-white/[0.24] px-3 py-2 backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-150 hover:border-white/40 hover:bg-white/[0.36] md:grid-cols-[32px_96px_minmax(300px,1fr)_160px_36px] dark:border-white/10 dark:bg-white/[0.07] dark:hover:bg-white/[0.12]',
+                            snapshot.isDragging && 'bg-white/[0.52] shadow-apple-lg dark:bg-white/[0.16]',
                           )}
                         >
                           <span

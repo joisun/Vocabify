@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { cn } from '@/lib/utils'
 import { hightlightStyle, recordPageSize } from '@/utils/storage'
 import { Brush, Highlighter, Minus, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { RgbaColorPicker } from 'react-colorful'
 import { toast } from 'sonner'
 import HeadlingTitle from './common/HeadlingTitle'
@@ -48,12 +49,12 @@ const PageSizeSetter = () => {
   }, [])
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border/70 bg-secondary/30 px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border border-white/24 bg-white/[0.24] px-4 py-3 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07]">
       <div>
         <Label className="text-[14px] font-medium text-foreground">Records per page</Label>
         <p className="text-[12px] text-muted-foreground">How many words to show in the list.</p>
       </div>
-      <div className="inline-flex items-center gap-1 rounded-full bg-background border border-border/60 p-0.5 shadow-apple-xs">
+      <div className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/[0.28] p-0.5 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.08]">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -126,14 +127,14 @@ const HighlightStyleSetter = () => {
   const decoColor = `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.color.a})`
 
   return (
-    <div className="rounded-xl border border-border/70 bg-secondary/30 p-4 space-y-4">
+    <div className="space-y-4 rounded-xl border border-white/24 bg-white/[0.24] p-4 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07]">
       <div className="flex items-center gap-2">
         <Highlighter className="h-4 w-4 text-primary" />
         <Label className="text-[14px] font-medium text-foreground">Highlight style</Label>
       </div>
 
       {/* Live preview */}
-      <div className="rounded-lg bg-background border border-border/60 px-4 py-3">
+      <div className="rounded-lg border border-white/24 bg-white/[0.26] px-4 py-3 shadow-apple-xs backdrop-blur-lg dark:border-white/10 dark:bg-white/[0.08]">
         <p
           className="leading-relaxed"
           style={{
@@ -219,14 +220,13 @@ const HighlightStyleSetter = () => {
 
         <FieldRow label="Color">
           <Select>
-            <SelectTrigger className="relative">
+            <SelectTrigger className="relative h-11 border-white/30 bg-white/[0.28] pl-3 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.08]">
               <span
-                className="absolute left-3 inline-block h-4 w-4 rounded-full ring-1 ring-border"
+                className="inline-block h-4 w-4 rounded-full ring-1 ring-border/60"
                 style={{ backgroundColor: decoColor }}
                 aria-hidden
               />
-              <SelectValue placeholder="Pick a color" />
-              <span className="ml-7 font-mono text-[12px] text-muted-foreground">
+              <span className="ml-3 flex-1 font-mono text-[12px] text-muted-foreground">
                 rgba({settings.color.r}, {settings.color.g}, {settings.color.b}, {settings.color.a})
               </span>
             </SelectTrigger>

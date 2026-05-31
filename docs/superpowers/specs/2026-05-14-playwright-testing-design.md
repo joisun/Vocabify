@@ -67,8 +67,10 @@ Provider configuration follows Vercel AI SDK terminology without exposing implem
 - Selecting `nuanced phrase` opens `[data-testid="vocabify-selection-popover"]`.
 - The selection popover is a compact `role="toolbar"` and stays within controlled dimensions.
 - Clicking `[data-testid="vocabify-explain-action"]` opens `[data-testid="vocabify-sheet"]` inside ShadowRoot.
+- The sheet is a floating liquid-glass panel with viewport spacing on all sides instead of being edge-attached.
 - Opening the sheet must not emit Radix Dialog title/description accessibility warnings.
 - `[data-testid="vocabify-ai-result"]` receives streamed AI output.
+- Long AI output scrolls inside `[data-testid="vocabify-ai-result-scroll"]` without clipping the result container.
 - `[data-testid="vocabify-save-action"]` becomes enabled.
 
 ## Running
