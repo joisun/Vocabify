@@ -114,6 +114,9 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(beforeWheel)
       await expect(retryMeshAction).toBeVisible()
       await expect(page.locator('#vocabify-root [data-testid="vocabify-save-action"]')).toBeEnabled()
+      await page.locator('#vocabify-root').getByRole('tab', { name: 'My Wordlist' }).click()
+      await expect(page.locator('#vocabify-root [data-testid="vocabify-github-sync"]')).toBeVisible()
+      await expect(page.locator('#vocabify-root [data-testid="vocabify-github-sync-action"]')).toContainText('Connect')
 
       await page.locator('#vocabify-root').getByRole('button', { name: 'Open settings' }).click()
       await expect.poll(() => {

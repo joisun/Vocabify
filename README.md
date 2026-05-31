@@ -32,7 +32,7 @@ Vocabify is a premium browser extension that helps you learn and manage vocabula
 - Real-time explanation generation
 
 ### 📚 Vocabulary Management
-- Side panel for easy access to saved vocabulary
+- In-page My Wordlist panel for easy access to saved vocabulary
 - Search and filter capabilities
 - Edit and update explanations
 - Expandable detailed view
@@ -45,8 +45,9 @@ Vocabify is a premium browser extension that helps you learn and manage vocabula
 - Dark/Light theme support
 
 ### 🔄 GitHub Synchronization
-- Automatically syncs your vocabulary data with GitHub
-- Ensures easy access and backup of your data
+- Connects with GitHub through OAuth Device Flow, without an extension-side client secret
+- Manually syncs My Wordlist data to a private `__Vocabify_Data_Center__` repository
+- Preserves additions, updates, and deletions across devices through `syncdata.json`
 
 ### 🔊 Google TTS Integration
 - Provides accurate word pronunciations using Google TTS API
@@ -54,7 +55,7 @@ Vocabify is a premium browser extension that helps you learn and manage vocabula
 
 ## Tech Stack
 
- React,Vite, TypeScript, TailwindCSS, Shadcn UI, LangChain
+React, WXT, Vite, TypeScript, TailwindCSS, shadcn/ui, Vercel AI SDK, Dexie
 
 
 

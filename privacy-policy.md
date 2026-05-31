@@ -12,7 +12,7 @@ Vocabify ("we", "our", "us") is committed to protecting your privacy. This Priva
 - **Preferences:** We collect and store your preferences, such as target language, highlight styles, and API keys for AI service providers.
 
 ### 2. Usage Data
-- **Extension Usage:** We collect data on how you use the extension, including interactions with the side panel and settings.
+- **Extension Usage:** We collect data on how you use the extension, including interactions with the in-page vocabulary panel and settings.
 
 ## How We Use the Information
 
@@ -27,7 +27,7 @@ Vocabify ("we", "our", "us") is committed to protecting your privacy. This Priva
 ## Information Sharing
 
 ### 1. Third-Party Services
-- **GitHub:** We use GitHub for authentication and syncing vocabulary data. Your GitHub username and access token are shared with GitHub's API.
+- **GitHub:** We use GitHub Device Flow for authentication and GitHub API requests for vocabulary sync. Your GitHub username, access token, and vocabulary sync data are used with GitHub's API.
 - **AI Service Providers:** We use configured AI service providers such as Google Gemini, OpenAI, Anthropic, other first-party Vercel AI SDK providers, and user-defined OpenAI-compatible endpoints to fetch explanations for selected text. The selected provider, API key, model, and custom endpoint URL when configured are used to authenticate requests to these services.
 
 ### 2. Legal Requirements

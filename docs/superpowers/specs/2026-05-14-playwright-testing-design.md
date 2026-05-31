@@ -75,6 +75,7 @@ Provider configuration follows Vercel AI SDK terminology without exposing implem
 - `[data-testid="vocabify-retry-mesh-action"]` replaces the old retry icon in the result action row.
 - Long AI output scrolls inside `[data-testid="vocabify-ai-result-scroll"]` without clipping the result container, including a real mouse-wheel interaction.
 - `[data-testid="vocabify-save-action"]` becomes enabled.
+- The My Wordlist tab exposes `[data-testid="vocabify-github-sync"]` and the GitHub connect action.
 
 ## Running
 

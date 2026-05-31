@@ -9,8 +9,23 @@ https://ui.shadcn.com/docs/installation/manual
 
     // 这样在不同设备测试的时候， github auth app 中的 Authorization callback URL 可以用一个而不用修改
 
-关于 github auth 登录，
+关于 GitHub auth 登录，
 https://github.com/settings/applications/2849083
+
+当前同步实现使用 GitHub OAuth Device Flow：
+
+- GitHub OAuth App 需要开启 `Enable Device Flow`
+- 普通用户不需要配置 OAuth App，也不需要手动创建 token
+- 插件使用内置 `client_id` 请求 device code，用户在 GitHub 页面输入 code 后完成授权
+- 授权成功后，插件将 token 存储在 `chrome.storage.local`
+- 词表同步到用户私有仓库 `__Vocabify_Data_Center__` 的 `syncdata.json`
+
+旧的 `chrome.identity.launchWebAuthFlow` + redirect URL 方案不再是主流程，因为 extension 没有 backend，不应该把 GitHub `client_secret` 放在前端包里。
+
+## 旧 OAuth Redirect 方案记录
+
+以下内容仅作为历史记录保留：
+
 需要配置： Authorization callback URL
 这个地址需要保持 和 entrypoints/sidepanel/components/Layout.tsx 中
 

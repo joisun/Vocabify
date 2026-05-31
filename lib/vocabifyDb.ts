@@ -8,8 +8,14 @@ export interface VocabRecord {
   updatedAt: string
 }
 
+export interface VocabTombstone {
+  wordOrPhrase: string
+  deletedAt: string
+}
+
 class VocabifyDatabase extends Dexie {
   records!: EntityTable<VocabRecord, 'id'>
+  syncTombstones!: EntityTable<VocabTombstone, 'wordOrPhrase'>
 
   constructor() {
     super('VocabifyIndexDB')
@@ -30,13 +36,24 @@ class VocabifyDatabase extends Dexie {
         await tx.table('records').bulkAdd(oldData)
       }
     })
+
+    // Version 3: Track deletions so GitHub sync can propagate removals.
+    this.version(3).stores({
+      dataStore: '++id, wordOrPhrase, createdAt, updatedAt',
+      records: '++id, wordOrPhrase, createdAt, updatedAt',
+      syncTombstones: 'wordOrPhrase, deletedAt',
+    })
   }
 }
 
 export const db = new VocabifyDatabase()
 
+export function normalizeWordOrPhrase(wordOrPhrase: string) {
+  return wordOrPhrase.trim().toLowerCase()
+}
+
 export async function saveRecord(wordOrPhrase: string, meaning: string) {
-  const key = wordOrPhrase.trim().toLowerCase()
+  const key = normalizeWordOrPhrase(wordOrPhrase)
   const existing = await db.records.where('wordOrPhrase').equals(key).first()
 
   if (existing) {
@@ -44,6 +61,7 @@ export async function saveRecord(wordOrPhrase: string, meaning: string) {
       meaning,
       updatedAt: new Date().toISOString()
     })
+    await db.syncTombstones.delete(key)
     return { title: 'Updated 🔄✨✨', detail: 'Already existed, Update to new data!' }
   }
 
@@ -53,12 +71,23 @@ export async function saveRecord(wordOrPhrase: string, meaning: string) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   })
+  await db.syncTombstones.delete(key)
   return { title: 'Done 🥳🎉🎉', detail: 'Data added successfully!' }
 }
 
 export async function deleteRecord(wordOrPhrase: string) {
-  const key = wordOrPhrase.trim().toLowerCase()
+  const key = normalizeWordOrPhrase(wordOrPhrase)
   await db.records.where('wordOrPhrase').equals(key).delete()
+  await db.syncTombstones.put({
+    wordOrPhrase: key,
+    deletedAt: new Date().toISOString(),
+  })
+}
+
+export async function deleteRecordById(id: number) {
+  const record = await db.records.get(id)
+  if (!record) return
+  await deleteRecord(record.wordOrPhrase)
 }
 
 export async function getAllRecords() {

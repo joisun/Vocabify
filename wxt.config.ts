@@ -15,6 +15,7 @@ export default defineConfig({
   dev: {
     server: {
       port: 45678,
+      strictPort: true,
     },
   },
   webExt: {

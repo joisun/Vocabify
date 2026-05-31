@@ -62,3 +62,16 @@ export const recordPageSize = storage.defineItem<number>('local:recordPageSize',
 export const githubAccessToken = storage.defineItem<string | null>('local:githubAccessToken', {
   fallback: null,
 })
+
+export type GithubSyncAccount = {
+  login: string
+  repoName: string
+}
+
+export const githubSyncAccount = storage.defineItem<GithubSyncAccount | null>('local:githubSyncAccount', {
+  fallback: null,
+})
+
+export const githubLastSyncAt = storage.defineItem<string | null>('local:githubLastSyncAt', {
+  fallback: null,
+})

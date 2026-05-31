@@ -1,12 +1,21 @@
-import React, { useState, useEffect } from 'react'
-import { db, type VocabRecord } from '@/lib/vocabifyDb'
+import React, { useRef, useState, useEffect } from 'react'
+import { db, deleteRecordById, type VocabRecord } from '@/lib/vocabifyDb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Trash2, Search, BookOpen, Volume2 } from 'lucide-react'
+import { AlertCircle, BookOpen, CheckCircle2, Copy, ExternalLink, Github, Loader2, LogOut, RefreshCw, Search, Trash2, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  disconnectGitHubSync,
+  pollGitHubDeviceToken,
+  startGitHubDeviceFlow,
+  syncVocabularyWithGitHub,
+  type GitHubDeviceFlow,
+} from '@/lib/githubSync'
+import { githubAccessToken, githubLastSyncAt, githubSyncAccount, type GithubSyncAccount } from '@/utils/storage'
 
 export function VocabList() {
   const [records, setRecords] = useState<VocabRecord[]>([])
+  const [totalRecords, setTotalRecords] = useState(0)
   const [searchKeyword, setSearchKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -20,6 +29,7 @@ export function VocabList() {
     try {
       const allRecords = await db.records.orderBy('updatedAt').reverse().toArray()
       setRecords(allRecords)
+      setTotalRecords(allRecords.length)
     } catch (error) {
       console.error('Failed to load records:', error)
     } finally {
@@ -40,6 +50,7 @@ export function VocabList() {
         .filter((r) => r.wordOrPhrase.toLowerCase().includes(lowerKeyword))
         .toArray()
       setRecords(results)
+      setTotalRecords(await db.records.count())
     } catch (error) {
       console.error('Search failed:', error)
     } finally {
@@ -56,8 +67,9 @@ export function VocabList() {
 
   async function handleDelete(id: number) {
     try {
-      await db.records.delete(id)
+      await deleteRecordById(id)
       setRecords((prev) => prev.filter((r) => r.id !== id))
+      setTotalRecords((prev) => Math.max(0, prev - 1))
     } catch (error) {
       console.error('Delete failed:', error)
     }
@@ -74,7 +86,9 @@ export function VocabList() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <GitHubSyncControl recordCount={totalRecords} onSynced={loadRecords} />
+
       {/* Search */}
       <div className="relative shrink-0">
         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -88,7 +102,10 @@ export function VocabList() {
       </div>
 
       {/* List */}
-      <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 scrollbar-thin">
+      <div
+        className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
+        data-testid="vocabify-wordlist-scroll"
+      >
         {loading ? (
           <ListSkeleton />
         ) : records.length === 0 ? (
@@ -181,6 +198,241 @@ const ListSkeleton = () => (
     ))}
   </ul>
 )
+
+function GitHubSyncControl({
+  recordCount,
+  onSynced,
+}: {
+  recordCount: number
+  onSynced: () => Promise<void>
+}) {
+  const [token, setToken] = useState<string | null>(null)
+  const [account, setAccount] = useState<GithubSyncAccount | null>(null)
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null)
+  const [deviceFlow, setDeviceFlow] = useState<GitHubDeviceFlow | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const authAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    Promise.all([
+      githubAccessToken.getValue(),
+      githubSyncAccount.getValue(),
+      githubLastSyncAt.getValue(),
+    ]).then(([storedToken, storedAccount, storedLastSyncAt]) => {
+      if (!mounted) return
+      setToken(storedToken)
+      setAccount(storedAccount)
+      setLastSyncAt(storedLastSyncAt)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  async function syncWithToken(nextToken: string) {
+    const result = await syncVocabularyWithGitHub(nextToken)
+    setToken(nextToken)
+    setAccount(result.account)
+    setLastSyncAt(result.syncedAt)
+    await onSynced()
+    return result
+  }
+
+  async function handleConnect() {
+    setLoading(true)
+    setError('')
+    setCopied(false)
+
+    try {
+      const abortController = new AbortController()
+      authAbortRef.current = abortController
+      const flow = await startGitHubDeviceFlow()
+      setDeviceFlow(flow)
+      window.open(flow.verification_uri, '_blank', 'noopener,noreferrer')
+
+      const nextToken = await pollGitHubDeviceToken(flow, undefined, abortController.signal)
+      await syncWithToken(nextToken)
+      setDeviceFlow(null)
+    } catch (syncError) {
+      if (!(syncError instanceof DOMException && syncError.name === 'AbortError')) {
+        setError(syncError instanceof Error ? syncError.message : String(syncError))
+      }
+    } finally {
+      authAbortRef.current = null
+      setLoading(false)
+    }
+  }
+
+  async function handleSync() {
+    if (!token) {
+      await handleConnect()
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    try {
+      await syncWithToken(token)
+    } catch (syncError) {
+      setError(syncError instanceof Error ? syncError.message : String(syncError))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDisconnect() {
+    authAbortRef.current?.abort()
+    await disconnectGitHubSync()
+    setToken(null)
+    setAccount(null)
+    setLastSyncAt(null)
+    setDeviceFlow(null)
+    setError('')
+  }
+
+  async function copyCode() {
+    if (!deviceFlow?.user_code) return
+    await navigator.clipboard?.writeText(deviceFlow.user_code).catch(() => undefined)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1600)
+  }
+
+  function cancelDeviceFlow() {
+    authAbortRef.current?.abort()
+    setDeviceFlow(null)
+    setLoading(false)
+  }
+
+  const connected = Boolean(token && account)
+
+  return (
+    <section
+      className="liquid-card shrink-0 rounded-2xl px-3 py-2"
+      data-testid="vocabify-github-sync"
+      aria-label="GitHub vocabulary sync"
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/[0.24] text-foreground/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] dark:border-white/10 dark:bg-white/[0.08]',
+            connected && 'text-primary',
+          )}
+        >
+          <Github className="h-4 w-4" />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            {connected ? (
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+            ) : error ? (
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+            ) : (
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+            )}
+            <p className="truncate text-[12px] font-semibold leading-4 text-foreground">
+              {connected ? `GitHub · ${account?.login}` : 'GitHub sync'}
+            </p>
+          </div>
+          <p className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground">
+            {error
+              ? error
+              : lastSyncAt
+                ? `${recordCount} words · synced ${formatRelativeTime(lastSyncAt)}`
+                : `${recordCount} words · private repo sync`}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant={connected ? 'outline' : 'tinted'}
+            size="sm"
+            onClick={connected ? handleSync : handleConnect}
+            disabled={loading}
+            className="h-7 rounded-lg px-2.5 text-[11px]"
+            data-testid="vocabify-github-sync-action"
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : connected ? <RefreshCw className="h-3.5 w-3.5" /> : <Github className="h-3.5 w-3.5" />}
+            {connected ? 'Sync' : 'Connect'}
+          </Button>
+
+          {connected ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleDisconnect}
+              disabled={loading}
+              aria-label="Disconnect GitHub sync"
+              title="Disconnect"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {deviceFlow ? (
+        <div
+          className="mt-2 rounded-xl border border-white/20 bg-white/[0.18] px-3 py-2 text-[11px] leading-4 text-muted-foreground dark:border-white/10 dark:bg-white/[0.06]"
+          data-testid="vocabify-github-device-flow"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span>Enter this code on GitHub</span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(deviceFlow.verification_uri, '_blank', 'noopener,noreferrer')}
+                className="h-6 px-2 text-[10px]"
+              >
+                Open
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={cancelDeviceFlow}
+                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={copyCode}
+            className="mt-1 flex w-full items-center justify-between rounded-lg border border-white/20 bg-white/[0.24] px-2 py-1.5 font-mono text-[15px] font-semibold tracking-[0.18em] text-foreground transition-colors hover:bg-white/[0.34] dark:border-white/10 dark:bg-white/[0.08]"
+            aria-label="Copy GitHub device code"
+          >
+            {deviceFlow.user_code}
+            <span className="flex items-center gap-1 font-sans text-[10px] font-medium tracking-normal text-muted-foreground">
+              <Copy className="h-3 w-3" />
+              {copied ? 'Copied' : 'Copy'}
+            </span>
+          </button>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function formatRelativeTime(value: string) {
+  const time = new Date(value).getTime()
+  if (Number.isNaN(time)) return 'recently'
+  const diff = Date.now() - time
+  const minute = 60_000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (diff < minute) return 'just now'
+  if (diff < hour) return `${Math.floor(diff / minute)}m ago`
+  if (diff < day) return `${Math.floor(diff / hour)}h ago`
+  return `${Math.floor(diff / day)}d ago`
+}
 
 const EmptyState = ({ hasFilter }: { hasFilter: boolean }) => (
   <div className="flex h-full flex-col items-center justify-center gap-2 text-center px-6 py-12">
