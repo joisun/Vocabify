@@ -15,6 +15,11 @@ export default defineBackground(() => {
     return { status: 'ok' as const }
   })
 
+  onMessage('openOptionsPage', async () => {
+    await chrome.runtime.openOptionsPage()
+    return { status: 'ok' as const }
+  })
+
   // Handle AI streaming via Port
   chrome.runtime.onConnect.addListener((port) => {
     if (port.name === 'ai-stream') {

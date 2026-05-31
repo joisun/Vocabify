@@ -5,6 +5,7 @@ import { AIExplanation } from './AIExplanation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Settings, X } from 'lucide-react'
+import { sendMessage } from '@/lib/messaging'
 
 interface InPageUIProps {
   open: boolean
@@ -41,7 +42,7 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
           <Button
             variant="outline"
             size="icon-sm"
-            onClick={openSettings}
+            onClick={() => void openSettings()}
             aria-label="Open settings"
             title="Settings"
           >
@@ -75,8 +76,13 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
   )
 }
 
-function openSettings() {
-  chrome.runtime.openOptionsPage?.()
+async function openSettings() {
+  try {
+    await sendMessage('openOptionsPage', undefined)
+  } catch (error) {
+    console.warn('openOptionsPage message failed, falling back to direct navigation:', error)
+    window.open(chrome.runtime.getURL('options.html'), '_blank', 'noopener,noreferrer')
+  }
 }
 
 const EmptySelection = () => (

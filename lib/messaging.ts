@@ -7,6 +7,9 @@ export interface ProtocolMap {
 
   // Get highlight style settings
   getHighlightStyleSettings(data: undefined): any
+
+  // Open extension options from content UI through the background context
+  openOptionsPage(data: undefined): { status: 'ok' }
 }
 
 // Create and export the messaging functions

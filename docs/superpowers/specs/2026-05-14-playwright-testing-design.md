@@ -65,12 +65,14 @@ Provider configuration follows Vercel AI SDK terminology without exposing implem
 - Existing WXT dev Chrome is reachable through CDP.
 - The content script injects `#vocabify-root`.
 - Selecting `nuanced phrase` opens `[data-testid="vocabify-selection-popover"]`.
-- The selection popover is a compact `role="toolbar"` and stays within controlled dimensions.
+- The selection popover is a compact `role="toolbar"` and stays within the 340-380 px desktop width range.
 - Clicking `[data-testid="vocabify-explain-action"]` opens `[data-testid="vocabify-sheet"]` inside ShadowRoot.
 - The sheet is a floating liquid-glass panel with viewport spacing on all sides instead of being edge-attached.
 - Opening the sheet must not emit Radix Dialog title/description accessibility warnings.
-- `[data-testid="vocabify-ai-loading"]` appears in the Explanation area before streamed AI output arrives.
+- The header settings button opens the extension `options.html` page through the background context.
+- `[data-testid="vocabify-ai-loading"]` appears in the Explanation area before streamed AI output arrives, and `[data-testid="vocabify-retry-mesh-action"]` can restart the request during loading.
 - `[data-testid="vocabify-ai-result"]` receives streamed AI output.
+- `[data-testid="vocabify-retry-mesh-action"]` replaces the old retry icon in the result action row.
 - Long AI output scrolls inside `[data-testid="vocabify-ai-result-scroll"]` without clipping the result container, including a real mouse-wheel interaction.
 - `[data-testid="vocabify-save-action"]` becomes enabled.
 

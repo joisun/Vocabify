@@ -65,7 +65,8 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       await expect(selectionPopover).toBeVisible({ timeout: 10_000 })
       await expect(selectionPopover).toHaveAttribute('role', 'toolbar')
       const popoverBox = await selectionPopover.boundingBox()
-      expect(popoverBox?.width).toBeLessThanOrEqual(288)
+      expect(popoverBox?.width).toBeGreaterThanOrEqual(340)
+      expect(popoverBox?.width).toBeLessThanOrEqual(380)
       expect(popoverBox?.height).toBeLessThanOrEqual(100)
       await page.locator('#vocabify-root [data-testid="vocabify-explain-action"]').click()
 
@@ -73,6 +74,9 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       const sheet = page.locator('#vocabify-root [data-testid="vocabify-sheet"]')
       await expect(sheet).toBeVisible({ timeout: 10_000 })
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-loading"]')).toBeVisible()
+      const retryMeshAction = page.locator('#vocabify-root [data-testid="vocabify-retry-mesh-action"]')
+      await expect(retryMeshAction).toBeVisible()
+      await retryMeshAction.click()
       await expect.poll(async () => {
         const sheetBox = await sheet.boundingBox()
         const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
@@ -108,7 +112,13 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       const beforeWheel = await aiResultScroll.evaluate((node) => node.scrollTop)
       await page.mouse.wheel(0, 480)
       await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(beforeWheel)
+      await expect(retryMeshAction).toBeVisible()
       await expect(page.locator('#vocabify-root [data-testid="vocabify-save-action"]')).toBeEnabled()
+
+      await page.locator('#vocabify-root').getByRole('button', { name: 'Open settings' }).click()
+      await expect.poll(() => {
+        return context.pages().some((openedPage) => openedPage.url() === `chrome-extension://${extensionId}/options.html`)
+      }, { timeout: 5_000 }).toBe(true)
     } finally {
       await page.close().catch(() => undefined)
     }
@@ -148,7 +158,7 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
           'data: [DONE]\n\n',
         ]
 
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 700))
         for (const chunk of chunks) {
           response.write(chunk)
           await new Promise((resolve) => setTimeout(resolve, 40))

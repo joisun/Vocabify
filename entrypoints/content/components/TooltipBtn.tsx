@@ -13,8 +13,8 @@ export type SelectionRect = {
   height: number
 }
 
-const POPOVER_MAX_WIDTH = 288
-const POPOVER_MIN_WIDTH = 220
+const POPOVER_MAX_WIDTH = 380
+const POPOVER_MIN_WIDTH = 340
 const POPOVER_MARGIN = 12
 const POPOVER_GAP = 8
 export const SELECTION_POPOVER_ESTIMATED_HEIGHT = 92
@@ -34,7 +34,7 @@ function TooltipBtn({
 }) {
   const viewport = getViewportBounds()
   const availableWidth = Math.max(160, viewport.width - POPOVER_MARGIN * 2)
-  const preferredWidth = text.length > 32 ? POPOVER_MAX_WIDTH : 236
+  const preferredWidth = text.length > 56 ? POPOVER_MAX_WIDTH : POPOVER_MIN_WIDTH
   const popoverWidth = Math.min(
     Math.max(preferredWidth, Math.min(POPOVER_MIN_WIDTH, availableWidth)),
     availableWidth,
@@ -71,10 +71,10 @@ function TooltipBtn({
       data-testid="vocabify-selection-popover"
       onMouseDown={(event) => event.preventDefault()}
     >
-      <div className="overflow-hidden rounded-[10px] border border-border/80 bg-popover/95 text-popover-foreground shadow-apple-md backdrop-blur-xl animate-scale-in">
-        <div className="flex items-start justify-between gap-2 px-2.5 pt-2 pb-1.5">
+      <div className="overflow-hidden rounded-[10px] border border-border/80 bg-popover text-popover-foreground shadow-apple-md backdrop-blur-xl animate-scale-in">
+        <div className="flex items-start justify-between gap-2 px-3 pt-2.5 pb-2">
           <p className={cn(
-            'line-clamp-2 min-w-0 break-words text-[12px] font-medium leading-4',
+            'line-clamp-2 min-w-0 break-words text-[14px] font-semibold leading-[18px]',
             text.length > 32 ? 'text-muted-foreground' : 'text-foreground',
           )}>
             {previewText}

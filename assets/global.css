@@ -176,35 +176,53 @@
     height: 0;
   }
 
-  .vocabify-fade-scroll::before,
-  .vocabify-fade-scroll::after {
-    content: "";
-    position: sticky;
-    z-index: 2;
-    display: block;
-    height: 24px;
-    pointer-events: none;
-  }
-
-  .vocabify-fade-scroll::before {
-    top: 0;
-    margin-bottom: -24px;
-    background: linear-gradient(to bottom, hsl(var(--card) / 0.82), hsl(var(--card) / 0));
-  }
-
-  .vocabify-fade-scroll::after {
-    bottom: 0;
-    margin-top: -24px;
-    background: linear-gradient(to top, hsl(var(--card) / 0.82), hsl(var(--card) / 0));
-  }
-
   .vocabify-shader-blob {
     animation: vocabify-shader-float 2.8s ease-in-out infinite;
     transform-origin: top center;
   }
 
+  .vocabify-shader-blob.is-fast {
+    animation-duration: 1.35s;
+  }
+
+  .vocabify-shader-blob.is-compact {
+    animation-duration: 2.2s;
+  }
+
   .vocabify-shader-eye {
     animation: vocabify-shader-blink 3s ease-in-out infinite;
+  }
+
+  .vocabify-shader-eye-track {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .vocabify-shader-blob.is-fast .vocabify-shader-eye,
+  .vocabify-shader-blob.is-fast .vocabify-shader-star-eye {
+    animation-duration: 1.8s;
+  }
+
+  .vocabify-shader-blob.is-compact .vocabify-shader-eye {
+    animation-duration: 2.4s;
+  }
+
+  .vocabify-shader-star-eye {
+    animation: vocabify-shader-star 1.8s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .vocabify-skeleton-breathe {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--foreground) / 0.055),
+      hsl(var(--foreground) / 0.13),
+      hsl(var(--foreground) / 0.055)
+    );
+    background-size: 220% 100%;
+    animation: vocabify-skeleton-breathe 1.65s ease-in-out infinite;
   }
 
   @keyframes vocabify-shader-float {
@@ -222,6 +240,28 @@
     }
     95% {
       ry: 3;
+    }
+  }
+
+  @keyframes vocabify-shader-star {
+    0%, 100% {
+      transform: rotate(0deg) scale(0.86);
+      opacity: 0.72;
+    }
+    50% {
+      transform: rotate(180deg) scale(1.16);
+      opacity: 1;
+    }
+  }
+
+  @keyframes vocabify-skeleton-breathe {
+    0%, 100% {
+      background-position: 120% 0;
+      opacity: 0.64;
+    }
+    50% {
+      background-position: -40% 0;
+      opacity: 1;
     }
   }
 }

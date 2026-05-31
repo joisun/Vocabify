@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { saveRecord } from '@/lib/vocabifyDb'
 import { MeshGradient } from '@paper-design/shaders-react'
-import { AlertCircle, Check, Copy, Edit3, RotateCcw, Save, Volume2 } from 'lucide-react'
+import { AlertCircle, Check, Copy, Edit3, Save, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -135,10 +135,10 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
               Selection
             </p>
-            <p className="mt-1 font-display text-[16px] leading-snug font-semibold tracking-tight text-foreground break-words">
+            <p className="mt-1 font-display text-[14px] leading-snug font-semibold tracking-tight text-foreground break-words">
               {selectedText}
             </p>
           </div>
@@ -168,7 +168,6 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-        {isLoading ? <StreamingIndicator /> : null}
         <div className="liquid-card relative min-h-0 flex-1 overflow-hidden rounded-2xl shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]">
           {status === 'loading' ? (
             <LoadingState />
@@ -196,7 +195,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
           disabled={saving || !canSave}
           size="lg"
           className={cn(
-            'rounded-xl border border-white/[0.16] bg-[linear-gradient(180deg,hsl(var(--primary)/0.98),hsl(var(--primary)/0.84))] shadow-[0_12px_30px_hsl(var(--primary)/0.24)] backdrop-blur-xl',
+            'rounded-xl border border-white/[0.16] bg-[linear-gradient(180deg,hsl(var(--primary)/0.98),hsl(var(--primary)/0.84))] text-[14px] shadow-[0_12px_30px_hsl(var(--primary)/0.24)] backdrop-blur-xl',
             isSaved && 'bg-success text-white hover:bg-success/90'
           )}
           data-testid="vocabify-save-action"
@@ -219,17 +218,7 @@ export function AIExplanation({ selectedText }: AIExplanationProps) {
           )}
         </Button>
 
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-11 w-11 rounded-xl"
-          onClick={() => startAIStream()}
-          disabled={isLoading}
-          aria-label="Retry explanation"
-          title="Retry"
-        >
-          <RotateCcw />
-        </Button>
+        <MeshRetryButton onRetry={() => startAIStream()} loading={isLoading} />
 
         <Button
           variant="outline"
@@ -251,49 +240,82 @@ function normalizeError(value: unknown) {
   if (value instanceof Error) return value.message
   const message = String(value || '').trim()
   if (!message) return 'The AI provider did not return a usable response.'
-  if (message.length > 260) return `${message.slice(0, 260)}...`
   return message
 }
 
-const StreamingIndicator = () => (
-  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/[0.34] px-2 py-1 text-[11px] font-medium text-accent-foreground shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.10]" aria-label="AI is responding">
-    <span className="h-1.5 w-1.5 rounded-full bg-current animate-ai-pulse" />
-    <span className="h-1.5 w-1.5 rounded-full bg-current animate-ai-pulse [animation-delay:.15s]" />
-    <span className="h-1.5 w-1.5 rounded-full bg-current animate-ai-pulse [animation-delay:.3s]" />
-  </span>
-)
+function MeshRetryButton({ onRetry, loading }: { onRetry: () => void; loading: boolean }) {
+  return (
+    <button
+      type="button"
+      className="group relative h-11 w-11 appearance-none overflow-visible rounded-xl border-0 bg-transparent p-0 outline-none transition duration-200 hover:scale-[1.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95"
+      onClick={onRetry}
+      aria-label="Retry explanation"
+      title="Retry"
+      data-testid="vocabify-retry-mesh-action"
+    >
+      <span className="absolute inset-1 overflow-visible opacity-85 transition-opacity group-hover:opacity-100">
+        <ShaderBlob compact loading={loading} />
+      </span>
+    </button>
+  )
+}
 
 const LoadingState = () => (
-  <div className="flex h-full min-h-0 items-center justify-center p-4" data-testid="vocabify-ai-loading">
-    <div className="relative flex w-full max-w-[280px] flex-col items-center gap-4 rounded-[24px] border border-white/20 bg-white/[0.18] px-5 py-5 text-center shadow-[0_14px_40px_hsl(var(--shadow-color)/0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]">
-      <div className="relative flex h-[148px] w-[148px] items-center justify-center overflow-hidden rounded-[38px] border border-white/20 bg-black/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_12px_30px_rgba(0,0,0,0.08)] dark:border-white/10 dark:bg-white/[0.04]">
-        <div className="absolute inset-0 opacity-90">
-          <ShaderBlob />
-        </div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_45%,hsl(var(--background)/0.18)_78%,hsl(var(--background)/0.42)_100%)]" />
-      </div>
-      <div className="space-y-1">
-        <p className="text-[13px] font-semibold tracking-tight text-foreground">Generating explanation</p>
-        <p className="text-[12px] leading-relaxed text-muted-foreground">
-          Reading the selection and preparing a concise answer.
-        </p>
-      </div>
-      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ai-pulse" />
-        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ai-pulse [animation-delay:.15s]" />
-        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ai-pulse [animation-delay:.3s]" />
-        <span>Shader render in progress</span>
+  <div className="flex h-full min-h-0 flex-col justify-center gap-4 px-5 py-5" data-testid="vocabify-ai-loading">
+    <div className="space-y-3">
+      <div className="vocabify-skeleton-breathe h-5 w-28 rounded-full" />
+      <div className="space-y-2.5">
+        <div className="vocabify-skeleton-breathe h-3.5 w-full rounded-full [animation-delay:.08s]" />
+        <div className="vocabify-skeleton-breathe h-3.5 w-[92%] rounded-full [animation-delay:.16s]" />
+        <div className="vocabify-skeleton-breathe h-3.5 w-[74%] rounded-full [animation-delay:.24s]" />
       </div>
     </div>
+    <div className="space-y-2">
+      <div className="vocabify-skeleton-breathe h-4 w-20 rounded-full [animation-delay:.32s]" />
+      <div className="grid gap-2">
+        <div className="vocabify-skeleton-breathe h-3.5 w-[86%] rounded-full [animation-delay:.4s]" />
+        <div className="vocabify-skeleton-breathe h-3.5 w-[64%] rounded-full [animation-delay:.48s]" />
+      </div>
+    </div>
+    <p className="text-[10px] font-medium text-muted-foreground">
+      Generating explanation. Click the mesh control to retry.
+    </p>
   </div>
 )
 
-const ShaderBlob = () => {
+function ShaderBlob({ compact = false, loading = false }: { compact?: boolean; loading?: boolean }) {
   const clipId = React.useId()
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 })
   const colors = ['#FFB3D9', '#87CEEB', '#4A90E2', '#2C3E50', '#1A1A2E']
 
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const rect = hostRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const deltaX = (event.clientX - (rect.left + rect.width / 2)) * 0.08
+      const deltaY = (event.clientY - (rect.top + rect.height / 2)) * 0.08
+      const maxOffset = compact ? 5 : 8
+      setEyeOffset({
+        x: Math.max(-maxOffset, Math.min(maxOffset, deltaX)),
+        y: Math.max(-maxOffset, Math.min(maxOffset, deltaY)),
+      })
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [compact])
+
   return (
-    <div className="vocabify-shader-blob h-full w-full text-foreground/80" aria-hidden>
+    <div
+      ref={hostRef}
+      className={cn(
+        'vocabify-shader-blob h-full w-full text-foreground/80',
+        loading && 'is-fast',
+        compact && 'is-compact'
+      )}
+      aria-hidden
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="231"
@@ -309,35 +331,60 @@ const ShaderBlob = () => {
 
         <foreignObject width="231" height="289" clipPath={`url(#${clipId})`}>
           <div className="h-full w-full">
-            <MeshGradient colors={colors} className="h-full w-full" speed={0.75} distortion={0.9} swirl={0.45} />
+            <MeshGradient
+              colors={colors}
+              className="h-full w-full"
+              speed={loading ? 1.65 : 0.75}
+              distortion={compact ? 0.78 : 0.9}
+              swirl={compact ? 0.32 : 0.45}
+            />
           </div>
         </foreignObject>
 
-        <ellipse cx="80" cy="120" rx="20" ry="30" fill="currentColor" className="vocabify-shader-eye" />
-        <ellipse cx="150" cy="120" rx="20" ry="30" fill="currentColor" className="vocabify-shader-eye" />
+        <g
+          className="vocabify-shader-eye-track"
+          style={{ transform: `translate(${eyeOffset.x}px, ${eyeOffset.y}px)` }}
+        >
+          {loading ? (
+            <>
+              <path className="vocabify-shader-star-eye" d="M80 91L87.3 112.7L110 120L87.3 127.3L80 149L72.7 127.3L50 120L72.7 112.7Z" fill="currentColor" />
+              <path className="vocabify-shader-star-eye [animation-delay:.18s]" d="M150 91L157.3 112.7L180 120L157.3 127.3L150 149L142.7 127.3L120 120L142.7 112.7Z" fill="currentColor" />
+            </>
+          ) : (
+            <>
+              <ellipse cx="80" cy="120" rx="20" ry="30" fill="currentColor" className="vocabify-shader-eye" />
+              <ellipse cx="150" cy="120" rx="20" ry="30" fill="currentColor" className="vocabify-shader-eye" />
+            </>
+          )}
+        </g>
       </svg>
     </div>
   )
 }
 
 function ErrorState({ error }: { error: string | null }) {
+  const detail = error || 'Check your provider key, model access, or network connection.'
+
   return (
-    <div className="flex h-full flex-col justify-center p-4" data-testid="vocabify-ai-error">
-      <div className="flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-destructive shadow-apple-xs backdrop-blur-lg">
-        <AlertCircle className="mt-0.5 shrink-0" />
-        <div>
-          <p className="text-[13px] font-semibold">AI explanation failed</p>
-          <p className="mt-1 text-[12px] leading-relaxed text-destructive/85">
-            {error || 'Check your provider key, model access, or network connection.'}
-          </p>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" data-testid="vocabify-ai-error">
+      <div className="vocabify-fade-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pr-5">
+        <div className="flex items-start gap-3 text-destructive">
+          <AlertCircle className="mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <h3 className="font-display text-[14px] font-semibold tracking-tight">AI explanation failed</h3>
+            <p className="mt-1 text-[12px] leading-relaxed text-destructive/75">
+              Retry with the mesh control below, or adjust your provider settings.
+            </p>
+          </div>
         </div>
+        <pre className="mt-4 whitespace-pre-wrap break-words rounded-xl border border-destructive/20 bg-destructive/10 p-3 font-mono text-[11px] leading-relaxed text-destructive/85 shadow-apple-xs">{detail}</pre>
       </div>
     </div>
   )
 }
 
 const EmptyResult = () => (
-  <div className="flex h-full items-center justify-center p-6 text-center text-[13px] leading-relaxed text-muted-foreground">
+  <div className="flex h-full items-center justify-center p-6 text-center text-[12px] leading-relaxed text-muted-foreground">
     Select a word or phrase and Vocabify will generate an explanation here.
   </div>
 )
@@ -358,12 +405,20 @@ function MarkdownResult({ text, streaming }: { text: string; streaming: boolean 
         event.stopPropagation()
       }}
     >
+      <span
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-[linear-gradient(to_bottom,hsl(var(--card)/0.42),hsl(var(--card)/0))]"
+        aria-hidden
+      />
+      <span
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8 bg-[linear-gradient(to_top,hsl(var(--card)/0.42),hsl(var(--card)/0))]"
+        aria-hidden
+      />
       <div
         ref={scrollRef}
         className="vocabify-fade-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pr-5"
         data-testid="vocabify-ai-result-scroll"
       >
-        <div className="flex min-h-full flex-col gap-3 text-[13px] leading-relaxed text-foreground">
+        <div className="flex min-h-full flex-col gap-3 text-[12px] leading-relaxed text-foreground">
           {blocks.map((block, index) => {
             if (block.type === 'heading') {
               return (
