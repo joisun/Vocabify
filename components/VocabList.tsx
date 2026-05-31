@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import { liveQuery } from 'dexie'
 import { db, deleteRecordById, type VocabRecord } from '@/lib/vocabifyDb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,12 +14,28 @@ import {
 } from '@/lib/githubSync'
 import { githubAccessToken, githubLastSyncAt, githubSyncAccount, type GithubSyncAccount } from '@/utils/storage'
 
+function useVocabularyCount() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    const subscription = liveQuery(() => db.records.count()).subscribe({
+      next: setCount,
+      error: (error) => console.error('Failed to watch vocabulary count:', error),
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  return count
+}
+
 export function VocabList() {
   const [records, setRecords] = useState<VocabRecord[]>([])
-  const [totalRecords, setTotalRecords] = useState(0)
+  const totalRecords = useVocabularyCount()
   const [searchKeyword, setSearchKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<number | null>(null)
+  const listRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     loadRecords()
@@ -29,7 +46,6 @@ export function VocabList() {
     try {
       const allRecords = await db.records.orderBy('updatedAt').reverse().toArray()
       setRecords(allRecords)
-      setTotalRecords(allRecords.length)
     } catch (error) {
       console.error('Failed to load records:', error)
     } finally {
@@ -50,7 +66,6 @@ export function VocabList() {
         .filter((r) => r.wordOrPhrase.toLowerCase().includes(lowerKeyword))
         .toArray()
       setRecords(results)
-      setTotalRecords(await db.records.count())
     } catch (error) {
       console.error('Search failed:', error)
     } finally {
@@ -69,7 +84,6 @@ export function VocabList() {
     try {
       await deleteRecordById(id)
       setRecords((prev) => prev.filter((r) => r.id !== id))
-      setTotalRecords((prev) => Math.max(0, prev - 1))
     } catch (error) {
       console.error('Delete failed:', error)
     }
@@ -96,15 +110,24 @@ export function VocabList() {
           placeholder="Search vocabulary"
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
-          className="pl-9 h-9"
+          className="liquid-glass-input h-9 pl-9"
           aria-label="Search vocabulary"
         />
       </div>
 
       {/* List */}
       <div
+        ref={listRef}
         className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
         data-testid="vocabify-wordlist-scroll"
+        onWheelCapture={(event) => {
+          const scrollNode = listRef.current
+          if (!scrollNode) return
+          if (scrollNode.scrollHeight <= scrollNode.clientHeight) return
+          event.preventDefault()
+          scrollNode.scrollTop += event.deltaY
+          event.stopPropagation()
+        }}
       >
         {loading ? (
           <ListSkeleton />
@@ -118,8 +141,8 @@ export function VocabList() {
                 <li
                   key={record.id}
                   className={cn(
-                    "rounded-xl border border-border/70 bg-card text-card-foreground",
-                    "shadow-apple-xs hover:shadow-apple-sm transition-shadow duration-150 ease-spring",
+                    "liquid-glass-card rounded-xl text-card-foreground",
+                    "transition-[transform,box-shadow,background-color] duration-150 ease-spring hover:-translate-y-0.5",
                     "animate-fade-in"
                   )}
                 >
@@ -310,7 +333,7 @@ function GitHubSyncControl({
 
   return (
     <section
-      className="liquid-card shrink-0 rounded-2xl px-3 py-2"
+      className="liquid-glass-card shrink-0 rounded-2xl px-3 py-2"
       data-testid="vocabify-github-sync"
       aria-label="GitHub vocabulary sync"
     >
@@ -348,11 +371,11 @@ function GitHubSyncControl({
 
         <div className="flex shrink-0 items-center gap-1">
           <Button
-            variant={connected ? 'outline' : 'tinted'}
+            variant="ghost"
             size="sm"
             onClick={connected ? handleSync : handleConnect}
             disabled={loading}
-            className="h-7 rounded-lg px-2.5 text-[11px]"
+            className="liquid-glass-button h-7 rounded-lg px-2.5 text-[11px]"
             data-testid="vocabify-github-sync-action"
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : connected ? <RefreshCw className="h-3.5 w-3.5" /> : <Github className="h-3.5 w-3.5" />}
@@ -367,7 +390,7 @@ function GitHubSyncControl({
               disabled={loading}
               aria-label="Disconnect GitHub sync"
               title="Disconnect"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              className="liquid-glass-button h-7 w-7 text-muted-foreground hover:text-destructive"
             >
               <LogOut className="h-3.5 w-3.5" />
             </Button>
@@ -377,7 +400,7 @@ function GitHubSyncControl({
 
       {deviceFlow ? (
         <div
-          className="mt-2 rounded-xl border border-white/20 bg-white/[0.18] px-3 py-2 text-[11px] leading-4 text-muted-foreground dark:border-white/10 dark:bg-white/[0.06]"
+          className="liquid-glass-card mt-2 rounded-xl px-3 py-2 text-[11px] leading-4 text-muted-foreground"
           data-testid="vocabify-github-device-flow"
         >
           <div className="flex items-center justify-between gap-2">
@@ -405,7 +428,7 @@ function GitHubSyncControl({
           <button
             type="button"
             onClick={copyCode}
-            className="mt-1 flex w-full items-center justify-between rounded-lg border border-white/20 bg-white/[0.24] px-2 py-1.5 font-mono text-[15px] font-semibold tracking-[0.18em] text-foreground transition-colors hover:bg-white/[0.34] dark:border-white/10 dark:bg-white/[0.08]"
+            className="liquid-glass-button mt-1 flex w-full items-center justify-between rounded-lg px-2 py-1.5 font-mono text-[15px] font-semibold tracking-[0.18em] text-foreground transition-colors"
             aria-label="Copy GitHub device code"
           >
             {deviceFlow.user_code}
