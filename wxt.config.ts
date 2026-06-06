@@ -10,7 +10,6 @@ export default defineConfig({
     },
     host_permissions: ["*://*/*"],
     permissions: ["storage", "identity"],
-
   },
   dev: {
     server: {
@@ -23,6 +22,8 @@ export default defineConfig({
     chromiumArgs: [
       "--enable-unsafe-extension-debugging",
       "--remote-debugging-port=9222",
+      // Use a persistent user data directory to preserve login state and storage
+      "--user-data-dir=./.wxt/chrome-data",
     ],
   },
   vite: () => ({
