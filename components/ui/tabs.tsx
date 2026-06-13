@@ -5,9 +5,6 @@ import { cn } from "@/lib/utils"
 
 const Tabs = TabsPrimitive.Root
 
-// Apple-style segmented control:
-//  - rounded-full pill container with light fill
-//  - active segment lifts with white surface + soft shadow
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
@@ -15,7 +12,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-9 items-center justify-center rounded-full liquid-glass-control p-0.5 text-muted-foreground",
+      "inline-flex h-8 items-center justify-center rounded-md border border-border bg-secondary p-0.5 text-muted-foreground",
+      "dark:border-white/8",
       className
     )}
     {...props}
@@ -30,12 +28,12 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-full px-4 py-1 text-[13px] font-medium",
-      "transition-[color,background-color,box-shadow,transform] duration-200 ease-spring",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+      "inline-flex items-center justify-center whitespace-nowrap rounded-[6px] px-3 py-1 text-[12px] font-medium",
+      "transition-colors duration-150",
+      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
       "disabled:pointer-events-none disabled:opacity-50",
       "hover:text-foreground",
-      "data-[state=active]:bg-white/[0.42] data-[state=active]:text-foreground data-[state=active]:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_hsl(var(--shadow-color)/0.10)] data-[state=active]:backdrop-blur-2xl",
+      "data-[state=active]:bg-card data-[state=active]:text-foreground",
       className
     )}
     {...props}
@@ -50,7 +48,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-3 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      "mt-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
       "data-[state=active]:animate-fade-in",
       "data-[state=inactive]:hidden",
       className

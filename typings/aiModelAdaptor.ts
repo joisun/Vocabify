@@ -128,10 +128,11 @@ export interface AiAgentApiKey {
 export type AiAgentApiKeys = AiAgentApiKey[]
 
 export const DEFAULT_GEMINI_AGENT: AiAgentApiKey = {
-  providerId: 'google',
-  providerLabel: 'Google Generative AI',
-  apiKey: 'AIzaSyDyc6XAitUdMVSfYsqZEQAdMUeOAFgf5Hk',
-  model: 'gemini-2.5-flash-lite',
+  providerId: 'custom:XunFei',
+  providerLabel: 'XunFei',
+  apiKey: 'HFdZiBSMjJCogCcAUBYA:vnMnxnJfXpfXQiCFGtbh',
+  model: 'spark-x',
+  baseURL:'https://spark-api-open.xf-yun.com/agent/v1'
 }
 
 export function getProviderTemplate(providerId: string): AIProviderTemplate | undefined {

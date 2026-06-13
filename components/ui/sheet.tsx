@@ -1,7 +1,6 @@
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
-import LiquidGlass from "liquid-glass-react"
 
 import { cn } from "@/lib/utils"
 
@@ -168,41 +167,16 @@ const SheetContentBody = React.forwardRef<
       }}
       {...props}
     >
-      <LiquidGlassFrame>{children}</LiquidGlassFrame>
+      <VocabifyPanelFrame>{children}</VocabifyPanelFrame>
     </SheetPrimitive.Content>
   )
 })
 SheetContentBody.displayName = "SheetContentBody"
 
-function LiquidGlassFrame({ children }: { children: React.ReactNode }) {
+function VocabifyPanelFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="relative h-full min-h-0 w-full overflow-visible rounded-[28px] shadow-[0_24px_80px_hsl(var(--shadow-color)/0.16),0_8px_24px_hsl(var(--shadow-color)/0.08)]"
-      data-liquid-glass-frame
-    >
-      <LiquidGlass
-        className="vocabify-liquid-panel"
-        displacementScale={38}
-        blurAmount={0}
-        saturation={220}
-        aberrationIntensity={2}
-        elasticity={0.16}
-        cornerRadius={28}
-        padding="0"
-        mode="standard"
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[28px] border border-white/28 bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.40),hsl(var(--surface-glass)/0.20))] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-1px_0_rgba(255,255,255,0.10)] dark:border-white/8 dark:bg-[linear-gradient(145deg,hsl(var(--surface-glass)/0.50),hsl(var(--surface-glass)/0.24))]">
-          <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.55),transparent_28%),radial-gradient(circle_at_92%_16%,hsl(var(--primary)/0.20),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.28),transparent_38%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.18),transparent_26%),radial-gradient(circle_at_92%_16%,hsl(var(--primary)/0.22),transparent_34%)]" />
-          <div className="relative z-10 flex h-full min-h-0 flex-col">{children}</div>
-        </div>
-      </LiquidGlass>
+    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[12px] border border-border bg-popover text-popover-foreground dark:border-white/8">
+      <div className="relative z-10 flex h-full min-h-0 flex-col">{children}</div>
     </div>
   )
 }

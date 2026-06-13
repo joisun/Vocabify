@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
-import { GripVertical, KeyRound, Loader2, Plus, RefreshCw, X } from 'lucide-react'
+import { GripVertical, Loader2, Plus, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -20,8 +20,6 @@ import {
   type AiAgentApiKeys,
 } from '@/typings/aiModelAdaptor'
 import { agentsStorage, getNormalizedAgents } from '@/utils/storage'
-import HeadlingTitle from './common/HeadlingTitle'
-import Subtitle from './common/Subtitle'
 import OptionSection from './OptionSection'
 
 type ModelFetchState = {
@@ -290,14 +288,11 @@ const ApiKeysConfigComponent = () => {
   }
 
   return (
-    <OptionSection>
-      <HeadlingTitle>
-        <KeyRound className="h-5 w-5 text-primary" />
-        API Providers
-      </HeadlingTitle>
-      <Subtitle>
-        Select a supported Vercel AI SDK provider, paste its API key, then choose the model Vocabify should try first.
-      </Subtitle>
+    <OptionSection
+      id="providers"
+      title="API providers"
+      description="Select a supported Vercel AI SDK provider, paste its API key, then choose the model Vocabify should try first."
+    >
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-[180px_minmax(320px,1fr)_220px_auto]">
         <Select value={selectedProvider} onValueChange={setSelectedProvider}>
@@ -376,22 +371,22 @@ const ApiKeysConfigComponent = () => {
       <div className="flex min-h-5 items-center gap-2 text-xs text-muted-foreground">
         {fetchState.loading ? (
           <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            正在拉取模型列表
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Loading models…
           </>
         ) : fetchState.error ? (
           <>
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className="h-3 w-3" />
             {fetchState.error}
           </>
         ) : (
-          '模型列表会在输入 API key 后自动拉取；失败时回退到内置常用模型。'
+          'Models load automatically once an API key is entered. Built-in fallbacks are used if the request fails.'
         )}
       </div>
 
       {apiKeys.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/30 bg-white/[0.20] px-4 py-8 text-center text-[13px] text-muted-foreground backdrop-blur-lg dark:border-white/10 dark:bg-white/[0.06]">
-          还没有 provider 配置，请先添加至少一个。
+        <div className="rounded-[6px] border border-dashed border-border px-4 py-6 text-center text-[12px] text-muted-foreground dark:border-white/10">
+          No providers configured yet. Add at least one above.
         </div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
@@ -407,8 +402,8 @@ const ApiKeysConfigComponent = () => {
                           ref={dragProvided.innerRef}
                           {...dragProvided.draggableProps}
                           className={cn(
-                            'group/provider grid grid-cols-[32px_minmax(0,1fr)_36px] items-center gap-2 rounded-xl border border-white/24 bg-white/[0.24] px-3 py-2 backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-150 hover:border-white/40 hover:bg-white/[0.36] md:grid-cols-[32px_96px_minmax(300px,1fr)_160px_36px] dark:border-white/10 dark:bg-white/[0.07] dark:hover:bg-white/[0.12]',
-                            snapshot.isDragging && 'bg-white/[0.52] shadow-apple-lg dark:bg-white/[0.16]',
+                            'group/provider grid grid-cols-[28px_minmax(0,1fr)_36px] items-center gap-2 rounded-[6px] border border-border bg-card px-2.5 py-1.5 transition-colors hover:bg-secondary/40 md:grid-cols-[28px_96px_minmax(280px,1fr)_160px_36px] dark:border-white/8',
+                            snapshot.isDragging && 'bg-secondary',
                           )}
                         >
                           <span

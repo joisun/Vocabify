@@ -4,27 +4,21 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { hightlightStyle, recordPageSize } from '@/utils/storage'
-import { Brush, Highlighter, Minus, Plus } from 'lucide-react'
+import { Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { RgbaColorPicker } from 'react-colorful'
 import { toast } from 'sonner'
-import HeadlingTitle from './common/HeadlingTitle'
-import Subtitle from './common/Subtitle'
 import OptionSection from './OptionSection'
 
 export default function UserInterfaceSettings() {
   return (
-    <OptionSection>
-      <HeadlingTitle>
-        <Brush className="h-5 w-5 text-primary" />
-        Appearance
-      </HeadlingTitle>
-      <Subtitle>Personalise how saved words are highlighted on every page.</Subtitle>
-
-      <div className="grid gap-3">
-        <PageSizeSetter />
-        <HighlightStyleSetter />
-      </div>
+    <OptionSection
+      id="appearance"
+      title="Appearance"
+      description="Personalise how saved words are highlighted on every page."
+    >
+      <PageSizeSetter />
+      <HighlightStyleSetter />
     </OptionSection>
   )
 }
@@ -49,32 +43,32 @@ const PageSizeSetter = () => {
   }, [])
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/24 bg-white/[0.24] px-4 py-3 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07]">
+    <div className="flex items-center justify-between border-b border-border pb-4 dark:border-white/8">
       <div>
-        <Label className="text-[14px] font-medium text-foreground">Records per page</Label>
+        <Label className="text-[13px] font-medium">Records per page</Label>
         <p className="text-[12px] text-muted-foreground">How many words to show in the list.</p>
       </div>
-      <div className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/[0.28] p-0.5 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.08]">
+      <div className="inline-flex items-center gap-1 rounded-[6px] border border-border bg-card p-0.5 dark:border-white/8">
         <Button
           variant="ghost"
           size="icon-sm"
-          className="rounded-full"
           onClick={() => handleSetPageSize(false)}
-          aria-label="Decrease page size"
+          aria-label="Decrease"
+          className="h-6 w-6"
         >
-          <Minus className="h-3.5 w-3.5" />
+          <Minus className="h-3 w-3" />
         </Button>
-        <span className="tabular w-6 text-center text-[14px] font-medium" aria-live="polite">
+        <span className="tabular w-6 text-center text-[12px] font-medium" aria-live="polite">
           {pageSize}
         </span>
         <Button
           variant="ghost"
           size="icon-sm"
-          className="rounded-full"
           onClick={() => handleSetPageSize(true)}
-          aria-label="Increase page size"
+          aria-label="Increase"
+          className="h-6 w-6"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-3 w-3" />
         </Button>
       </div>
     </div>
@@ -88,7 +82,7 @@ const HighlightStyleSetter = () => {
     style: 'solid',
     offset: '1',
     thickness: '1',
-    color: { r: 0, g: 122, b: 255, a: 0.45 },
+    color: { r: 91, g: 91, b: 248, a: 0.45 },
     invertColor: false,
   })
 
@@ -110,14 +104,8 @@ const HighlightStyleSetter = () => {
     if (!initialized) return
     hightlightStyle
       .setValue(settings)
-      .then(() => {
-        toast.success('Highlight style saved')
-      })
-      .catch(() => {
-        toast.error('Save failed', {
-          description: 'Please try again.',
-        })
-      })
+      .then(() => toast.success('Highlight style saved'))
+      .catch(() => toast.error('Save failed'))
   }, [initialized, settings])
 
   const updateSettings = (updates: Partial<typeof settings>) => {
@@ -127,14 +115,10 @@ const HighlightStyleSetter = () => {
   const decoColor = `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.color.a})`
 
   return (
-    <div className="space-y-4 rounded-xl border border-white/24 bg-white/[0.24] p-4 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07]">
-      <div className="flex items-center gap-2">
-        <Highlighter className="h-4 w-4 text-primary" />
-        <Label className="text-[14px] font-medium text-foreground">Highlight style</Label>
-      </div>
+    <div className="space-y-4">
+      <Label className="text-[13px] font-medium">Custom highlight style</Label>
 
-      {/* Live preview */}
-      <div className="rounded-lg border border-white/24 bg-white/[0.26] px-4 py-3 shadow-apple-xs backdrop-blur-lg dark:border-white/10 dark:bg-white/[0.08]">
+      <div className="rounded-[6px] border border-border bg-secondary px-4 py-3 dark:border-white/8">
         <p
           className="leading-relaxed"
           style={{
@@ -149,12 +133,12 @@ const HighlightStyleSetter = () => {
             backgroundColor: settings.type === 'background' ? decoColor : undefined,
           }}
         >
-          <span className="font-display text-2xl font-semibold tracking-tight">Vocabulary</span>{' '}
+          <span className="font-display text-base font-semibold tracking-tight">Vocabulary</span>{' '}
           <span className="text-muted-foreground">— preview your highlight in context.</span>
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FieldRow label="Decoration">
           <Select onValueChange={(v) => updateSettings({ type: v })} value={settings.type}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -220,37 +204,34 @@ const HighlightStyleSetter = () => {
 
         <FieldRow label="Color">
           <Select>
-            <SelectTrigger className="relative h-11 border-white/30 bg-white/[0.28] pl-3 shadow-apple-xs backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.08]">
+            <SelectTrigger className="relative h-8 pl-2.5">
               <span
-                className="inline-block h-4 w-4 rounded-full ring-1 ring-border/60"
+                className="inline-block h-3 w-3 rounded-full ring-1 ring-border/60"
                 style={{ backgroundColor: decoColor }}
                 aria-hidden
               />
-              <span className="ml-3 flex-1 font-mono text-[12px] text-muted-foreground">
+              <span className="ml-2 flex-1 truncate font-mono text-[11px] text-muted-foreground">
                 rgba({settings.color.r}, {settings.color.g}, {settings.color.b}, {settings.color.a})
               </span>
             </SelectTrigger>
             <SelectContent>
-              <div className="p-3">
+              <div className="p-2">
                 <RgbaColorPicker color={settings.color} onChange={(color) => updateSettings({ color })} />
               </div>
             </SelectContent>
           </Select>
         </FieldRow>
 
-        <div className="flex items-center gap-2 sm:col-span-2 mt-1">
+        <div className="flex items-center gap-2 sm:col-span-2">
           <Checkbox
             id="invert-color"
-            className="rounded-md h-5 w-5"
+            className="rounded-sm h-4 w-4"
             checked={settings.invertColor}
             onCheckedChange={(val: boolean) => updateSettings({ invertColor: val })}
           />
           <label
             htmlFor="invert-color"
-            className={cn(
-              "text-[13px] font-medium leading-none text-foreground/90 cursor-pointer",
-              "peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            )}
+            className={cn('text-[12px] font-medium leading-none cursor-pointer')}
           >
             Invert text color from decoration color
           </label>
@@ -262,9 +243,7 @@ const HighlightStyleSetter = () => {
 
 const FieldRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1.5">
-    <span className="text-[12px] font-medium text-muted-foreground uppercase tracking-wide">
-      {label}
-    </span>
+    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
     {children}
   </div>
 )

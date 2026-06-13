@@ -1,6 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie'
+import {
+  applyMark,
+  clampScore,
+  createInitialFamiliarity,
+  type FamiliarityFields,
+  type MarkAction,
+  settleDecay,
+} from '@/lib/familiarity'
 
-export interface VocabRecord {
+export interface VocabRecord extends FamiliarityFields {
   id?: number
   wordOrPhrase: string
   meaning: string
@@ -43,6 +51,21 @@ class VocabifyDatabase extends Dexie {
       records: '++id, wordOrPhrase, createdAt, updatedAt',
       syncTombstones: 'wordOrPhrase, deletedAt',
     })
+
+    // Version 4: Familiarity scoring fields. Backfill defaults on existing rows
+    // so the UI can read score / decay markers without null checks.
+    this.version(4).stores({
+      dataStore: '++id, wordOrPhrase, createdAt, updatedAt',
+      records: '++id, wordOrPhrase, createdAt, updatedAt, score',
+      syncTombstones: 'wordOrPhrase, deletedAt',
+    }).upgrade(async tx => {
+      await tx.table('records').toCollection().modify((record: VocabRecord) => {
+        if (typeof record.score !== 'number') record.score = 0
+        if (record.firstMarkedAt === undefined) record.firstMarkedAt = null
+        if (record.lastMarkedAt === undefined) record.lastMarkedAt = null
+        if (record.lastDecayAt === undefined) record.lastDecayAt = null
+      })
+    })
   }
 }
 
@@ -50,6 +73,17 @@ export const db = new VocabifyDatabase()
 
 export function normalizeWordOrPhrase(wordOrPhrase: string) {
   return wordOrPhrase.trim().toLowerCase()
+}
+
+/** Coerce a record loaded from any source (Dexie, GitHub, legacy) to include familiarity fields. */
+export function withFamiliarityDefaults<T extends Partial<FamiliarityFields>>(record: T): T & FamiliarityFields {
+  return {
+    ...record,
+    score: clampScore(typeof record.score === 'number' ? record.score : 0),
+    firstMarkedAt: record.firstMarkedAt ?? null,
+    lastMarkedAt: record.lastMarkedAt ?? null,
+    lastDecayAt: record.lastDecayAt ?? null,
+  }
 }
 
 export async function saveRecord(wordOrPhrase: string, meaning: string) {
@@ -69,7 +103,8 @@ export async function saveRecord(wordOrPhrase: string, meaning: string) {
     wordOrPhrase: key,
     meaning,
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    ...createInitialFamiliarity(),
   })
   await db.syncTombstones.delete(key)
   return { title: 'Done 🥳🎉🎉', detail: 'Data added successfully!' }
@@ -112,4 +147,33 @@ export async function getRecordByPage(pageNum: number, pageSize: number) {
     records,
     total: Math.ceil(total / pageSize)
   }
+}
+
+/**
+ * Settle outstanding decay for a single record and persist if anything changed.
+ * Used right before highlighting paints a word so its color reflects the latest state.
+ */
+export async function settleAndPersistDecay(record: VocabRecord, now: number = Date.now()): Promise<VocabRecord> {
+  const result = settleDecay(record, now)
+  if (!result.changed || record.id == null) return result.next
+  await db.records.update(record.id, {
+    score: result.next.score,
+    lastDecayAt: result.next.lastDecayAt,
+  })
+  return result.next
+}
+
+/** Apply a Know / Fuzzy / Forget mark to a stored record and persist the result. */
+export async function markRecord(id: number, action: MarkAction, now: number = Date.now()): Promise<VocabRecord | null> {
+  const record = await db.records.get(id)
+  if (!record) return null
+  const next = applyMark(record, action, now)
+  await db.records.update(id, {
+    score: next.score,
+    firstMarkedAt: next.firstMarkedAt,
+    lastMarkedAt: next.lastMarkedAt,
+    lastDecayAt: next.lastDecayAt,
+    updatedAt: new Date(now).toISOString(),
+  })
+  return { ...record, ...next, updatedAt: new Date(now).toISOString() }
 }

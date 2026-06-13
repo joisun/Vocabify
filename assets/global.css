@@ -2,105 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ───────────────────────────── Vocabify · Apple-style Design System ─────────────────────────── */
+/* ───────────────────────────── Vocabify · Design Tokens ─────────────────────────── */
 /*
- * Tokens follow Apple HIG references:
- *  - System gray scale (light / dark)
- *  - System blue accent  : #007AFF / #0A84FF
- *  - Translucent surfaces (vibrancy)
- *  - Spring-like motion, soft layered shadows
+ * Reading-first vocabulary workspace. Inspired by Raycast / Linear / Obsidian:
+ *   - 90-95% neutral grays, accent reserved for state (focus / selection / primary)
+ *   - 1px borders instead of shadows
+ *   - Typography drives hierarchy (size + weight + opacity), not color
+ *   - 8pt grid spacing
+ *   - 150-250ms ease-out transitions, no decorative motion
+ *
+ * Two themes: light (paper-like) and dark (charcoal, never black).
  */
 
 @layer base {
   :root {
-    /* Surface */
-    --background: 0 0% 100%;            /* systemBackground */
-    --foreground: 240 6% 10%;           /* labelPrimary */
+    /* Surface — light theme */
+    --background: 0 0% 99%;            /* near-white paper */
+    --foreground: 240 6% 14%;          /* near-black ink */
+
+    --surface: 0 0% 100%;              /* primary card surface */
+    --surface-2: 240 5% 97%;           /* sidebar / sunken */
+    --surface-3: 240 5% 94%;           /* hovered list item */
 
     --card: 0 0% 100%;
-    --card-foreground: 240 6% 10%;
+    --card-foreground: 240 6% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 10%;
+    --popover-foreground: 240 6% 14%;
 
-    /* Apple iOS blue */
-    --primary: 211 100% 50%;            /* #007AFF */
+    /* Muted / secondary */
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 14%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 42%;
+
+    /* Single accent — indigo/blue-violet (#5b5bf8) */
+    --primary: 240 89% 66%;
     --primary-foreground: 0 0% 100%;
 
-    /* Translucent fills */
-    --secondary: 240 6% 96%;            /* systemFill / .quaternaryLabel */
-    --secondary-foreground: 240 6% 10%;
+    --accent: 240 89% 96%;
+    --accent-foreground: 240 89% 38%;
 
-    --muted: 240 5% 96%;                /* secondarySystemFill */
-    --muted-foreground: 240 4% 46%;     /* labelSecondary */
-
-    --accent: 211 100% 95%;             /* tinted accent */
-    --accent-foreground: 211 100% 32%;
-
-    --destructive: 4 90% 58%;           /* systemRed #FF3B30 */
+    /* Status (used sparingly) */
+    --destructive: 4 75% 50%;
     --destructive-foreground: 0 0% 100%;
+    --success: 142 60% 38%;
+    --warning: 30 95% 50%;
 
-    --success: 142 71% 45%;             /* systemGreen */
-    --warning: 36 100% 50%;             /* systemOrange */
+    /* Hairline borders */
+    --border: 240 6% 88%;
+    --input: 240 6% 88%;
+    --ring: 240 89% 66%;
 
-    /* Hairline borders - Apple uses subtle 1px separators */
-    --border: 240 6% 90%;               /* separatorOpaque */
-    --input: 240 6% 90%;
-    --ring: 211 100% 50%;
-
-    /* Radius - Apple prefers continuous corners; we use 12-14px family */
-    --radius: 0.75rem;
-
-    /* Vibrancy / blur surface */
-    --surface-elevated: 0 0% 100%;
-    --surface-glass: 0 0% 100%;
-    --surface-glass-alpha: 0.72;
-
-    /* Shadow tokens (composed in tailwind) */
-    --shadow-color: 240 6% 10%;
+    --radius: 0.625rem;                /* 10px — engineered, not playful */
   }
 
   .dark {
-    --background: 240 6% 6%;            /* near-black, slight cool tint */
-    --foreground: 0 0% 98%;
+    /* Surface — dark theme: charcoal grays per CLAUDE.md (#2b2b2b family) */
+    --background: 240 4% 14%;          /* #232325 — near #2b2b2b */
+    --foreground: 0 0% 95%;
 
-    --card: 240 6% 9%;                  /* secondarySystemBackground */
-    --card-foreground: 0 0% 98%;
+    --surface: 240 4% 17%;             /* #2b2b2d — primary card */
+    --surface-2: 240 4% 20%;           /* #323234 — panels */
+    --surface-3: 240 4% 23%;           /* #3a3a3c — hovered list item */
 
-    --popover: 240 6% 11%;
-    --popover-foreground: 0 0% 98%;
+    --card: 240 4% 17%;
+    --card-foreground: 0 0% 95%;
 
-    --primary: 211 100% 60%;            /* #0A84FF */
+    --popover: 240 4% 17%;
+    --popover-foreground: 0 0% 95%;
+
+    --secondary: 240 4% 20%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 240 4% 20%;
+    --muted-foreground: 240 5% 64%;
+
+    --primary: 240 89% 70%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4% 14%;
-    --secondary-foreground: 0 0% 98%;
+    --accent: 240 35% 22%;
+    --accent-foreground: 240 89% 80%;
 
-    --muted: 240 4% 14%;
-    --muted-foreground: 240 5% 65%;
-
-    --accent: 211 80% 18%;
-    --accent-foreground: 211 100% 78%;
-
-    --destructive: 4 90% 64%;           /* #FF453A */
+    --destructive: 4 70% 60%;
     --destructive-foreground: 0 0% 100%;
+    --success: 142 45% 55%;
+    --warning: 30 90% 60%;
 
-    --success: 142 60% 55%;
-    --warning: 36 100% 60%;
-
-    --border: 240 4% 18%;
-    --input: 240 4% 18%;
-    --ring: 211 100% 60%;
-
-    --surface-elevated: 240 6% 11%;
-    --surface-glass: 240 6% 9%;
-    --surface-glass-alpha: 0.72;
-
-    --shadow-color: 0 0% 0%;
+    --border: 0 0% 100%;               /* used at 0.08 alpha via rgba */
+    --input: 240 4% 22%;
+    --ring: 240 89% 70%;
   }
 }
 
-/* ───────────────────────────── Typography & base ─────────────────────────── */
+/* ───────────────────────────── Base typography ─────────────────────────── */
 
 @layer base {
   html {
@@ -111,289 +107,161 @@
   }
 
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
+  }
+
+  .dark * {
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   body,
   body.vocabify {
-    @apply font-sans antialiased bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro",
-      "Inter", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+      "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
       "Microsoft YaHei", sans-serif;
-    letter-spacing: -0.011em;
+    font-size: 13px;
+    line-height: 1.5;
   }
 
-  /* Apple-style display sizes default to tighter tracking */
   h1, h2, h3, .font-display {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro",
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
       "Inter", "Helvetica Neue", Arial, sans-serif;
-    letter-spacing: -0.022em;
+    letter-spacing: -0.011em;
+    font-weight: 600;
   }
 
-  /* Tabular numbers for record counts, timers etc. */
   .tabular {
     font-variant-numeric: tabular-nums;
   }
 }
 
-/* ───────────────────────────── Highlight (selection on page) ─────────────────────────── */
+/* ───────────────────────────── Highlight (in-page words) ─────────────────────────── */
 
-::highlight(vocab-highlight) {
-  background-color: hsl(211 100% 50% / 0.16);
+::highlight(vocab-new),
+.vocabify-highlight.vocabify-level-new {
+  background-color: hsl(142 60% 45% / 0.18);
+  color: inherit;
+}
+::highlight(vocab-learning),
+.vocabify-highlight.vocabify-level-learning {
+  background-color: hsl(28 100% 50% / 0.20);
+  color: inherit;
+}
+::highlight(vocab-familiar),
+.vocabify-highlight.vocabify-level-familiar {
+  background-color: hsl(240 89% 66% / 0.18);
+  color: inherit;
+}
+::highlight(vocab-mastered),
+.vocabify-highlight.vocabify-level-mastered {
+  background-color: hsl(270 50% 60% / 0.10);
   color: inherit;
 }
 
 .vocabify-highlight {
-  background-color: hsl(211 100% 50% / 0.16);
   cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 160ms ease;
 }
 
-/* ───────────────────────────── Scrollbars (subtle, Apple-like) ─────────────────────────── */
+.vocabify-level-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: hsl(240 5% 60%);
+}
+.vocabify-level-dot.is-new      { background-color: hsl(142 60% 45%); }
+.vocabify-level-dot.is-learning { background-color: hsl(28 100% 50%); }
+.vocabify-level-dot.is-familiar { background-color: hsl(240 89% 66%); }
+.vocabify-level-dot.is-mastered { background-color: hsl(270 50% 60%); }
+
+/* ───────────────────────────── Scrollbars (subtle, hidden by default) ─────────────────────────── */
 
 @layer base {
-  .scrollbar-hidden::-webkit-scrollbar { @apply w-0 h-0; }
+  .scrollbar-hidden::-webkit-scrollbar { width: 0; height: 0; }
 
-  .scrollbar-tiny::-webkit-scrollbar { @apply w-[3px] h-[3px]; }
-  .scrollbar-tiny::-webkit-scrollbar-track { @apply bg-transparent; }
-  .scrollbar-tiny::-webkit-scrollbar-thumb { @apply bg-foreground/20 rounded-full; }
-  .scrollbar-tiny::-webkit-scrollbar-thumb:hover { @apply bg-foreground/35; }
-
-  .scrollbar-thin::-webkit-scrollbar { @apply w-1.5 h-1.5; }
-  .scrollbar-thin::-webkit-scrollbar-track { @apply bg-transparent; }
-  .scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-foreground/20 rounded-full; }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover { @apply bg-foreground/35; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--foreground) / 0.18); border-radius: 999px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: hsl(var(--foreground) / 0.30); }
 
   .vocabify-fade-scroll {
     scrollbar-width: none;
     -ms-overflow-style: none;
-    touch-action: pan-y;
   }
-
   .vocabify-fade-scroll::-webkit-scrollbar {
-    display: none;
     width: 0;
     height: 0;
   }
-
-  .vocabify-shader-blob {
-    animation: vocabify-shader-float 2.8s ease-in-out infinite;
-    transform-origin: top center;
-  }
-
-  .vocabify-shader-blob.is-fast {
-    animation-duration: 1.35s;
-  }
-
-  .vocabify-shader-blob.is-compact {
-    animation-duration: 2.2s;
-  }
-
-  .vocabify-shader-eye {
-    animation: vocabify-shader-blink 3s ease-in-out infinite;
-  }
-
-  .vocabify-shader-eye-track {
-    transform-box: fill-box;
-    transform-origin: center;
-    transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  .vocabify-shader-blob.is-fast .vocabify-shader-eye,
-  .vocabify-shader-blob.is-fast .vocabify-shader-star-eye {
-    animation-duration: 1.8s;
-  }
-
-  .vocabify-shader-blob.is-compact .vocabify-shader-eye {
-    animation-duration: 2.4s;
-  }
-
-  .vocabify-shader-star-eye {
-    animation: vocabify-shader-star 1.8s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: center;
-  }
-
-  .vocabify-skeleton-breathe {
-    background: linear-gradient(
-      90deg,
-      hsl(var(--foreground) / 0.055),
-      hsl(var(--foreground) / 0.13),
-      hsl(var(--foreground) / 0.055)
-    );
-    background-size: 220% 100%;
-    animation: vocabify-skeleton-breathe 1.65s ease-in-out infinite;
-  }
-
-  @keyframes vocabify-shader-float {
-    0%, 100% {
-      transform: translateY(0) scaleY(1);
-    }
-    50% {
-      transform: translateY(-5px) scaleY(1.04);
-    }
-  }
-
-  @keyframes vocabify-shader-blink {
-    0%, 90%, 100% {
-      ry: 30;
-    }
-    95% {
-      ry: 3;
-    }
-  }
-
-  @keyframes vocabify-shader-star {
-    0%, 100% {
-      transform: rotate(0deg) scale(0.86);
-      opacity: 0.72;
-    }
-    50% {
-      transform: rotate(180deg) scale(1.16);
-      opacity: 1;
-    }
-  }
-
-  @keyframes vocabify-skeleton-breathe {
-    0%, 100% {
-      background-position: 120% 0;
-      opacity: 0.64;
-    }
-    50% {
-      background-position: -40% 0;
-      opacity: 1;
-    }
-  }
 }
 
-/* ───────────────────────────── Reusable utilities ─────────────────────────── */
+/* ───────────────────────────── Animations (used sparingly) ─────────────────────────── */
 
-@layer utilities {
-  /* Vibrancy / Liquid glass surface */
-  .glass {
-    background-color: hsl(var(--surface-glass) / var(--surface-glass-alpha));
-    backdrop-filter: saturate(180%) blur(28px);
-    -webkit-backdrop-filter: saturate(180%) blur(28px);
-  }
-  .glass-strong {
-    background-color: hsl(var(--surface-glass) / 0.85);
-    backdrop-filter: saturate(180%) blur(40px);
-    -webkit-backdrop-filter: saturate(180%) blur(40px);
-  }
-
-  .vocabify-liquid-panel > .glass {
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    align-items: stretch !important;
-    padding: 0 !important;
-  }
-
-  .vocabify-liquid-panel > .glass > div:last-child {
-    width: 100% !important;
-    height: 100% !important;
-    color: inherit !important;
-    font: inherit !important;
-    text-shadow: none !important;
-  }
-
-  .liquid-card {
-    background:
-      linear-gradient(145deg, hsl(var(--surface-glass) / 0.56), hsl(var(--surface-glass) / 0.34)),
-      radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.30), transparent 42%);
-    border: 1px solid rgba(255, 255, 255, 0.28);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 1px 2px hsl(var(--shadow-color) / 0.05);
-    backdrop-filter: saturate(160%) blur(24px);
-    -webkit-backdrop-filter: saturate(160%) blur(24px);
-  }
-
-  .dark .liquid-card {
-    background:
-      linear-gradient(145deg, hsl(var(--surface-glass) / 0.62), hsl(var(--surface-glass) / 0.38)),
-      radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.10), transparent 42%);
-    border-color: rgba(255, 255, 255, 0.10);
-  }
-
-  .liquid-glass-card {
-    background:
-      linear-gradient(145deg, hsl(var(--surface-glass) / 0.34), hsl(var(--surface-glass) / 0.14)),
-      radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.50), transparent 36%),
-      radial-gradient(circle at 92% 18%, hsl(var(--primary) / 0.10), transparent 32%);
-    border: 1px solid rgba(255, 255, 255, 0.30);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.24),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.08),
-      0 8px 26px hsl(var(--shadow-color) / 0.08);
-    backdrop-filter: saturate(180%) blur(18px);
-    -webkit-backdrop-filter: saturate(180%) blur(18px);
-  }
-
-  .dark .liquid-glass-card {
-    background:
-      linear-gradient(145deg, hsl(var(--surface-glass) / 0.52), hsl(var(--surface-glass) / 0.22)),
-      radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.14), transparent 36%),
-      radial-gradient(circle at 92% 18%, hsl(var(--primary) / 0.16), transparent 32%);
-    border-color: rgba(255, 255, 255, 0.10);
-  }
-
-  .liquid-glass-control {
-    background:
-      linear-gradient(145deg, hsl(var(--surface-glass) / 0.28), hsl(var(--surface-glass) / 0.12)),
-      radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.42), transparent 34%),
-      radial-gradient(circle at 90% 10%, hsl(var(--primary) / 0.10), transparent 28%);
-    border: 1px solid rgba(255, 255, 255, 0.24);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 4px 14px hsl(var(--shadow-color) / 0.05);
-    backdrop-filter: saturate(170%) blur(16px);
-    -webkit-backdrop-filter: saturate(170%) blur(16px);
-  }
-
-  .liquid-glass-input {
-    background:
-      linear-gradient(145deg, hsl(var(--surface-glass) / 0.22), hsl(var(--surface-glass) / 0.10)),
-      radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.34), transparent 32%);
-    border: 1px solid rgba(120, 160, 255, 0.24);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 4px 12px hsl(var(--shadow-color) / 0.04);
-    backdrop-filter: saturate(180%) blur(14px);
-    -webkit-backdrop-filter: saturate(180%) blur(14px);
-  }
-
-  .liquid-glass-input:focus-visible {
-    border-color: hsl(var(--primary) / 0.36);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 0 0 3px hsl(var(--primary) / 0.14),
-      0 4px 12px hsl(var(--shadow-color) / 0.04);
-  }
-
-  .liquid-glass-button {
-    background:
-      linear-gradient(145deg, hsl(var(--surface-glass) / 0.30), hsl(var(--surface-glass) / 0.12)),
-      radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.34), transparent 34%);
-    border: 1px solid rgba(255, 255, 255, 0.24);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 4px 12px hsl(var(--shadow-color) / 0.05);
-    backdrop-filter: saturate(170%) blur(16px);
-    -webkit-backdrop-filter: saturate(170%) blur(16px);
-  }
-
-  /* Hairline 0.5px-feel separator */
-  .hairline { @apply border border-border/80; }
-
-  /* Apple subtle press feedback */
-  .press-95 { transition: transform 120ms cubic-bezier(.2,.8,.2,1); }
-  .press-95:active { transform: scale(.96); }
+@keyframes vocabify-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Respect reduced-motion */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
-  }
+@keyframes vocabify-scale-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes vocabify-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+.animate-fade-in { animation: vocabify-fade-in 180ms ease-out; }
+.animate-scale-in { animation: vocabify-scale-in 160ms ease-out; }
+.animate-ai-pulse { animation: vocabify-pulse 1.4s ease-in-out infinite; }
+
+/* ───────────────────────────── Reusable surface helpers ─────────────────────────── */
+
+.vocab-panel {
+  background-color: hsl(var(--surface));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.dark .vocab-panel {
+  background-color: hsl(var(--surface));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.vocab-row {
+  border-bottom: 1px solid hsl(var(--border));
+}
+.dark .vocab-row {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.vocab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 0.01em;
+}
+.vocab-chip[data-tone="accent"] {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* Skeleton breathe */
+@keyframes vocabify-skeleton {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.8; }
+}
+.vocabify-skeleton-breathe {
+  background-color: hsl(var(--muted));
+  animation: vocabify-skeleton 1.4s ease-in-out infinite;
 }

@@ -2,9 +2,11 @@ import { sendMessage } from '@/lib/messaging'
 import {
   db,
   normalizeWordOrPhrase,
+  withFamiliarityDefaults,
   type VocabRecord,
   type VocabTombstone,
 } from '@/lib/vocabifyDb'
+import { clampScore } from '@/lib/familiarity'
 import {
   githubAccessToken,
   githubLastSyncAt,
@@ -266,12 +268,19 @@ function normalizeRecords(records: Array<Partial<VocabRecord>>) {
 
       const createdAt = normalizeDate(record.createdAt, record.updatedAt)
       const updatedAt = normalizeDate(record.updatedAt, record.createdAt)
-      return {
+      // Familiarity fields may be missing on legacy payloads — backfill with
+      // the same defaults the local DB uses so a freshly synced record looks
+      // identical to one that has always lived locally.
+      return withFamiliarityDefaults({
         wordOrPhrase,
         meaning,
         createdAt,
         updatedAt,
-      }
+        score: typeof record.score === 'number' ? clampScore(record.score) : 0,
+        firstMarkedAt: normalizeOptionalDate(record.firstMarkedAt),
+        lastMarkedAt: normalizeOptionalDate(record.lastMarkedAt),
+        lastDecayAt: normalizeOptionalDate(record.lastDecayAt),
+      })
     })
     .filter(Boolean) as Array<Omit<VocabRecord, 'id'>>
 }
@@ -326,6 +335,19 @@ function normalizeDate(primary?: string, fallback?: string) {
   const value = primary || fallback
   if (value && !Number.isNaN(new Date(value).getTime())) return new Date(value).toISOString()
   return new Date().toISOString()
+}
+
+/**
+ * Familiarity timestamps are nullable: a brand-new word has no
+ * firstMarkedAt / lastMarkedAt / lastDecayAt until the user marks it.
+ * Treat invalid or missing strings as null instead of "now" so syncing
+ * never accidentally promotes an unmarked word into the decay timeline.
+ */
+function normalizeOptionalDate(value: unknown): string | null {
+  if (typeof value !== 'string' || !value) return null
+  const time = new Date(value).getTime()
+  if (Number.isNaN(time)) return null
+  return new Date(time).toISOString()
 }
 
 function encodeBase64(value: string) {

@@ -1,16 +1,99 @@
-import { db } from '@/lib/vocabifyDb'
+import { db, settleAndPersistDecay, type VocabRecord } from '@/lib/vocabifyDb'
+import { getLevel, levelClassSuffix, type FamiliarityLevel } from '@/lib/familiarity'
 
+const LEVELS: FamiliarityLevel[] = ['NEW', 'LEARNING', 'FAMILIAR', 'MASTERED']
+
+const VOCABIFY_HIGHLIGHT_STYLE_ID = 'vocabify-highlight-styles'
+
+/**
+ * Stylesheet appended to the host document. Mirrors the rules in
+ * `assets/global.css` so the in-page highlights paint correctly even though
+ * the rest of the extension UI lives in a Shadow DOM.
+ */
+const HIGHLIGHT_STYLES = `
+::highlight(vocab-new),
+.vocabify-highlight.vocabify-level-new {
+  background-color: hsl(142 71% 45% / 0.18);
+  color: inherit;
+}
+::highlight(vocab-learning),
+.vocabify-highlight.vocabify-level-learning {
+  background-color: hsl(28 100% 50% / 0.22);
+  color: inherit;
+}
+::highlight(vocab-familiar),
+.vocabify-highlight.vocabify-level-familiar {
+  background-color: hsl(211 100% 50% / 0.18);
+  color: inherit;
+}
+::highlight(vocab-mastered),
+.vocabify-highlight.vocabify-level-mastered {
+  background-color: hsl(270 60% 60% / 0.10);
+  color: inherit;
+}
+.vocabify-highlight {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 160ms ease;
+}
+`
+
+export type HoverRect = {
+  top: number
+  right: number
+  bottom: number
+  left: number
+  width: number
+  height: number
+}
+
+export type HoverEvent = {
+  recordId: number
+  word: string
+  score: number
+  level: FamiliarityLevel
+  rect: HoverRect
+}
+
+export type HoverListener = (event: HoverEvent | null) => void
+
+/**
+ * Paints saved vocabulary on the page, colored by familiarity level.
+ *
+ * Two render strategies share one semantic:
+ *   - CSS Custom Highlight API (modern Chromium / Safari)  →  ::highlight(vocab-<level>)
+ *   - <mark class="vocabify-highlight vocabify-level-<level>"> (everything else)
+ *
+ * Both feed a Monica-style hover detector — DOM marks bind delegated mouseover,
+ * the highlight-API path uses caretPositionFromPoint coordinate hit-testing.
+ * Decay is settled lazily right before each pass so colors always reflect the
+ * up-to-date score, no background timer required.
+ */
 export class HighlightService {
   private highlights: Map<string, Highlight> = new Map()
   private supportsCustomHighlight: boolean = false
+  private styleInjected = false
+
+  // Hover detection state
+  private records: VocabRecord[] = []
+  private rangesByRecordId: Map<number, Range[]> = new Map()
+  private hoverListener: HoverListener | null = null
+  private hoverHandlersInstalled = false
+  private currentHoverId: number | null = null
+  private pointerX = 0
+  private pointerY = 0
+  private mousemoveScheduled = false
 
   constructor() {
-    // Feature detection
     this.supportsCustomHighlight = 'highlights' in CSS && CSS.highlights instanceof HighlightRegistry
   }
 
   async highlightVocabulary() {
-    const records = await db.records.toArray()
+    this.ensureStylesInjected()
+    const rawRecords = await db.records.toArray()
+    const records = await Promise.all(rawRecords.map((record) => settleAndPersistDecay(record)))
+    this.records = records
+    this.rangesByRecordId.clear()
 
     if (this.supportsCustomHighlight) {
       this.highlightWithCustomAPI(records)
@@ -19,44 +102,72 @@ export class HighlightService {
     }
   }
 
-  private highlightWithCustomAPI(records: any[]) {
-    // Clear existing highlights
+  /**
+   * Subscribe to hover hits on saved words. The listener fires:
+   *   - with a HoverEvent when the cursor enters a saved highlight
+   *   - with null when the cursor leaves the current highlight
+   *
+   * Bridge-delay between leaving the highlight and hiding the popover is
+   * the consumer's responsibility (so it can also keep the popover open
+   * while the cursor is over the popover itself).
+   */
+  setHoverListener(listener: HoverListener | null) {
+    this.hoverListener = listener
+    if (listener) this.installHoverHandlers()
+  }
+
+  /**
+   * Inject highlight color rules into the host document.
+   *
+   * The content script bundles `assets/global.css` into the Shadow DOM (cssInjectionMode: 'ui'),
+   * but the marks we paint live on the host document and can't see those styles. The CSS Custom
+   * Highlight API also needs `::highlight(...)` selectors registered on the host stylesheet.
+   */
+  private ensureStylesInjected() {
+    if (this.styleInjected) return
+    if (typeof document === 'undefined') return
+
+    const existing = document.getElementById(VOCABIFY_HIGHLIGHT_STYLE_ID)
+    if (existing) {
+      this.styleInjected = true
+      return
+    }
+
+    const style = document.createElement('style')
+    style.id = VOCABIFY_HIGHLIGHT_STYLE_ID
+    style.textContent = HIGHLIGHT_STYLES
+    document.head.appendChild(style)
+    this.styleInjected = true
+  }
+
+  private highlightWithCustomAPI(records: VocabRecord[]) {
     CSS.highlights.clear()
     this.highlights.clear()
 
-    // Get all text nodes
     const textNodes = this.getAllTextNodes(document.body)
+    const rangesByLevel = new Map<FamiliarityLevel, Range[]>()
+    LEVELS.forEach((level) => rangesByLevel.set(level, []))
 
     records.forEach((record) => {
-      const ranges: Range[] = []
-      const wordOrPhrase = record.wordOrPhrase
-      const isWholeWord = /^[a-zA-Z]+$/.test(wordOrPhrase)
-      const pattern = isWholeWord ? `\\b${wordOrPhrase}\\b` : wordOrPhrase
-      const regex = new RegExp(pattern, 'gi')
+      if (record.id == null) return
+      const ranges = collectRanges(textNodes, record.wordOrPhrase)
+      if (ranges.length === 0) return
+      const bucket = rangesByLevel.get(getLevel(record.score))
+      if (bucket) bucket.push(...ranges)
+      // Remember per-record ranges so coordinate-based hover can hit-test.
+      this.rangesByRecordId.set(record.id, ranges)
+    })
 
-      textNodes.forEach((node) => {
-        const text = node.textContent || ''
-        const matches = [...text.matchAll(regex)]
-
-        matches.forEach((match) => {
-          const range = document.createRange()
-          range.setStart(node, match.index!)
-          range.setEnd(node, match.index! + match[0].length)
-          ranges.push(range)
-        })
-      })
-
-      if (ranges.length > 0) {
-        const highlight = new Highlight(...ranges)
-        const highlightName = `vocab-${record.id}`
-        CSS.highlights.set(highlightName, highlight)
-        this.highlights.set(highlightName, highlight)
-      }
+    rangesByLevel.forEach((ranges, level) => {
+      if (ranges.length === 0) return
+      const highlight = new Highlight(...ranges)
+      const name = `vocab-${levelClassSuffix(level)}`
+      CSS.highlights.set(name, highlight)
+      this.highlights.set(name, highlight)
     })
   }
 
-  private highlightWithFallback(records: any[]) {
-    // Fallback: wrap text in <mark> elements
+  private highlightWithFallback(records: VocabRecord[]) {
     const textNodes = this.getAllTextNodes(document.body)
 
     records.forEach((record) => {
@@ -64,22 +175,23 @@ export class HighlightService {
       const isWholeWord = /^[a-zA-Z]+$/.test(wordOrPhrase)
       const pattern = isWholeWord ? `\\b${wordOrPhrase}\\b` : wordOrPhrase
       const regex = new RegExp(pattern, 'gi')
+      const levelSuffix = levelClassSuffix(getLevel(record.score))
+      const levelClass = `vocabify-level-${levelSuffix}`
 
       textNodes.forEach((node) => {
         const text = node.textContent || ''
         const matches = [...text.matchAll(regex)]
-
         if (matches.length === 0) return
 
-        // Process matches in reverse order to maintain indices
         matches.reverse().forEach((match) => {
           const range = document.createRange()
           range.setStart(node, match.index!)
           range.setEnd(node, match.index! + match[0].length)
 
           const mark = document.createElement('mark')
-          mark.className = 'vocabify-highlight'
+          mark.className = `vocabify-highlight ${levelClass}`
           mark.dataset.vocabId = String(record.id)
+          mark.dataset.vocabLevel = levelSuffix
           range.surroundContents(mark)
         })
       })
@@ -93,7 +205,6 @@ export class HighlightService {
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: (node) => {
-          // Skip script, style, and already highlighted elements
           const parent = node.parentElement
           if (!parent) return NodeFilter.FILTER_REJECT
           if (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE') {
@@ -123,7 +234,6 @@ export class HighlightService {
       CSS.highlights.clear()
       this.highlights.clear()
     } else {
-      // Remove all <mark> elements
       document.querySelectorAll('.vocabify-highlight').forEach(el => {
         const parent = el.parentNode
         if (parent) {
@@ -131,12 +241,13 @@ export class HighlightService {
         }
       })
     }
+    this.rangesByRecordId.clear()
+    this.records = []
+    this.dispatchHoverEnd()
   }
 
-  // Watch for DOM changes (SPA navigation)
   observeChanges(callback: () => void) {
     const observer = new MutationObserver((mutations) => {
-      // Debounce: only trigger if significant changes
       const hasSignificantChange = mutations.some(m =>
         m.type === 'childList' && m.addedNodes.length > 0
       )
@@ -151,6 +262,168 @@ export class HighlightService {
     })
 
     return observer
+  }
+
+  // ── Hover detection ─────────────────────────────────────────────────────
+
+  private installHoverHandlers() {
+    if (this.hoverHandlersInstalled) return
+    if (typeof document === 'undefined') return
+    this.hoverHandlersInstalled = true
+
+    // DOM (<mark>) path: delegated mouseover / mouseout
+    document.addEventListener('mouseover', this.handleMouseOver, true)
+    document.addEventListener('mouseout', this.handleMouseOut, true)
+
+    // CSS Custom Highlight path: throttled mousemove for coordinate hit-testing
+    if (this.supportsCustomHighlight) {
+      document.addEventListener('mousemove', this.handleMouseMove, { passive: true })
+    }
+  }
+
+  private handleMouseOver = (event: MouseEvent) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const mark = target.closest('.vocabify-highlight') as HTMLElement | null
+    if (!mark) return
+    const id = Number(mark.dataset.vocabId)
+    if (!Number.isFinite(id)) return
+    this.dispatchHoverForRecord(id, mark.getBoundingClientRect())
+  }
+
+  private handleMouseOut = (event: MouseEvent) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const mark = target.closest('.vocabify-highlight')
+    if (!mark) return
+    const related = event.relatedTarget
+    // moving within the same mark or into a child — ignore
+    if (related instanceof Node && mark.contains(related)) return
+    this.dispatchHoverEnd()
+  }
+
+  private handleMouseMove = (event: MouseEvent) => {
+    this.pointerX = event.clientX
+    this.pointerY = event.clientY
+    if (this.mousemoveScheduled) return
+    this.mousemoveScheduled = true
+    requestAnimationFrame(() => {
+      this.mousemoveScheduled = false
+      this.processCoordinateHover(this.pointerX, this.pointerY)
+    })
+  }
+
+  private processCoordinateHover(x: number, y: number) {
+    if (this.rangesByRecordId.size === 0) {
+      if (this.currentHoverId != null) this.dispatchHoverEnd()
+      return
+    }
+
+    const caret = getCaretPosition(x, y)
+    if (!caret) {
+      if (this.currentHoverId != null) this.dispatchHoverEnd()
+      return
+    }
+
+    let hitId: number | null = null
+    let hitRect: DOMRect | null = null
+    for (const [id, ranges] of this.rangesByRecordId.entries()) {
+      for (const range of ranges) {
+        if (rangeContainsPoint(range, caret.node, caret.offset)) {
+          hitId = id
+          hitRect = range.getBoundingClientRect()
+          break
+        }
+      }
+      if (hitId != null) break
+    }
+
+    if (hitId == null) {
+      if (this.currentHoverId != null) this.dispatchHoverEnd()
+      return
+    }
+    if (hitId === this.currentHoverId) return
+    this.dispatchHoverForRecord(hitId, hitRect!)
+  }
+
+  private dispatchHoverForRecord(id: number, rect: DOMRect) {
+    if (this.currentHoverId === id) return
+    const record = this.records.find((r) => r.id === id)
+    if (!record || record.id == null) return
+    this.currentHoverId = id
+    this.hoverListener?.({
+      recordId: record.id,
+      word: record.wordOrPhrase,
+      score: record.score,
+      level: getLevel(record.score),
+      rect: {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+    })
+  }
+
+  private dispatchHoverEnd() {
+    if (this.currentHoverId == null) return
+    this.currentHoverId = null
+    this.hoverListener?.(null)
+  }
+}
+
+function collectRanges(textNodes: Text[], wordOrPhrase: string): Range[] {
+  const ranges: Range[] = []
+  const isWholeWord = /^[a-zA-Z]+$/.test(wordOrPhrase)
+  const pattern = isWholeWord ? `\\b${wordOrPhrase}\\b` : wordOrPhrase
+  const regex = new RegExp(pattern, 'gi')
+
+  textNodes.forEach((node) => {
+    const text = node.textContent || ''
+    const matches = [...text.matchAll(regex)]
+    matches.forEach((match) => {
+      const range = document.createRange()
+      range.setStart(node, match.index!)
+      range.setEnd(node, match.index! + match[0].length)
+      ranges.push(range)
+    })
+  })
+
+  return ranges
+}
+
+/**
+ * Cross-browser caret-from-point. Returns the text node + offset under the
+ * pointer, used for hit-testing CSS Custom Highlight ranges.
+ */
+function getCaretPosition(x: number, y: number): { node: Node; offset: number } | null {
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+  }
+  if (typeof doc.caretPositionFromPoint === 'function') {
+    const pos = doc.caretPositionFromPoint(x, y)
+    if (pos?.offsetNode) return { node: pos.offsetNode, offset: pos.offset }
+  }
+  if (typeof doc.caretRangeFromPoint === 'function') {
+    const range = doc.caretRangeFromPoint(x, y)
+    if (range?.startContainer) return { node: range.startContainer, offset: range.startOffset }
+  }
+  return null
+}
+
+function rangeContainsPoint(range: Range, node: Node, offset: number): boolean {
+  const probe = document.createRange()
+  try {
+    probe.setStart(node, offset)
+    probe.setEnd(node, offset)
+    const startCmp = range.compareBoundaryPoints(Range.START_TO_START, probe)
+    const endCmp = range.compareBoundaryPoints(Range.END_TO_END, probe)
+    return startCmp <= 0 && endCmp >= 0
+  } catch {
+    return false
   }
 }
 

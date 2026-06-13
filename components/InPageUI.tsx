@@ -16,11 +16,8 @@ interface InPageUIProps {
 export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
   const [activeTab, setActiveTab] = useState<'ai' | 'vocab'>('ai')
 
-  // Switch to AI tab when new text is selected
   React.useEffect(() => {
-    if (selectedText) {
-      setActiveTab('ai')
-    }
+    if (selectedText) setActiveTab('ai')
   }, [selectedText])
 
   return (
@@ -32,35 +29,37 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
       >
         <div
           data-vocabify-sheet-drag-handle
-          className="flex shrink-0 items-center gap-2 border-b border-white/18 px-4 py-3 dark:border-white/10"
+          className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5 dark:border-white/8"
         >
-          <TabsList className="liquid-glass-control grid h-9 flex-1 grid-cols-2 rounded-full p-0.5">
+          <TabsList className="h-8 flex-1 grid grid-cols-2">
             <TabsTrigger value="ai">Search</TabsTrigger>
             <TabsTrigger value="vocab">My Wordlist</TabsTrigger>
           </TabsList>
 
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
             onClick={() => void openSettings()}
             aria-label="Open settings"
             title="Settings"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-3.5 w-3.5" />
           </Button>
 
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
             onClick={() => onOpenChange(false)}
-            aria-label="Close sheet"
+            aria-label="Close"
             title="Close"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
 
-        <TabsContent value="ai" forceMount className="mt-0 flex min-h-0 flex-1 overflow-hidden px-4 pb-4">
+        <TabsContent value="ai" forceMount className="mt-0 flex min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3">
           {selectedText ? (
             <AIExplanation selectedText={selectedText} />
           ) : (
@@ -68,7 +67,7 @@ export function InPageUI({ open, onOpenChange, selectedText }: InPageUIProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="vocab" forceMount className="mt-0 flex min-h-0 flex-1 overflow-hidden px-4 pb-4">
+        <TabsContent value="vocab" forceMount className="mt-0 flex min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3">
           <VocabList />
         </TabsContent>
       </Tabs>
@@ -86,15 +85,11 @@ async function openSettings() {
 }
 
 const EmptySelection = () => (
-  <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h16" />
-      </svg>
-    </div>
-    <p className="text-[14px] font-medium text-foreground">No selection yet</p>
-    <p className="max-w-[260px] text-[13px] text-muted-foreground leading-relaxed">
+  <div className="flex h-full flex-col items-start justify-center gap-2 px-1">
+    <p className="text-[13px] font-medium text-foreground">No selection yet</p>
+    <p className="max-w-[280px] text-[12px] leading-relaxed text-muted-foreground">
       Highlight any text on the page to ask Vocabify for an instant AI explanation.
+      Hover over saved words to mark how well you remember them.
     </p>
   </div>
 )

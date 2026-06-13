@@ -3,7 +3,10 @@ import { liveQuery } from 'dexie'
 import { db, deleteRecordById, type VocabRecord } from '@/lib/vocabifyDb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AlertCircle, BookOpen, CheckCircle2, Copy, ExternalLink, Github, Loader2, LogOut, RefreshCw, Search, Trash2, Volume2 } from 'lucide-react'
+import {
+  AlertCircle, BookOpen, CheckCircle2, Copy, ExternalLink, Github,
+  Loader2, LogOut, RefreshCw, Search, Trash2, Volume2,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   disconnectGitHubSync,
@@ -13,19 +16,17 @@ import {
   type GitHubDeviceFlow,
 } from '@/lib/githubSync'
 import { githubAccessToken, githubLastSyncAt, githubSyncAccount, type GithubSyncAccount } from '@/utils/storage'
+import { FAMILIARITY_LEVELS, getLevel, levelClassSuffix } from '@/lib/familiarity'
 
 function useVocabularyCount() {
   const [count, setCount] = useState(0)
-
   useEffect(() => {
     const subscription = liveQuery(() => db.records.count()).subscribe({
       next: setCount,
       error: (error) => console.error('Failed to watch vocabulary count:', error),
     })
-
     return () => subscription.unsubscribe()
   }, [])
-
   return count
 }
 
@@ -37,9 +38,7 @@ export function VocabList() {
   const [expanded, setExpanded] = useState<number | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    loadRecords()
-  }, [])
+  useEffect(() => { loadRecords() }, [])
 
   async function loadRecords() {
     setLoading(true)
@@ -58,7 +57,6 @@ export function VocabList() {
       loadRecords()
       return
     }
-
     setLoading(true)
     try {
       const lowerKeyword = searchKeyword.toLowerCase()
@@ -73,7 +71,6 @@ export function VocabList() {
     }
   }
 
-  // Live search as user types (debounced)
   useEffect(() => {
     const t = setTimeout(handleSearch, 220)
     return () => clearTimeout(t)
@@ -103,19 +100,17 @@ export function VocabList() {
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       <GitHubSyncControl recordCount={totalRecords} onSynced={loadRecords} />
 
-      {/* Search */}
       <div className="relative shrink-0">
-        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           placeholder="Search vocabulary"
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
-          className="liquid-glass-input h-9 pl-9"
+          className="h-8 pl-8 text-[12px]"
           aria-label="Search vocabulary"
         />
       </div>
 
-      {/* List */}
       <div
         ref={listRef}
         className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
@@ -134,67 +129,67 @@ export function VocabList() {
         ) : records.length === 0 ? (
           <EmptyState hasFilter={!!searchKeyword.trim()} />
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {records.map((record) => {
               const isExpanded = expanded === record.id
+              const level = getLevel(record.score)
+              const levelSuffix = levelClassSuffix(level)
               return (
                 <li
                   key={record.id}
                   className={cn(
-                    "liquid-glass-card rounded-xl text-card-foreground",
-                    "transition-[transform,box-shadow,background-color] duration-150 ease-spring hover:-translate-y-0.5",
-                    "animate-fade-in"
+                    'rounded-[8px] border border-border bg-card transition-colors animate-fade-in',
+                    'hover:bg-secondary/40 dark:border-white/8',
+                    isExpanded && 'bg-secondary/40',
                   )}
                 >
                   <button
                     type="button"
                     onClick={() => setExpanded(isExpanded ? null : record.id ?? null)}
-                    className="flex w-full items-start gap-3 px-4 py-3 text-left"
+                    className="flex w-full items-start gap-2 px-3 py-2 text-left"
                     aria-expanded={isExpanded}
                   >
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-display text-[15px] font-semibold tracking-tight truncate">
+                        <span className={`vocabify-level-dot is-${levelSuffix} shrink-0`} aria-hidden />
+                        <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
                           {record.wordOrPhrase}
                         </h3>
+                        <span className="tabular shrink-0 text-[10px] text-muted-foreground">
+                          {FAMILIARITY_LEVELS[level].label} · {record.score}
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            speak(record.wordOrPhrase)
-                          }}
+                          onClick={(e) => { e.stopPropagation(); speak(record.wordOrPhrase) }}
                           aria-label="Pronounce"
                           title="Pronounce"
-                          className="h-6 w-6 text-muted-foreground hover:text-primary"
+                          className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
                         >
-                          <Volume2 className="h-3.5 w-3.5" />
+                          <Volume2 className="h-3 w-3" />
                         </Button>
                       </div>
                       <p
                         className={cn(
-                          "mt-1 text-[13px] leading-relaxed text-muted-foreground",
-                          !isExpanded && "line-clamp-2"
+                          'mt-1 text-[12px] leading-relaxed text-muted-foreground',
+                          !isExpanded && 'line-clamp-2',
                         )}
                       >
                         {record.meaning}
                       </p>
-                      <p className="mt-2 tabular text-[11px] text-muted-foreground/80">
+                      <p className="mt-1.5 tabular text-[10px] text-muted-foreground/70">
                         {new Date(record.updatedAt).toLocaleDateString()}
                       </p>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (record.id) handleDelete(record.id)
-                      }}
+                      onClick={(e) => { e.stopPropagation(); if (record.id) handleDelete(record.id) }}
                       aria-label={`Delete ${record.wordOrPhrase}`}
                       title="Delete"
-                      className="text-muted-foreground hover:text-destructive shrink-0"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </button>
                 </li>
@@ -208,27 +203,18 @@ export function VocabList() {
 }
 
 const ListSkeleton = () => (
-  <ul className="space-y-2" aria-label="Loading vocabulary">
+  <ul className="space-y-1.5" aria-label="Loading vocabulary">
     {Array.from({ length: 4 }).map((_, i) => (
-      <li
-        key={i}
-        className="rounded-xl border border-border/60 bg-card p-4"
-      >
-        <div className="h-4 w-1/3 rounded-md bg-secondary animate-ai-pulse" />
-        <div className="mt-2 h-3 w-full rounded-md bg-secondary animate-ai-pulse" />
-        <div className="mt-1.5 h-3 w-4/5 rounded-md bg-secondary animate-ai-pulse" />
+      <li key={i} className="rounded-[8px] border border-border bg-card p-3 dark:border-white/8">
+        <div className="vocabify-skeleton-breathe h-3.5 w-1/3 rounded" />
+        <div className="vocabify-skeleton-breathe mt-2 h-3 w-full rounded" />
+        <div className="vocabify-skeleton-breathe mt-1.5 h-3 w-4/5 rounded" />
       </li>
     ))}
   </ul>
 )
 
-function GitHubSyncControl({
-  recordCount,
-  onSynced,
-}: {
-  recordCount: number
-  onSynced: () => Promise<void>
-}) {
+function GitHubSyncControl({ recordCount, onSynced }: { recordCount: number; onSynced: () => Promise<void> }) {
   const [token, setToken] = useState<string | null>(null)
   const [account, setAccount] = useState<GithubSyncAccount | null>(null)
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null)
@@ -250,9 +236,7 @@ function GitHubSyncControl({
       setAccount(storedAccount)
       setLastSyncAt(storedLastSyncAt)
     })
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [])
 
   async function syncWithToken(nextToken: string) {
@@ -265,17 +249,13 @@ function GitHubSyncControl({
   }
 
   async function handleConnect() {
-    setLoading(true)
-    setError('')
-    setCopied(false)
-
+    setLoading(true); setError(''); setCopied(false)
     try {
       const abortController = new AbortController()
       authAbortRef.current = abortController
       const flow = await startGitHubDeviceFlow()
       setDeviceFlow(flow)
       window.open(flow.verification_uri, '_blank', 'noopener,noreferrer')
-
       const nextToken = await pollGitHubDeviceToken(flow, undefined, abortController.signal)
       await syncWithToken(nextToken)
       setDeviceFlow(null)
@@ -290,30 +270,17 @@ function GitHubSyncControl({
   }
 
   async function handleSync() {
-    if (!token) {
-      await handleConnect()
-      return
-    }
-
-    setLoading(true)
-    setError('')
-    try {
-      await syncWithToken(token)
-    } catch (syncError) {
+    if (!token) { await handleConnect(); return }
+    setLoading(true); setError('')
+    try { await syncWithToken(token) } catch (syncError) {
       setError(syncError instanceof Error ? syncError.message : String(syncError))
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   async function handleDisconnect() {
     authAbortRef.current?.abort()
     await disconnectGitHubSync()
-    setToken(null)
-    setAccount(null)
-    setLastSyncAt(null)
-    setDeviceFlow(null)
-    setError('')
+    setToken(null); setAccount(null); setLastSyncAt(null); setDeviceFlow(null); setError('')
   }
 
   async function copyCode() {
@@ -333,30 +300,24 @@ function GitHubSyncControl({
 
   return (
     <section
-      className="liquid-glass-card shrink-0 rounded-2xl px-3 py-2"
+      className="shrink-0 rounded-[8px] border border-border bg-card px-2.5 py-2 dark:border-white/8"
       data-testid="vocabify-github-sync"
       aria-label="GitHub vocabulary sync"
     >
       <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/[0.24] text-foreground/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] dark:border-white/10 dark:bg-white/[0.08]',
-            connected && 'text-primary',
-          )}
-        >
-          <Github className="h-4 w-4" />
+        <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-secondary text-foreground/80', connected && 'text-primary')}>
+          <Github className="h-3.5 w-3.5" />
         </span>
-
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             {connected ? (
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <CheckCircle2 className="h-3 w-3 shrink-0 text-primary" />
             ) : error ? (
-              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+              <AlertCircle className="h-3 w-3 shrink-0 text-destructive" />
             ) : (
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
             )}
-            <p className="truncate text-[12px] font-semibold leading-4 text-foreground">
+            <p className="truncate text-[12px] font-medium leading-4">
               {connected ? `GitHub · ${account?.login}` : 'GitHub sync'}
             </p>
           </div>
@@ -368,59 +329,43 @@ function GitHubSyncControl({
                 : `${recordCount} words · private repo sync`}
           </p>
         </div>
-
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={connected ? handleSync : handleConnect}
             disabled={loading}
-            className="liquid-glass-button h-7 rounded-lg px-2.5 text-[11px]"
+            className="h-7 rounded-[6px] px-2 text-[11px]"
             data-testid="vocabify-github-sync-action"
           >
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : connected ? <RefreshCw className="h-3.5 w-3.5" /> : <Github className="h-3.5 w-3.5" />}
+            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : connected ? <RefreshCw className="h-3 w-3" /> : <Github className="h-3 w-3" />}
             {connected ? 'Sync' : 'Connect'}
           </Button>
-
           {connected ? (
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={handleDisconnect}
               disabled={loading}
-              aria-label="Disconnect GitHub sync"
+              aria-label="Disconnect"
               title="Disconnect"
-              className="liquid-glass-button h-7 w-7 text-muted-foreground hover:text-destructive"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-3 w-3" />
             </Button>
           ) : null}
         </div>
       </div>
 
       {deviceFlow ? (
-        <div
-          className="liquid-glass-card mt-2 rounded-xl px-3 py-2 text-[11px] leading-4 text-muted-foreground"
-          data-testid="vocabify-github-device-flow"
-        >
+        <div className="mt-2 rounded-[6px] border border-border bg-secondary px-2.5 py-2 text-[11px] leading-4 text-muted-foreground dark:border-white/8" data-testid="vocabify-github-device-flow">
           <div className="flex items-center justify-between gap-2">
             <span>Enter this code on GitHub</span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(deviceFlow.verification_uri, '_blank', 'noopener,noreferrer')}
-                className="h-6 px-2 text-[10px]"
-              >
-                Open
-                <ExternalLink className="h-3 w-3" />
+            <div className="flex items-center gap-0.5">
+              <Button variant="ghost" size="sm" onClick={() => window.open(deviceFlow.verification_uri, '_blank', 'noopener,noreferrer')} className="h-6 px-1.5 text-[10px]">
+                Open<ExternalLink className="h-3 w-3" />
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={cancelDeviceFlow}
-                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive"
-              >
+              <Button variant="ghost" size="sm" onClick={cancelDeviceFlow} className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-destructive">
                 Cancel
               </Button>
             </div>
@@ -428,7 +373,7 @@ function GitHubSyncControl({
           <button
             type="button"
             onClick={copyCode}
-            className="liquid-glass-button mt-1 flex w-full items-center justify-between rounded-lg px-2 py-1.5 font-mono text-[15px] font-semibold tracking-[0.18em] text-foreground transition-colors"
+            className="mt-1 flex w-full items-center justify-between rounded-[4px] border border-border bg-card px-2 py-1.5 font-mono text-[14px] font-semibold tracking-[0.16em] text-foreground transition-colors hover:bg-secondary dark:border-white/8"
             aria-label="Copy GitHub device code"
           >
             {deviceFlow.user_code}
@@ -450,7 +395,6 @@ function formatRelativeTime(value: string) {
   const minute = 60_000
   const hour = 60 * minute
   const day = 24 * hour
-
   if (diff < minute) return 'just now'
   if (diff < hour) return `${Math.floor(diff / minute)}m ago`
   if (diff < day) return `${Math.floor(diff / hour)}h ago`
@@ -458,17 +402,13 @@ function formatRelativeTime(value: string) {
 }
 
 const EmptyState = ({ hasFilter }: { hasFilter: boolean }) => (
-  <div className="flex h-full flex-col items-center justify-center gap-2 text-center px-6 py-12">
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
-      <BookOpen className="h-5 w-5" />
-    </div>
-    <p className="text-[14px] font-medium text-foreground">
-      {hasFilter ? 'No matching words' : 'Your vocabulary is empty'}
-    </p>
-    <p className="max-w-[260px] text-[13px] text-muted-foreground leading-relaxed">
+  <div className="flex h-full flex-col items-start justify-center gap-1.5 px-2 py-12">
+    <BookOpen className="h-4 w-4 text-muted-foreground" />
+    <p className="text-[13px] font-medium">{hasFilter ? 'No matching words' : 'Your vocabulary is empty'}</p>
+    <p className="max-w-[260px] text-[12px] leading-relaxed text-muted-foreground">
       {hasFilter
         ? 'Try a different keyword or clear the search.'
-        : 'Highlight any word on a page and tap "Vocabify" to save it here.'}
+        : 'Highlight any word on a page and choose Explain to save it here.'}
     </p>
   </div>
 )
