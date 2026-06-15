@@ -1,9 +1,8 @@
 import '@/assets/global.css'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import {
   SelectionPopover,
-  SELECTION_POPOVER_ESTIMATED_HEIGHT,
   type EditableFields,
   type PopoverMode,
   type SelectionRect,
@@ -26,35 +25,21 @@ import { FAMILIARITY_LEVELS, getLevel, MARK_DELTA, type MarkAction } from '@/lib
 import { NO_SELECTION_CONTAINER } from '@/const'
 import { checkIsDisabled, copyHandler } from './utils'
 import { useAIStream } from './useAIStream'
+import { THEME_STORAGE_KEY, resolveEffectiveTheme } from '@/lib/theme'
 
-const VOCABIFY_THEME_KEY = 'vocabify-theme'
-
-function resolveTheme(): 'light' | 'dark' {
-  try {
-    const stored = window.localStorage?.getItem(VOCABIFY_THEME_KEY) as 'light' | 'dark' | 'system' | null
-    if (stored === 'light' || stored === 'dark') return stored
-  } catch {
-    // localStorage may be blocked
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-function applyThemeClass(target: HTMLElement, theme: 'light' | 'dark') {
-  target.classList.toggle('dark', theme === 'dark')
-  target.classList.toggle('light', theme === 'light')
+function applyThemeClass(target: HTMLElement) {
+  const effective = resolveEffectiveTheme()
+  target.classList.toggle('dark', effective === 'dark')
+  target.classList.toggle('light', effective === 'light')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 type PopoverState = {
   rect: SelectionRect
-  placement: 'top' | 'bottom'
   mode: PopoverMode
-  source: 'selection' | 'hover'
-  // For new-word selection
   selectionText?: string
   sourceContext?: string
-  // For saved-word card
   recordId?: number
 }
 
@@ -63,12 +48,21 @@ export default defineContentScript({
   cssInjectionMode: 'ui',
 
   async main(ctx) {
+    let setPopoverStateFn: ((s: PopoverState | null) => void) | null = null
+    let portalContainer: HTMLElement | null = null
+
     function InPageUIRoot() {
       const [open, setOpen] = useState(false)
       const [popoverState, setPopoverState] = useState<PopoverState | null>(null)
       const [savedRecord, setSavedRecord] = useState<VocabRecord | null>(null)
       const [saving, setSaving] = useState(false)
       const aiStream = useAIStream()
+
+      // Expose setter for DOM listeners
+      useEffect(() => {
+        setPopoverStateFn = setPopoverState
+        return () => { setPopoverStateFn = null }
+      }, [])
 
       // Load saved record when popover targets one
       useEffect(() => {
@@ -85,61 +79,20 @@ export default defineContentScript({
         return () => { cancelled = true }
       }, [popoverState?.recordId])
 
-      // Listen for messages from popup or content script
       useEffect(() => {
         const handler = (msg: any) => {
-          if (msg.type === 'openVocabList') {
-            setOpen(true)
-          }
+          if (msg.type === 'openVocabList') setOpen(true)
         }
         chrome.runtime.onMessage.addListener(handler)
         return () => chrome.runtime.onMessage.removeListener(handler)
       }, [])
 
-      // Expose handlers globally for DOM listeners to call
-      useEffect(() => {
-        ;(window as any).__vocabifyShowOperationBar = (
-          text: string,
-          rect: SelectionRect,
-          placement: 'top' | 'bottom',
-          sourceContext: string,
-        ) => {
-          setPopoverState({ rect, placement, mode: 'operation-bar', source: 'selection', selectionText: text, sourceContext })
-        }
-
-        ;(window as any).__vocabifyShowSavedCard = (
-          rect: SelectionRect,
-          placement: 'top' | 'bottom',
-          recordId: number,
-          source: 'selection' | 'hover',
-        ) => {
-          setPopoverState({ rect, placement, mode: 'card', source, recordId })
-        }
-
-        ;(window as any).__vocabifyDismissSelectionAction = (force = false) => {
-          if (!force) {
-            setPopoverState((current) => (current?.source === 'hover' ? current : null))
-            return
-          }
-          setPopoverState(null)
-        }
-
-        return () => {
-          delete (window as any).__vocabifyShowOperationBar
-          delete (window as any).__vocabifyShowSavedCard
-          delete (window as any).__vocabifyDismissSelectionAction
-        }
-      }, [])
-
-      const isLegacyNewWordCard = popoverState?.mode === 'card' && !popoverState.recordId
       const cardRecord: Partial<VocabResponse> | VocabRecord | undefined = useMemo(() => {
         if (popoverState?.recordId != null && savedRecord) return savedRecord
         return aiStream.partial
       }, [popoverState?.recordId, savedRecord, aiStream.partial])
 
-      function dismiss(force = true) {
-        ;(window as any).__vocabifyDismissSelectionAction?.(force)
-      }
+      function dismiss() { setPopoverState(null) }
 
       function handleQuery() {
         if (!popoverState?.selectionText) return
@@ -150,7 +103,7 @@ export default defineContentScript({
       function handleCopy() {
         if (!popoverState?.selectionText) return
         copyHandler(popoverState.selectionText)
-        dismiss(true)
+        dismiss()
       }
 
       function handleSpeak() {
@@ -160,9 +113,7 @@ export default defineContentScript({
           const u = new SpeechSynthesisUtterance(text)
           window.speechSynthesis.cancel()
           window.speechSynthesis.speak(u)
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
 
       async function handleSave() {
@@ -176,7 +127,7 @@ export default defineContentScript({
             sourceContext: popoverState.sourceContext || '',
           })
           setSavedRecord(record)
-          setPopoverState((s) => (s ? { ...s, recordId: record.id, source: 'selection' } : s))
+          setPopoverState((s) => (s ? { ...s, recordId: record.id } : s))
           await highlightService.highlightVocabulary()
         } catch (e) {
           console.error('Save failed:', e)
@@ -198,13 +149,11 @@ export default defineContentScript({
       async function handleDelete() {
         if (!savedRecord?.id) return
         await deleteRecordById(savedRecord.id)
-        dismiss(true)
+        dismiss()
         await highlightService.highlightVocabulary()
       }
 
-      function handleEnterEdit() {
-        setPopoverState((s) => (s ? { ...s, mode: 'edit' } : s))
-      }
+      function handleEnterEdit() { setPopoverState((s) => (s ? { ...s, mode: 'edit' } : s)) }
 
       async function handleEditCommit(fields: EditableFields) {
         setSaving(true)
@@ -221,7 +170,6 @@ export default defineContentScript({
             setPopoverState((s) => (s ? { ...s, mode: 'card' } : s))
             await highlightService.highlightVocabulary()
           } else {
-            // Edit-before-save on a streamed new record
             const { record } = await saveRecord({
               term: fields.term,
               phonetic: fields.phonetic,
@@ -232,7 +180,7 @@ export default defineContentScript({
               sourceContext: popoverState?.sourceContext || '',
             })
             setSavedRecord(record)
-            setPopoverState((s) => (s ? { ...s, mode: 'card', recordId: record.id, source: 'selection' } : s))
+            setPopoverState((s) => (s ? { ...s, mode: 'card', recordId: record.id } : s))
             await highlightService.highlightVocabulary()
           }
         } finally {
@@ -240,40 +188,32 @@ export default defineContentScript({
         }
       }
 
-      function handleEditCancel() {
-        setPopoverState((s) => (s ? { ...s, mode: 'card' } : s))
-      }
-
       return (
         <>
           <InPageUI open={open} onOpenChange={setOpen} />
-          {popoverState && (
-            <SelectionPopover
-              rect={popoverState.rect}
-              placement={popoverState.placement}
-              mode={popoverState.mode}
-              onDismiss={() => dismiss(true)}
-              onPointerEnter={() => hoverBridge.cancelDismiss()}
-              onPointerLeave={() => hoverBridge.scheduleDismiss()}
-              selectionText={popoverState.selectionText}
-              onQuery={handleQuery}
-              onCopy={handleCopy}
-              record={cardRecord}
-              streaming={aiStream.status === 'loading' || aiStream.status === 'streaming'}
-              errorMessage={aiStream.status === 'error' ? aiStream.error : null}
-              savedRecord={savedRecord}
-              onSave={handleSave}
-              onMark={handleMark}
-              onEnterEdit={handleEnterEdit}
-              onDelete={handleDelete}
-              onRetry={aiStream.retry}
-              onSpeak={handleSpeak}
-              onEditCommit={handleEditCommit}
-              onEditCancel={handleEditCancel}
-              saving={saving}
-            />
-          )}
-          {void isLegacyNewWordCard}
+          <SelectionPopover
+            open={!!popoverState}
+            rect={popoverState?.rect ?? null}
+            mode={popoverState?.mode ?? 'operation-bar'}
+            portalContainer={portalContainer}
+            onDismiss={dismiss}
+            selectionText={popoverState?.selectionText}
+            onQuery={handleQuery}
+            onCopy={handleCopy}
+            record={cardRecord}
+            streaming={aiStream.status === 'loading' || aiStream.status === 'streaming'}
+            errorMessage={aiStream.status === 'error' ? aiStream.error : null}
+            savedRecord={savedRecord}
+            onSave={handleSave}
+            onMark={handleMark}
+            onEnterEdit={handleEnterEdit}
+            onDelete={handleDelete}
+            onRetry={aiStream.retry}
+            onSpeak={handleSpeak}
+            onEditCommit={handleEditCommit}
+            onEditCancel={() => setPopoverState((s) => (s ? { ...s, mode: 'card' } : s))}
+            saving={saving}
+          />
         </>
       )
     }
@@ -295,11 +235,11 @@ export default defineContentScript({
         })
         container.style.pointerEvents = 'auto'
 
-        applyThemeClass(container, resolveTheme())
+        applyThemeClass(container)
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        const onMediaChange = () => applyThemeClass(container, resolveTheme())
+        const onMediaChange = () => applyThemeClass(container)
         const onStorage = (event: StorageEvent) => {
-          if (event.key === VOCABIFY_THEME_KEY) applyThemeClass(container, resolveTheme())
+          if (event.key === THEME_STORAGE_KEY) applyThemeClass(container)
         }
         mediaQuery.addEventListener('change', onMediaChange)
         window.addEventListener('storage', onStorage)
@@ -308,7 +248,7 @@ export default defineContentScript({
         reactMount.id = 'vocabify-react-root'
         container.appendChild(reactMount)
 
-        const portalContainer = document.createElement('div')
+        portalContainer = document.createElement('div')
         portalContainer.id = 'vocabify-portal-root'
         portalContainer.style.pointerEvents = 'auto'
         shadow.appendChild(portalContainer)
@@ -329,15 +269,14 @@ export default defineContentScript({
 
     // ── DOM listeners ───────────────────────────────────────────────────────
     document.addEventListener('mousedown', function (event) {
+      if (isVocabifyUiEvent(event)) return
       const target = event.target as HTMLElement | null
-      if (isVocabifyUiEvent(event) || target?.closest?.(`.${NO_SELECTION_CONTAINER}`)) return
-      ;(window as any).__vocabifyDismissSelectionAction?.()
+      if (target?.closest?.(`.${NO_SELECTION_CONTAINER}`)) return
+      setPopoverStateFn?.(null)
     })
 
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') {
-        ;(window as any).__vocabifyDismissSelectionAction?.(true)
-      }
+      if (event.key === 'Escape') setPopoverStateFn?.(null)
     })
 
     document.addEventListener('mouseup', async function (event) {
@@ -352,25 +291,24 @@ export default defineContentScript({
       if (!selection || !selection.rangeCount) return
       const selectedText = selection.toString().trim()
       if (!selectedText) {
-        ;(window as any).__vocabifyDismissSelectionAction?.()
+        setPopoverStateFn?.(null)
         return
       }
 
       const range = selection.getRangeAt(0).cloneRange()
       if (range.collapsed) return
 
-      const rect = getUsableSelectionRect(range)
+      const rect = getSelectionRect(range)
       if (!rect) return
 
-      const placement = getSelectionActionPlacement(rect)
       const savedId = await lookupSavedRecordId(selectedText)
       if (savedId != null) {
-        ;(window as any).__vocabifyShowSavedCard?.(rect, placement, savedId, 'selection')
+        setPopoverStateFn?.({ rect, mode: 'card', recordId: savedId })
         return
       }
 
       const sourceContext = extractSourceContext(range)
-      ;(window as any).__vocabifyShowOperationBar?.(selectedText, rect, placement, sourceContext)
+      setPopoverStateFn?.({ rect, mode: 'operation-bar', selectionText: selectedText, sourceContext })
     })
 
     // ── Highlight saved vocabulary ──────────────────────────────────────────
@@ -379,42 +317,21 @@ export default defineContentScript({
     let debounceTimer: ReturnType<typeof setTimeout>
     highlightService.observeChanges(() => {
       clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(() => {
-        highlightService.highlightVocabulary()
-      }, 500)
+      debounceTimer = setTimeout(() => highlightService.highlightVocabulary(), 500)
     })
 
-    // ── Hover bridge ────────────────────────────────────────────────────────
+    // ── Hover on highlighted words ─────────────────────────────────────────
     highlightService.setHoverListener((hit: HoverEvent | null) => {
       if (!hit) {
-        hoverBridge.scheduleDismiss()
+        setPopoverStateFn?.(null)
         return
       }
-      hoverBridge.cancelDismiss()
-      const placement = getSelectionActionPlacement(hit.rect)
-      ;(window as any).__vocabifyShowSavedCard?.(hit.rect, placement, hit.recordId, 'hover')
+      setPopoverStateFn?.({ rect: hit.rect, mode: 'card', recordId: hit.recordId })
     })
   },
 })
 
-const hoverBridge = createHoverBridge()
-
-function createHoverBridge(delay = 220) {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  return {
-    scheduleDismiss() {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => {
-        ;(window as any).__vocabifyDismissSelectionAction?.(true)
-        timer = null
-      }, delay)
-    },
-    cancelDismiss() {
-      if (timer) clearTimeout(timer)
-      timer = null
-    },
-  }
-}
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 async function lookupSavedRecordId(rawText: string): Promise<number | null> {
   const key = normalizeWordOrPhrase(rawText)
@@ -423,9 +340,14 @@ async function lookupSavedRecordId(rawText: string): Promise<number | null> {
   return record?.id ?? null
 }
 
+function getSelectionRect(range: Range): SelectionRect | null {
+  const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0)
+  const rect = rects[rects.length - 1] || range.getBoundingClientRect()
+  if (!rect || rect.width <= 0 || rect.height <= 0) return null
+  return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height }
+}
+
 function extractSourceContext(range: Range): string {
-  // Walk up to the closest block parent and take its textContent, then trim
-  // around the selection to ~120 chars before / after.
   let node: Node | null = range.commonAncestorContainer
   while (node && node.nodeType !== Node.ELEMENT_NODE) node = node.parentNode
   const block = node as HTMLElement | null
@@ -438,6 +360,12 @@ function extractSourceContext(range: Range): string {
   const start = Math.max(0, idx - 100)
   const end = Math.min(full.length, idx + sel.length + 100)
   return full.slice(start, end).trim()
+}
+
+function isVocabifyUiEvent(event: Event) {
+  return event.composedPath().some((node) =>
+    node instanceof HTMLElement && node.classList.contains(NO_SELECTION_CONTAINER),
+  )
 }
 
 function formatDelta(delta: number) {
@@ -479,38 +407,4 @@ function showMarkToast(title: string, detail: string) {
     host.style.transform = 'translateX(-50%)'
     setTimeout(() => host.remove(), 220)
   }, 1400)
-}
-
-function getUsableSelectionRect(range: Range): SelectionRect | null {
-  const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0)
-  const rect = rects[rects.length - 1] || range.getBoundingClientRect()
-  if (!rect || rect.width <= 0 || rect.height <= 0) return null
-  return {
-    top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left,
-    width: rect.width, height: rect.height,
-  }
-}
-
-function isVocabifyUiEvent(event: Event) {
-  return event.composedPath().some((node) =>
-    node instanceof HTMLElement && node.classList.contains(NO_SELECTION_CONTAINER),
-  )
-}
-
-function getSelectionActionPlacement(rect: SelectionRect): 'top' | 'bottom' {
-  const viewport = getViewportBounds()
-  const gap = 8
-  const availableTop = rect.top - viewport.top
-  const availableBottom = viewport.bottom - rect.bottom
-
-  if (availableTop >= SELECTION_POPOVER_ESTIMATED_HEIGHT + gap) return 'top'
-  if (availableBottom >= SELECTION_POPOVER_ESTIMATED_HEIGHT + gap) return 'bottom'
-  return availableBottom >= availableTop ? 'bottom' : 'top'
-}
-
-function getViewportBounds() {
-  const viewport = window.visualViewport
-  const top = viewport?.offsetTop ?? 0
-  const height = viewport?.height ?? window.innerHeight
-  return { top, bottom: top + height }
 }

@@ -98,21 +98,15 @@ export class AIService {
     })
 
     let buffer = ''
-    let lastPartial: Partial<VocabResponse> | null = null
 
     for await (const chunk of textStream) {
       buffer += chunk
 
       const { partial, complete } = parsePartialJson(buffer)
 
-      // 只在 partial 真正变化时才触发回调（避免重复）
-      if (options.onPartial && !this.isPartialEqual(lastPartial, partial)) {
-        options.onPartial(partial)
-        lastPartial = partial
-      }
+      options.onPartial?.(partial)
 
       if (complete) {
-        // 流已完整，可提前结束
         break
       }
     }
@@ -130,20 +124,6 @@ export class AIService {
     }
 
     options.onComplete?.(result.data)
-  }
-
-  private isPartialEqual(
-    a: Partial<VocabResponse> | null,
-    b: Partial<VocabResponse>,
-  ): boolean {
-    if (!a) return false
-    // 浅比较顶层 key + senses 长度
-    const keysA = Object.keys(a).sort()
-    const keysB = Object.keys(b).sort()
-    if (keysA.length !== keysB.length) return false
-    if (keysA.some((k, i) => k !== keysB[i])) return false
-    if (a.senses?.length !== b.senses?.length) return false
-    return true
   }
 
   async streamExplanation(options: AIStreamOptions): Promise<void> {

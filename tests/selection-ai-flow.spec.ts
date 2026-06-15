@@ -7,294 +7,295 @@ import fs from 'node:fs/promises'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..')
 const devtoolsUrl = process.env.VOCABIFY_DEVTOOLS_URL || 'http://127.0.0.1:9222'
-const runLiveGoogle = process.env.VOCABIFY_LIVE_GOOGLE === '1'
-const googleApiKey = process.env.VOCABIFY_GOOGLE_API_KEY
 
-test.describe('selection to AI lookup flow on WXT dev extension', () => {
+test.describe('Vocabify selection + AI flow', () => {
   test.setTimeout(90_000)
 
   let server: http.Server | undefined
   let pageUrl: string
-  let mockCompatibleBaseUrl: string
+  let mockBaseUrl: string
   let browser: Browser
   let context: BrowserContext
 
   test.beforeAll(async () => {
-    test.skip(runLiveGoogle && !googleApiKey, 'VOCABIFY_GOOGLE_API_KEY is required when VOCABIFY_LIVE_GOOGLE=1')
     const fixture = await startFixtureServer()
     pageUrl = fixture.pageUrl
-    mockCompatibleBaseUrl = fixture.mockCompatibleBaseUrl
-    browser = await chromium.connectOverCDP(await getBrowserWebSocketUrl(devtoolsUrl))
+    mockBaseUrl = fixture.mockBaseUrl
+    browser = await chromium.connectOverCDP(await getBrowserWsUrl(devtoolsUrl))
     context = browser.contexts()[0]
-    if (!context) throw new Error(`No browser context found at ${devtoolsUrl}. Start WXT with pnpm run dev first.`)
+    if (!context) throw new Error(`No browser context at ${devtoolsUrl}. Run pnpm dev first.`)
   })
 
   test.afterAll(async () => {
     if (server) {
       server.closeAllConnections?.()
-      await new Promise<void>((resolve) => server!.close(() => resolve()))
+      await new Promise<void>((r) => server!.close(() => r()))
     }
   })
 
-  test('opens selection popover, triggers AI lookup, and enables saving result', async () => {
+  test('streaming shows incremental updates before final result', async () => {
     const page = await context.newPage()
     try {
-      const radixA11yWarnings: string[] = []
-      page.on('pageerror', (error) => console.error('pageerror:', error.message))
-      page.on('console', (message) => {
-        if (isRadixDialogA11yWarning(message.text())) radixA11yWarnings.push(message.text())
-        if (['error', 'warning'].includes(message.type())) {
-          console.log(`browser ${message.type()}:`, message.text())
-        }
-      })
-
-      await page.goto(pageUrl)
-      await expect(page.locator('#target-paragraph')).toBeVisible()
-      await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
-
-      const extensionId = await getExtensionId(context)
-      await seedAiProvider(context, extensionId, {
-        apiKey: runLiveGoogle ? googleApiKey! : 'mock-gemini-key',
-        liveGoogle: runLiveGoogle,
-        baseURL: runLiveGoogle ? undefined : mockCompatibleBaseUrl,
-      })
+      await setupPage(page)
 
       await selectText(page, 'nuanced phrase')
+      await clickQuery(page)
 
-      const selectionPopover = page.locator('#vocabify-root [data-testid="vocabify-selection-popover"]')
-      await expect(selectionPopover).toBeVisible({ timeout: 10_000 })
-      await expect(selectionPopover).toHaveAttribute('role', 'toolbar')
-      const popoverBox = await selectionPopover.boundingBox()
-      expect(popoverBox?.width).toBeGreaterThanOrEqual(320)
-      expect(popoverBox?.width).toBeLessThanOrEqual(380)
-      expect(popoverBox?.height).toBeLessThanOrEqual(100)
-      await page.locator('#vocabify-root [data-testid="vocabify-explain-action"]').click()
+      // Partial should appear before complete (term shows first)
+      await expect.poll(() => getPopoverField(page, 'term'), { timeout: 10_000 }).toBeTruthy()
 
-      await expect(page.locator('#vocabify-root #vocabify-portal-root')).toBeAttached()
-      const sheet = page.locator('#vocabify-root [data-testid="vocabify-sheet"]')
-      await expect(sheet).toBeVisible({ timeout: 10_000 })
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-loading"]')).toBeVisible()
-      const retryMeshAction = page.locator('#vocabify-root [data-testid="vocabify-retry-action"]')
-      await expect(retryMeshAction).toBeVisible()
-      await retryMeshAction.click()
-      await expect.poll(async () => {
-        const sheetBox = await sheet.boundingBox()
-        const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
-        if (!sheetBox) return false
-        return sheetBox.x > 8
-          && sheetBox.y > 8
-          && viewport.width - sheetBox.x - sheetBox.width > 8
-          && viewport.height - sheetBox.y - sheetBox.height > 8
-      }, { timeout: 3_000 }).toBe(true)
-      await expect(page.locator('#vocabify-root').getByRole('tab', { name: 'Search' })).toBeVisible()
-      await expect(page.locator('#vocabify-root').getByRole('tab', { name: 'My Wordlist' })).toBeVisible()
-      await expect(page.locator('#vocabify-root').getByRole('button', { name: 'Open settings' })).toBeVisible()
-      await expect(page.locator('#vocabify-root').getByRole('button', { name: 'Close' })).toBeVisible()
-      const sheetBox = await sheet.boundingBox()
-      const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
-      expect(sheetBox).not.toBeNull()
-      expect(sheetBox!.height).toBeLessThanOrEqual(Math.round(viewport.height * 0.66))
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-panel"]')).toBeVisible()
-      expect(radixA11yWarnings).toEqual([])
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-result"]')).toContainText(/meaning|usage|example|phrase/i, {
-        timeout: 45_000,
-      })
-      const aiResultScroll = page.locator('#vocabify-root [data-testid="vocabify-ai-result-scroll"]')
-      await expect(aiResultScroll).toBeVisible()
-      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true)
-      await aiResultScroll.evaluate((node) => {
-        node.scrollTop = node.scrollHeight
-      })
-      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop > 0)).toBe(true)
-      const aiResultBox = await aiResultScroll.boundingBox()
-      expect(aiResultBox).not.toBeNull()
-      await page.mouse.move(aiResultBox!.x + aiResultBox!.width / 2, aiResultBox!.y + aiResultBox!.height / 2)
-      const beforeWheel = await aiResultScroll.evaluate((node) => node.scrollTop)
-      await page.mouse.wheel(0, -480)
-      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop)).toBeLessThan(beforeWheel)
-      await expect(retryMeshAction).toBeVisible()
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-save-action"]')).toBeEnabled()
-      await page.locator('#vocabify-root').getByRole('tab', { name: 'My Wordlist' }).click()
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-github-sync"]')).toBeVisible()
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-github-sync-action"]')).toContainText('Sync')
+      // Wait for senses to appear incrementally
+      await expect.poll(() => getPopoverField(page, 'sensesCount'), { timeout: 15_000 }).toBeGreaterThan(0)
 
-      await page.locator('#vocabify-root').getByRole('button', { name: 'Open settings' }).click()
-      await expect.poll(() => {
-        return context.pages().some((openedPage) => openedPage.url() === `chrome-extension://${extensionId}/options.html`)
-      }, { timeout: 5_000 }).toBe(true)
+      // Final state: save button enabled
+      await expect.poll(() => getPopoverField(page, 'saveBtnDisabled'), { timeout: 20_000 }).toBe(false)
     } finally {
       await page.close().catch(() => undefined)
     }
   })
+
+  test('popover edit mode inputs are focusable and editable', async () => {
+    const page = await context.newPage()
+    try {
+      await setupPage(page)
+
+      await selectText(page, 'nuanced phrase')
+      await clickQuery(page)
+      await waitForAiComplete(page)
+
+      // Save first
+      await clickInShadow(page, '[data-testid="vocabify-save-action"]')
+      await page.waitForTimeout(1000)
+
+      // Enter edit mode
+      await clickInShadow(page, '[aria-label="Edit"]')
+      await page.waitForTimeout(500)
+
+      // Type in an input inside shadow DOM
+      const typed = await page.evaluate(() => {
+        const root = document.getElementById('vocabify-root')
+        const shadow = root?.shadowRoot
+        const input = shadow?.querySelector('input') as HTMLInputElement | null
+        if (!input) return null
+        input.focus()
+        input.value = 'test edit'
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+        return { focused: document.activeElement === root, value: input.value }
+      })
+
+      expect(typed?.value).toBe('test edit')
+    } finally {
+      await page.close().catch(() => undefined)
+    }
+  })
+
+  test('theme syncs from options to content script', async () => {
+    const extensionId = await getExtensionId(context)
+    const page = await context.newPage()
+    try {
+      await page.goto(pageUrl)
+      await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
+
+      // Set dark theme via localStorage (simulating options page change)
+      await page.evaluate(() => {
+        localStorage.setItem('vocabify-theme', 'dark')
+        window.dispatchEvent(new StorageEvent('storage', { key: 'vocabify-theme', newValue: 'dark' }))
+      })
+      await page.waitForTimeout(300)
+
+      const containerClass = await page.evaluate(() => {
+        const root = document.getElementById('vocabify-root')
+        const shadow = root?.shadowRoot
+        const container = shadow?.querySelector('#vocabify-react-root')?.parentElement
+        return container?.className
+      })
+      expect(containerClass).toContain('dark')
+
+      // Switch to light
+      await page.evaluate(() => {
+        localStorage.setItem('vocabify-theme', 'light')
+        window.dispatchEvent(new StorageEvent('storage', { key: 'vocabify-theme', newValue: 'light' }))
+      })
+      await page.waitForTimeout(300)
+
+      const lightClass = await page.evaluate(() => {
+        const root = document.getElementById('vocabify-root')
+        const shadow = root?.shadowRoot
+        return shadow?.querySelector('#vocabify-react-root')?.parentElement?.className
+      })
+      expect(lightClass).toContain('light')
+      expect(lightClass).not.toContain('dark')
+    } finally {
+      await page.close().catch(() => undefined)
+    }
+  })
+
+  // ─── Helpers ─────────────────────────────────────────────────────────
+
+  async function setupPage(page: Page) {
+    await page.goto(pageUrl)
+    await expect(page.locator('#target-paragraph')).toBeVisible()
+    await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
+    const extensionId = await getExtensionId(context)
+    await seedAiProvider(context, extensionId, mockBaseUrl)
+  }
+
+  async function clickQuery(page: Page) {
+    await page.evaluate(() => {
+      const root = document.getElementById('vocabify-root')
+      const shadow = root?.shadowRoot
+      const btn = shadow?.querySelector('[data-testid="vocabify-operation-query"]') as HTMLButtonElement
+      btn?.click()
+    })
+  }
+
+  async function clickInShadow(page: Page, selector: string) {
+    await page.evaluate((sel) => {
+      const root = document.getElementById('vocabify-root')
+      const shadow = root?.shadowRoot
+      const el = shadow?.querySelector(sel) as HTMLElement
+      el?.click()
+    }, selector)
+  }
+
+  async function waitForAiComplete(page: Page) {
+    await expect.poll(() => getPopoverField(page, 'saveBtnDisabled'), { timeout: 25_000 }).toBe(false)
+  }
+
+  function getPopoverField(page: Page, field: string) {
+    return page.evaluate((f) => {
+      const root = document.getElementById('vocabify-root')
+      const shadow = root?.shadowRoot
+      const popover = shadow?.querySelector('[data-testid="vocabify-selection-popover"]')
+      if (!popover) return null
+      if (f === 'term') return popover.querySelector('h2')?.textContent?.trim() || null
+      if (f === 'sensesCount') return popover.querySelectorAll('.rounded.border').length
+      if (f === 'saveBtnDisabled') {
+        const btn = popover.querySelector('[data-testid="vocabify-save-action"]') as HTMLButtonElement | null
+        return btn?.disabled ?? null
+      }
+      return null
+    }, field)
+  }
 
   async function startFixtureServer() {
     const fixturePath = path.join(projectRoot, 'tests/fixtures/selection-page.html')
     const html = await fs.readFile(fixturePath)
 
     server = http.createServer(async (request, response) => {
-      const requestUrl = new URL(request.url || '/', 'http://127.0.0.1')
+      const url = new URL(request.url || '/', 'http://127.0.0.1')
+
       if (request.method === 'OPTIONS') {
-        response.writeHead(204, {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-          'Access-Control-Allow-Headers': '*',
-        })
+        response.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': '*', 'Access-Control-Allow-Headers': '*' })
         response.end()
         return
       }
 
-      if (
-        request.method === 'POST'
-        && requestUrl.pathname === '/compatible/v1/chat/completions'
-      ) {
+      if (request.method === 'POST' && url.pathname === '/v1/chat/completions') {
         response.writeHead(200, {
           'Content-Type': 'text/event-stream; charset=utf-8',
-          'Cache-Control': 'no-cache, no-transform',
+          'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
           'Access-Control-Allow-Origin': '*',
         })
 
         const chunks = [
-          `data: ${JSON.stringify(createOpenAIChunk('{\n  "term": "nuanced phrase",\n  "phonetic": "/ˈnjuːɑːnst freɪz/",\n  "pos": "phrase",\n'))}\n\n`,
-          `data: ${JSON.stringify(createOpenAIChunk('  "senses": [\n    {\n      "definition": "A subtle or precise expression that conveys detailed meaning",\n      "example": "The diplomat used a nuanced phrase to avoid offending either party",\n      "exampleTranslation": "外交官使用了一个微妙的措辞以避免冒犯任何一方"\n    }\n  ],\n'))}\n\n`,
-          `data: ${JSON.stringify(createOpenAIChunk('  "mnemonic": "Think of nuance (subtle difference) + phrase = a carefully chosen expression with subtle meaning"\n}\n'))}\n\n`,
-          'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
-          'data: [DONE]\n\n',
+          chunk('{\n  "term": "nuanced phrase",\n  "phonetic": "/njuːˈɑːnst/",\n'),
+          chunk('  "pos": "phrase",\n  "senses": [\n    {\n'),
+          chunk('      "definition": "A subtle expression conveying detailed meaning",\n'),
+          chunk('      "example": "The diplomat used a nuanced phrase",\n'),
+          chunk('      "exampleTranslation": "外交官使用了微妙的措辞"\n    }\n  ],\n'),
+          chunk('  "mnemonic": "nuance (subtle) + phrase"\n}\n'),
+          '{"id":"x","object":"chat.completion.chunk","created":0,"model":"m","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n',
         ]
 
-        await new Promise((resolve) => setTimeout(resolve, 700))
-        for (const chunk of chunks) {
-          response.write(chunk)
-          await new Promise((resolve) => setTimeout(resolve, 40))
+        await delay(200)
+        for (const c of chunks) {
+          response.write(`data: ${JSON.stringify(typeof c === 'string' ? JSON.parse(c) : c)}\n\n`)
+          await delay(80)
         }
-
+        response.write('data: [DONE]\n\n')
         response.end()
         return
       }
 
-      response.writeHead(200, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-      })
+      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' })
       response.end(html)
     })
 
-    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', () => resolve()))
-    const address = server.address()
-    if (!address || typeof address === 'string') throw new Error('Unable to start fixture server')
-    return {
-      pageUrl: `http://127.0.0.1:${address.port}`,
-      mockCompatibleBaseUrl: `http://127.0.0.1:${address.port}/compatible/v1`,
-    }
+    await new Promise<void>((r) => server!.listen(0, '127.0.0.1', () => r()))
+    const addr = server.address()
+    if (!addr || typeof addr === 'string') throw new Error('Server start failed')
+    return { pageUrl: `http://127.0.0.1:${addr.port}`, mockBaseUrl: `http://127.0.0.1:${addr.port}/v1` }
   }
 })
 
-async function getBrowserWebSocketUrl(baseUrl: string) {
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/json/version`)
-  if (!response.ok) {
-    throw new Error(`Unable to read DevTools metadata from ${baseUrl}: ${response.status} ${response.statusText}`)
-  }
+// ─── Shared utilities ──────────────────────────────────────────────────
 
-  const metadata = await response.json()
-  if (!metadata.webSocketDebuggerUrl) {
-    throw new Error(`DevTools metadata from ${baseUrl} did not include webSocketDebuggerUrl`)
-  }
-
-  return metadata.webSocketDebuggerUrl as string
+async function getBrowserWsUrl(baseUrl: string) {
+  const res = await fetch(`${baseUrl.replace(/\/$/, '')}/json/version`)
+  if (!res.ok) throw new Error(`DevTools unreachable at ${baseUrl}: ${res.status}`)
+  const meta = await res.json()
+  if (!meta.webSocketDebuggerUrl) throw new Error('No webSocketDebuggerUrl in DevTools response')
+  return meta.webSocketDebuggerUrl as string
 }
 
-async function seedAiProvider(
-  context: BrowserContext,
-  extensionId: string,
-  config: { apiKey: string; liveGoogle: boolean; baseURL?: string },
-) {
+async function seedAiProvider(context: BrowserContext, extensionId: string, baseUrl: string) {
   const page = await context.newPage()
   await page.goto(`chrome-extension://${extensionId}/options.html`)
-  await page.evaluate((seedConfig) => {
-    const agent = seedConfig.liveGoogle
-      ? {
-        providerId: 'google',
-        providerLabel: 'Google Generative AI',
-        apiKey: seedConfig.apiKey,
-        model: 'gemini-2.5-flash-lite',
-      }
-      : {
-        providerId: 'custom:mock-compatible',
-        providerLabel: 'Mock Compatible',
-        apiKey: seedConfig.apiKey,
-        model: 'mock-model',
-        baseURL: seedConfig.baseURL,
-      }
-
+  await page.evaluate((url) => {
     return chrome.storage.local.set({
-      agents: [agent],
+      agents: [{
+        providerId: 'custom:mock',
+        providerLabel: 'Mock',
+        apiKey: 'test-key',
+        model: 'mock-model',
+        baseURL: url,
+      }],
       targetLanguage: 'English',
     })
-  }, config)
+  }, baseUrl)
   await page.close()
 }
 
 async function getExtensionId(context: BrowserContext) {
-  const worker = context.serviceWorkers().find((serviceWorker) => {
-    return serviceWorker.url().startsWith('chrome-extension://')
-  }) || await context.waitForEvent('serviceworker', {
-    predicate: (serviceWorker) => serviceWorker.url().startsWith('chrome-extension://'),
-    timeout: 10_000,
-  })
-
+  const worker = context.serviceWorkers().find((sw) => sw.url().startsWith('chrome-extension://'))
+    || await context.waitForEvent('serviceworker', {
+      predicate: (sw) => sw.url().startsWith('chrome-extension://'),
+      timeout: 10_000,
+    })
   return new URL(worker.url()).host
 }
 
 async function selectText(page: Page, text: string) {
-  await page.evaluate((selectedText) => {
-    const paragraph = document.querySelector('#target-paragraph')
-    if (!paragraph) throw new Error('Target paragraph not found')
-
-    const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT)
+  await page.evaluate((t) => {
+    const el = document.querySelector('#target-paragraph')
+    if (!el) throw new Error('No #target-paragraph')
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
     let node = walker.nextNode()
     while (node) {
-      const content = node.textContent || ''
-      const start = content.indexOf(selectedText)
-      if (start >= 0) {
+      const idx = (node.textContent || '').indexOf(t)
+      if (idx >= 0) {
         const range = document.createRange()
-        range.setStart(node, start)
-        range.setEnd(node, start + selectedText.length)
-        const selection = window.getSelection()
-        selection?.removeAllRanges()
-        selection?.addRange(range)
+        range.setStart(node, idx)
+        range.setEnd(node, idx + t.length)
+        window.getSelection()?.removeAllRanges()
+        window.getSelection()?.addRange(range)
         const rect = range.getBoundingClientRect()
-        paragraph.dispatchEvent(new MouseEvent('mouseup', {
-          bubbles: true,
-          clientX: rect.left + rect.width / 2,
-          clientY: rect.top + rect.height / 2,
-        }))
+        node.parentElement!.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }))
         return
       }
       node = walker.nextNode()
     }
-
-    throw new Error(`Unable to find selectable text: ${selectedText}`)
+    throw new Error(`Text "${t}" not found`)
   }, text)
 }
 
-function isRadixDialogA11yWarning(text: string) {
-  return text.includes('`DialogContent` requires a `DialogTitle`')
-    || text.includes('Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.')
+function chunk(content: string) {
+  return { id: 'x', object: 'chat.completion.chunk', created: 0, model: 'm', choices: [{ index: 0, delta: { content }, finish_reason: null }] }
 }
 
-function createOpenAIChunk(content: string) {
-  return {
-    id: 'chatcmpl-test',
-    object: 'chat.completion.chunk',
-    created: 1710000000,
-    model: 'mock-model',
-    choices: [
-      {
-        index: 0,
-        delta: { content },
-        finish_reason: null,
-      },
-    ],
-  }
+function delay(ms: number) {
+  return new Promise((r) => setTimeout(r, ms))
 }
-

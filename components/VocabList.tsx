@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { liveQuery } from 'dexie'
-import { db, deleteRecordById, type VocabRecord } from '@/lib/vocabifyDb'
+import { db, deleteRecordById, updateRecordFields, type VocabRecord } from '@/lib/vocabifyDb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  AlertCircle, BookOpen, CheckCircle2, Copy, ExternalLink, Github,
+  AlertCircle, BookOpen, CheckCircle2, Copy, Edit3, ExternalLink, Github,
   Loader2, LogOut, RefreshCw, Search, Trash2, Volume2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ import {
 } from '@/lib/githubSync'
 import { githubAccessToken, githubLastSyncAt, githubSyncAccount, type GithubSyncAccount } from '@/utils/storage'
 import { FAMILIARITY_LEVELS, getLevel, levelClassSuffix } from '@/lib/familiarity'
+import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 
 function useVocabularyCount() {
   const [count, setCount] = useState(0)
@@ -36,6 +37,8 @@ export function VocabList() {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<number | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => { loadRecords() }, [])
@@ -97,6 +100,25 @@ export function VocabList() {
       window.speechSynthesis.speak(u)
     } catch (e) {
       console.error('TTS failed:', e)
+    }
+  }
+
+  async function handleEditCommit(id: number, fields: EditableFields) {
+    setSaving(true)
+    try {
+      await updateRecordFields(id, {
+        term: fields.term,
+        phonetic: fields.phonetic,
+        pos: fields.pos,
+        senses: fields.senses.map((s, i) => ({ id: `s${i + 1}`, ...s })),
+        mnemonic: fields.mnemonic,
+      })
+      setEditingId(null)
+      await loadRecords()
+    } catch (e) {
+      console.error('Edit failed:', e)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -182,30 +204,47 @@ export function VocabList() {
                         <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{record.phonetic}</p>
                       )}
                       {isExpanded ? (
-                        <div className="mt-1 space-y-2">
-                          {record.senses.map((sense, i) => (
-                            <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
-                              <p className="text-[12px] leading-relaxed text-foreground">
-                                <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
-                                {sense.definition}
-                              </p>
-                              {sense.example && (
-                                <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
-                              )}
-                              {sense.exampleTranslation && (
-                                <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
-                              )}
-                            </div>
-                          ))}
-                          {record.mnemonic && (
-                            <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{record.mnemonic}</p>
-                          )}
-                          {record.sourceUrl && (
-                            <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
-                              源: {new URL(record.sourceUrl).hostname}
-                            </a>
-                          )}
-                        </div>
+                        editingId === record.id ? (
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            <RecordEditForm
+                              initial={{
+                                term: record.term,
+                                phonetic: record.phonetic,
+                                pos: record.pos,
+                                senses: record.senses,
+                                mnemonic: record.mnemonic,
+                              }}
+                              saving={saving}
+                              onCommit={(fields) => record.id && handleEditCommit(record.id, fields)}
+                              onCancel={() => setEditingId(null)}
+                            />
+                          </div>
+                        ) : (
+                          <div className="mt-1 space-y-2">
+                            {record.senses.map((sense, i) => (
+                              <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                                <p className="text-[12px] leading-relaxed text-foreground">
+                                  <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
+                                  {sense.definition}
+                                </p>
+                                {sense.example && (
+                                  <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
+                                )}
+                                {sense.exampleTranslation && (
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
+                                )}
+                              </div>
+                            ))}
+                            {record.mnemonic && (
+                              <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{record.mnemonic}</p>
+                            )}
+                            {record.sourceUrl && (
+                              <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                                源: {new URL(record.sourceUrl).hostname}
+                              </a>
+                            )}
+                          </div>
+                        )
                       ) : (
                         <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
                           {record.senses?.[0]?.definition || ''}
@@ -215,16 +254,28 @@ export function VocabList() {
                         {new Date(record.updatedAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={(e) => { e.stopPropagation(); if (record.id) handleDelete(record.id) }}
-                      aria-label={`Delete ${record.wordOrPhrase}`}
-                      title="Delete"
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <div className="flex shrink-0 flex-col gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={(e) => { e.stopPropagation(); setEditingId(record.id ?? null); setExpanded(record.id ?? null) }}
+                        aria-label={`Edit ${record.wordOrPhrase}`}
+                        title="Edit"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={(e) => { e.stopPropagation(); if (record.id) handleDelete(record.id) }}
+                        aria-label={`Delete ${record.wordOrPhrase}`}
+                        title="Delete"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </button>
                 </li>
               )

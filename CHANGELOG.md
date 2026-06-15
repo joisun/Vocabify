@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Structured AI response** via `streamText` + JSON-only prompt + tolerant partial-JSON parser. `lib/aiSchema.ts` defines a Zod schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`); `lib/partialJson.ts` repairs unfinished strings/arrays/objects so each chunk yields a `Partial<VocabResponse>` for field-by-field rendering. Background port now emits `partial` / `complete` / `error` instead of raw `chunk`.
 - **Structured `VocabRecord` schema**: `term`, `phonetic`, `pos`, `senses[]` (each `{ definition, example, exampleTranslation, id }`), `mnemonic`, `tags`, `sourceUrl`, `sourceContext`. `saveFromAiResponse` + `updateRecordFields` helpers; `searchRecords` widens to match definitions and display term.
 - `useAIStream` hook (`entrypoints/content/useAIStream.ts`) wrapping the Chrome `ai-stream` Port lifecycle.
+- **VocabList inline edit**: edit button on each expanded record row; shared `RecordEditForm` component reused by both VocabList and SelectionPopover.
+- **Unified theme system** (`lib/theme.ts`): single localStorage key `vocabify-theme` with `light | dark | system` support, shared across options page, popup, and content script with cross-tab sync via `StorageEvent`.
 
 ### Changed
 - Side Sheet (`VocabifySheet` + `InPageUI`) is now Wordlist-only — Tabs and the AI Explain pane have been removed. AI lookup is entirely inline in the selection popover.
@@ -19,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub sync payload bumped to `schemaVersion: 2`. `normalizeRecords` validates the new structured shape and drops legacy `meaning`-only records on import.
 - Dexie schema bumped to v5; the upgrade hook **clears legacy records** (per user direction — small dataset, no migration value).
 - Default prompt template rewritten to demand strict JSON output matching the schema; new `{SOURCE_CONTEXT}` placeholder added alongside `{SELECTION}` / `{LANGUAGE}`.
+- Theme provider now uses unified `vocabify-theme` key (previously `vite-ui-theme` in options, separate key in content script).
+
+### Fixed
+- **Streaming not incremental**: removed `isPartialEqual` equality gate in `aiService.ts` that suppressed partial updates when only values (not structure) changed.
+- **Popover edit inputs unfocusable**: `onMouseDown preventDefault` on the popover container now skips `<input>`, `<textarea>`, and `<select>` elements.
+- **Popover invisible in light mode**: inner container forces `dark` class (design decision — floating tool palette always uses dark professional theme per CLAUDE.md).
+- **Selection popover dismissed on query click**: added `isVocabifyUiEvent` guard to the `mouseup` listener.
+- **AI stream timeout with reasoning models**: increased `chunkMs` from 8s to 30s to accommodate providers that emit `reasoning_content` before `content`.
 
 ### Removed
 - `components/AIExplanation.tsx`, `entrypoints/content/components/TooltipBtn.tsx`, `entrypoints/content/components/TooltipIndicator.tsx` — superseded by `SelectionPopover.tsx`.

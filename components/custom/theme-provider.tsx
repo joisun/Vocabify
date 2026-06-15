@@ -1,17 +1,16 @@
 // https://ui.shadcn.com/docs/dark-mode/vite
 import { createContext, useContext, useEffect, useState } from "react"
 import { Toaster } from "@/components/ui/sonner"
-type Theme = "dark" | "light" | "system"
+import { THEME_STORAGE_KEY, resolveEffectiveTheme, type ThemePreference } from "@/lib/theme"
 
 type ThemeProviderProps = {
     children: React.ReactNode
-    defaultTheme?: Theme
-    storageKey?: string
+    defaultTheme?: ThemePreference
 }
 
 type ThemeProviderState = {
-    theme: Theme
-    setTheme: (theme: Theme) => void
+    theme: ThemePreference
+    setTheme: (theme: ThemePreference) => void
 }
 
 const initialState: ThemeProviderState = {
@@ -24,36 +23,45 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 export function ThemeProvider({
     children,
     defaultTheme = "system",
-    storageKey = "vite-ui-theme",
     ...props
 }: ThemeProviderProps) {
-    const [theme, setTheme] = useState<Theme>(
-        () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+    const [theme, setThemeState] = useState<ThemePreference>(
+        () => (localStorage.getItem(THEME_STORAGE_KEY) as ThemePreference) || defaultTheme
     )
 
     useEffect(() => {
         const root = window.document.documentElement
-
         root.classList.remove("light", "dark")
+        root.classList.add(resolveEffectiveTheme(theme))
+    }, [theme])
 
-        if (theme === "system") {
-            const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-                .matches
-                ? "dark"
-                : "light"
-
-            root.classList.add(systemTheme)
-            return
+    useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === THEME_STORAGE_KEY && e.newValue) {
+                setThemeState(e.newValue as ThemePreference)
+            }
         }
-
-        root.classList.add(theme)
+        const onMedia = () => {
+            if (theme === 'system') {
+                const root = window.document.documentElement
+                root.classList.remove("light", "dark")
+                root.classList.add(resolveEffectiveTheme('system'))
+            }
+        }
+        window.addEventListener('storage', onStorage)
+        const mq = window.matchMedia('(prefers-color-scheme: dark)')
+        mq.addEventListener('change', onMedia)
+        return () => {
+            window.removeEventListener('storage', onStorage)
+            mq.removeEventListener('change', onMedia)
+        }
     }, [theme])
 
     const value = {
         theme,
-        setTheme: (theme: Theme) => {
-            localStorage.setItem(storageKey, theme)
-            setTheme(theme)
+        setTheme: (next: ThemePreference) => {
+            localStorage.setItem(THEME_STORAGE_KEY, next)
+            setThemeState(next)
         },
     }
 
@@ -67,9 +75,7 @@ export function ThemeProvider({
 
 export const useTheme = () => {
     const context = useContext(ThemeProviderContext)
-
     if (context === undefined)
         throw new Error("useTheme must be used within a ThemeProvider")
-
     return context
 }
