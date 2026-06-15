@@ -2,9 +2,6 @@ import { defineExtensionMessaging, GetDataType } from '@webext-core/messaging';
 
 // Define all message types and their payloads/return types
 export interface ProtocolMap {
-  // Trigger selection - content script notifies background to call AI
-  triggerSelection(data: string): { status: 'ok' }
-
   // Get highlight style settings
   getHighlightStyleSettings(data: undefined): any
 

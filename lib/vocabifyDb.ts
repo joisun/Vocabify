@@ -1,17 +1,33 @@
 import Dexie, { type EntityTable } from 'dexie'
 import {
   applyMark,
-  clampScore,
   createInitialFamiliarity,
   type FamiliarityFields,
   type MarkAction,
   settleDecay,
 } from '@/lib/familiarity'
+import type { VocabResponse, VocabSense as AiVocabSense } from '@/lib/aiSchema'
+
+export type PosType = 'n' | 'v' | 'adj' | 'adv' | 'phrase' | 'other'
+
+export interface VocabSense {
+  id: string
+  definition: string
+  example: string
+  exampleTranslation: string
+}
 
 export interface VocabRecord extends FamiliarityFields {
   id?: number
-  wordOrPhrase: string
-  meaning: string
+  wordOrPhrase: string         // normalized key (lowercased trimmed)
+  term: string                 // display form preserving casing
+  phonetic: string
+  pos: PosType
+  senses: VocabSense[]
+  mnemonic: string
+  tags: string[]
+  sourceUrl: string
+  sourceContext: string
   createdAt: string
   updatedAt: string
 }
@@ -21,6 +37,18 @@ export interface VocabTombstone {
   deletedAt: string
 }
 
+/** New record payload — what saveRecord accepts from AI response + page metadata */
+export interface NewVocabPayload {
+  term: string
+  phonetic: string
+  pos: PosType
+  senses: AiVocabSense[]
+  mnemonic: string
+  tags?: string[]
+  sourceUrl: string
+  sourceContext: string
+}
+
 class VocabifyDatabase extends Dexie {
   records!: EntityTable<VocabRecord, 'id'>
   syncTombstones!: EntityTable<VocabTombstone, 'wordOrPhrase'>
@@ -28,43 +56,33 @@ class VocabifyDatabase extends Dexie {
   constructor() {
     super('VocabifyIndexDB')
 
-    // Version 1: Original schema (for migration compatibility)
+    // Legacy versions kept so existing users' upgrade path doesn't crash
     this.version(1).stores({
       dataStore: '++id, wordOrPhrase, createdAt, updatedAt',
     })
-
-    // Version 2: New schema with migration
     this.version(2).stores({
       dataStore: '++id, wordOrPhrase, createdAt, updatedAt',
       records: '++id, wordOrPhrase, createdAt, updatedAt',
-    }).upgrade(async tx => {
-      // Migrate existing data from dataStore to records
-      const oldData = await tx.table('dataStore').toArray()
-      if (oldData.length > 0) {
-        await tx.table('records').bulkAdd(oldData)
-      }
     })
-
-    // Version 3: Track deletions so GitHub sync can propagate removals.
     this.version(3).stores({
       dataStore: '++id, wordOrPhrase, createdAt, updatedAt',
       records: '++id, wordOrPhrase, createdAt, updatedAt',
       syncTombstones: 'wordOrPhrase, deletedAt',
     })
-
-    // Version 4: Familiarity scoring fields. Backfill defaults on existing rows
-    // so the UI can read score / decay markers without null checks.
     this.version(4).stores({
       dataStore: '++id, wordOrPhrase, createdAt, updatedAt',
       records: '++id, wordOrPhrase, createdAt, updatedAt, score',
       syncTombstones: 'wordOrPhrase, deletedAt',
-    }).upgrade(async tx => {
-      await tx.table('records').toCollection().modify((record: VocabRecord) => {
-        if (typeof record.score !== 'number') record.score = 0
-        if (record.firstMarkedAt === undefined) record.firstMarkedAt = null
-        if (record.lastMarkedAt === undefined) record.lastMarkedAt = null
-        if (record.lastDecayAt === undefined) record.lastDecayAt = null
-      })
+    })
+
+    // v5: structured schema. Clear legacy records — user accepted the wipe.
+    this.version(5).stores({
+      records: '++id, wordOrPhrase, createdAt, updatedAt, score',
+      syncTombstones: 'wordOrPhrase, deletedAt',
+      // dataStore intentionally dropped
+    }).upgrade(async (tx) => {
+      // Wipe legacy records; new structured records will be created via saveRecord.
+      await tx.table('records').clear()
     })
   }
 }
@@ -75,39 +93,96 @@ export function normalizeWordOrPhrase(wordOrPhrase: string) {
   return wordOrPhrase.trim().toLowerCase()
 }
 
-/** Coerce a record loaded from any source (Dexie, GitHub, legacy) to include familiarity fields. */
-export function withFamiliarityDefaults<T extends Partial<FamiliarityFields>>(record: T): T & FamiliarityFields {
+function nextSenseId(index: number): string {
+  return `s${index + 1}`
+}
+
+/** Build a fresh VocabRecord from a structured AI payload + page metadata. */
+function buildRecord(payload: NewVocabPayload, now: string): Omit<VocabRecord, 'id'> {
   return {
-    ...record,
-    score: clampScore(typeof record.score === 'number' ? record.score : 0),
-    firstMarkedAt: record.firstMarkedAt ?? null,
-    lastMarkedAt: record.lastMarkedAt ?? null,
-    lastDecayAt: record.lastDecayAt ?? null,
+    wordOrPhrase: normalizeWordOrPhrase(payload.term),
+    term: payload.term.trim(),
+    phonetic: payload.phonetic.trim(),
+    pos: payload.pos,
+    senses: payload.senses.map((s, i) => ({
+      id: nextSenseId(i),
+      definition: s.definition,
+      example: s.example,
+      exampleTranslation: s.exampleTranslation,
+    })),
+    mnemonic: payload.mnemonic,
+    tags: payload.tags ?? [],
+    sourceUrl: payload.sourceUrl,
+    sourceContext: payload.sourceContext,
+    createdAt: now,
+    updatedAt: now,
+    ...createInitialFamiliarity(),
   }
 }
 
-export async function saveRecord(wordOrPhrase: string, meaning: string) {
-  const key = normalizeWordOrPhrase(wordOrPhrase)
+export async function saveRecord(payload: NewVocabPayload): Promise<{
+  record: VocabRecord
+  created: boolean
+}> {
+  const key = normalizeWordOrPhrase(payload.term)
+  const now = new Date().toISOString()
   const existing = await db.records.where('wordOrPhrase').equals(key).first()
 
   if (existing) {
-    await db.records.update(existing.id!, {
-      meaning,
-      updatedAt: new Date().toISOString()
-    })
+    const updated: Partial<VocabRecord> = {
+      term: payload.term.trim(),
+      phonetic: payload.phonetic.trim(),
+      pos: payload.pos,
+      senses: payload.senses.map((s, i) => ({
+        id: nextSenseId(i),
+        definition: s.definition,
+        example: s.example,
+        exampleTranslation: s.exampleTranslation,
+      })),
+      mnemonic: payload.mnemonic,
+      tags: payload.tags ?? existing.tags,
+      sourceUrl: payload.sourceUrl,
+      sourceContext: payload.sourceContext,
+      updatedAt: now,
+    }
+    await db.records.update(existing.id!, updated)
     await db.syncTombstones.delete(key)
-    return { title: 'Updated 🔄✨✨', detail: 'Already existed, Update to new data!' }
+    return { record: { ...existing, ...updated } as VocabRecord, created: false }
   }
 
-  await db.records.add({
-    wordOrPhrase: key,
-    meaning,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    ...createInitialFamiliarity(),
-  })
+  const newRecord = buildRecord(payload, now)
+  const id = await db.records.add(newRecord as VocabRecord)
   await db.syncTombstones.delete(key)
-  return { title: 'Done 🥳🎉🎉', detail: 'Data added successfully!' }
+  return { record: { ...newRecord, id } as VocabRecord, created: true }
+}
+
+/** Persist arbitrary field edits from the inline edit mode. */
+export async function updateRecordFields(
+  id: number,
+  patch: Partial<Omit<VocabRecord, 'id' | 'wordOrPhrase' | 'createdAt'>>,
+): Promise<VocabRecord | null> {
+  const now = new Date().toISOString()
+  const merged = { ...patch, updatedAt: now }
+  await db.records.update(id, merged)
+  const next = await db.records.get(id)
+  return next ?? null
+}
+
+/** Save the structured AI response to a brand-new record. Convenience wrapper. */
+export async function saveFromAiResponse(
+  ai: VocabResponse,
+  meta: { sourceUrl: string; sourceContext: string; tags?: string[] },
+) {
+  return saveRecord({
+    term: ai.term,
+    phonetic: ai.phonetic,
+    pos: ai.pos,
+    senses: ai.senses,
+    mnemonic: ai.mnemonic,
+    tags: meta.tags,
+    sourceUrl: meta.sourceUrl,
+    sourceContext: meta.sourceContext,
+  })
 }
 
 export async function deleteRecord(wordOrPhrase: string) {
@@ -131,7 +206,13 @@ export async function getAllRecords() {
 
 export async function searchRecords(keyword: string) {
   const lowerKeyword = keyword.toLowerCase()
-  return db.records.filter(r => r.wordOrPhrase.includes(lowerKeyword)).toArray()
+  return db.records
+    .filter((r) =>
+      r.wordOrPhrase.includes(lowerKeyword) ||
+      r.term.toLowerCase().includes(lowerKeyword) ||
+      r.senses.some((s) => s.definition.toLowerCase().includes(lowerKeyword)),
+    )
+    .toArray()
 }
 
 export async function getRecordByPage(pageNum: number, pageSize: number) {
@@ -145,15 +226,26 @@ export async function getRecordByPage(pageNum: number, pageSize: number) {
 
   return {
     records,
-    total: Math.ceil(total / pageSize)
+    total: Math.ceil(total / pageSize),
   }
 }
 
-/**
- * Settle outstanding decay for a single record and persist if anything changed.
- * Used right before highlighting paints a word so its color reflects the latest state.
- */
-export async function settleAndPersistDecay(record: VocabRecord, now: number = Date.now()): Promise<VocabRecord> {
+export function withFamiliarityDefaults<T extends Partial<FamiliarityFields>>(
+  record: T,
+): T & FamiliarityFields {
+  return {
+    ...record,
+    score: typeof record.score === 'number' ? record.score : 0,
+    firstMarkedAt: record.firstMarkedAt ?? null,
+    lastMarkedAt: record.lastMarkedAt ?? null,
+    lastDecayAt: record.lastDecayAt ?? null,
+  }
+}
+
+export async function settleAndPersistDecay(
+  record: VocabRecord,
+  now: number = Date.now(),
+): Promise<VocabRecord> {
   const result = settleDecay(record, now)
   if (!result.changed || record.id == null) return result.next
   await db.records.update(record.id, {
@@ -163,8 +255,11 @@ export async function settleAndPersistDecay(record: VocabRecord, now: number = D
   return result.next
 }
 
-/** Apply a Know / Fuzzy / Forget mark to a stored record and persist the result. */
-export async function markRecord(id: number, action: MarkAction, now: number = Date.now()): Promise<VocabRecord | null> {
+export async function markRecord(
+  id: number,
+  action: MarkAction,
+  now: number = Date.now(),
+): Promise<VocabRecord | null> {
   const record = await db.records.get(id)
   if (!record) return null
   const next = applyMark(record, action, now)

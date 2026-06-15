@@ -10,11 +10,6 @@ export default defineBackground(() => {
     return (await hightlightStyle.getValue()) || null
   })
 
-  // Handle trigger selection - will be used for AI streaming via Port
-  onMessage('triggerSelection', async (message) => {
-    return { status: 'ok' as const }
-  })
-
   onMessage('openOptionsPage', async () => {
     await chrome.runtime.openOptionsPage()
     return { status: 'ok' as const }
@@ -132,12 +127,13 @@ export default defineBackground(() => {
           try {
             await aiService.streamExplanation({
               text: msg.text,
+              sourceContext: msg.sourceContext,
               abortSignal: abortController.signal,
-              onChunk: (chunk) => {
-                postToPort({ type: 'chunk', chunk })
+              onPartial: (partial) => {
+                postToPort({ type: 'partial', partial })
               },
-              onComplete: (fullText) => {
-                postToPort({ type: 'complete', fullText })
+              onComplete: (value) => {
+                postToPort({ type: 'complete', value })
               },
               onError: (error) => {
                 postToPort({ type: 'error', error: error.message })

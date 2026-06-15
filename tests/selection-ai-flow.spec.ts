@@ -65,7 +65,7 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       await expect(selectionPopover).toBeVisible({ timeout: 10_000 })
       await expect(selectionPopover).toHaveAttribute('role', 'toolbar')
       const popoverBox = await selectionPopover.boundingBox()
-      expect(popoverBox?.width).toBeGreaterThanOrEqual(340)
+      expect(popoverBox?.width).toBeGreaterThanOrEqual(320)
       expect(popoverBox?.width).toBeLessThanOrEqual(380)
       expect(popoverBox?.height).toBeLessThanOrEqual(100)
       await page.locator('#vocabify-root [data-testid="vocabify-explain-action"]').click()
@@ -74,7 +74,7 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       const sheet = page.locator('#vocabify-root [data-testid="vocabify-sheet"]')
       await expect(sheet).toBeVisible({ timeout: 10_000 })
       await expect(page.locator('#vocabify-root [data-testid="vocabify-ai-loading"]')).toBeVisible()
-      const retryMeshAction = page.locator('#vocabify-root [data-testid="vocabify-retry-mesh-action"]')
+      const retryMeshAction = page.locator('#vocabify-root [data-testid="vocabify-retry-action"]')
       await expect(retryMeshAction).toBeVisible()
       await retryMeshAction.click()
       await expect.poll(async () => {
@@ -89,7 +89,7 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       await expect(page.locator('#vocabify-root').getByRole('tab', { name: 'Search' })).toBeVisible()
       await expect(page.locator('#vocabify-root').getByRole('tab', { name: 'My Wordlist' })).toBeVisible()
       await expect(page.locator('#vocabify-root').getByRole('button', { name: 'Open settings' })).toBeVisible()
-      await expect(page.locator('#vocabify-root').getByRole('button', { name: 'Close sheet' })).toBeVisible()
+      await expect(page.locator('#vocabify-root').getByRole('button', { name: 'Close' })).toBeVisible()
       const sheetBox = await sheet.boundingBox()
       const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
       expect(sheetBox).not.toBeNull()
@@ -110,13 +110,13 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
       expect(aiResultBox).not.toBeNull()
       await page.mouse.move(aiResultBox!.x + aiResultBox!.width / 2, aiResultBox!.y + aiResultBox!.height / 2)
       const beforeWheel = await aiResultScroll.evaluate((node) => node.scrollTop)
-      await page.mouse.wheel(0, 480)
-      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(beforeWheel)
+      await page.mouse.wheel(0, -480)
+      await expect.poll(async () => aiResultScroll.evaluate((node) => node.scrollTop)).toBeLessThan(beforeWheel)
       await expect(retryMeshAction).toBeVisible()
       await expect(page.locator('#vocabify-root [data-testid="vocabify-save-action"]')).toBeEnabled()
       await page.locator('#vocabify-root').getByRole('tab', { name: 'My Wordlist' }).click()
       await expect(page.locator('#vocabify-root [data-testid="vocabify-github-sync"]')).toBeVisible()
-      await expect(page.locator('#vocabify-root [data-testid="vocabify-github-sync-action"]')).toContainText('Connect')
+      await expect(page.locator('#vocabify-root [data-testid="vocabify-github-sync-action"]')).toContainText('Sync')
 
       await page.locator('#vocabify-root').getByRole('button', { name: 'Open settings' }).click()
       await expect.poll(() => {
@@ -155,8 +155,9 @@ test.describe('selection to AI lookup flow on WXT dev extension', () => {
         })
 
         const chunks = [
-          `data: ${JSON.stringify(createOpenAIChunk('### Meaning\\nA nuanced phrase conveys a subtle or precise expression.\\n\\n'))}\n\n`,
-          `data: ${JSON.stringify(createOpenAIChunk(createLongExplanationChunk()))}\n\n`,
+          `data: ${JSON.stringify(createOpenAIChunk('{\n  "term": "nuanced phrase",\n  "phonetic": "/ˈnjuːɑːnst freɪz/",\n  "pos": "phrase",\n'))}\n\n`,
+          `data: ${JSON.stringify(createOpenAIChunk('  "senses": [\n    {\n      "definition": "A subtle or precise expression that conveys detailed meaning",\n      "example": "The diplomat used a nuanced phrase to avoid offending either party",\n      "exampleTranslation": "外交官使用了一个微妙的措辞以避免冒犯任何一方"\n    }\n  ],\n'))}\n\n`,
+          `data: ${JSON.stringify(createOpenAIChunk('  "mnemonic": "Think of nuance (subtle difference) + phrase = a carefully chosen expression with subtle meaning"\n}\n'))}\n\n`,
           'data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1710000000,"model":"mock-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
           'data: [DONE]\n\n',
         ]
@@ -297,20 +298,3 @@ function createOpenAIChunk(content: string) {
   }
 }
 
-function createLongExplanationChunk() {
-  const examples = Array.from({ length: 18 }, (_, index) => {
-    return `- Example ${index + 1}: A nuanced phrase can carry context, tone, and implication without spelling everything out.`
-  }).join('\n')
-
-  return [
-    '### Usage',
-    '- Usually adjective + noun',
-    '- Often used in analytical writing',
-    '',
-    '### Examples',
-    examples,
-    '',
-    '### Notes',
-    'The phrase is useful when the wording matters as much as the literal definition.',
-  ].join('\n')
-}

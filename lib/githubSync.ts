@@ -3,7 +3,9 @@ import {
   db,
   normalizeWordOrPhrase,
   withFamiliarityDefaults,
+  type PosType,
   type VocabRecord,
+  type VocabSense,
   type VocabTombstone,
 } from '@/lib/vocabifyDb'
 import { clampScore } from '@/lib/familiarity'
@@ -27,11 +29,13 @@ export type GitHubDeviceFlow = {
 }
 
 export type SyncPayload = {
-  schemaVersion: 1
+  schemaVersion: 2
   updatedAt: string
   records: Array<Omit<VocabRecord, 'id'>>
   tombstones: VocabTombstone[]
 }
+
+const VALID_POS: PosType[] = ['n', 'v', 'adj', 'adv', 'phrase', 'other']
 
 export type SyncResult = {
   account: {
@@ -155,7 +159,7 @@ export async function disconnectGitHubSync() {
 
 function createEmptyPayload(): SyncPayload {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: new Date(0).toISOString(),
     records: [],
     tombstones: [],
@@ -167,7 +171,7 @@ async function createLocalPayload(): Promise<SyncPayload> {
   const tombstones = await db.syncTombstones.toArray()
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: new Date().toISOString(),
     records: normalizeRecords(records),
     tombstones: normalizeTombstones(tombstones),
@@ -182,7 +186,7 @@ function decodeRemotePayload(content: string): SyncPayload {
   // Legacy syncdata.json was a raw array of records.
   if (Array.isArray(parsed)) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: new Date(0).toISOString(),
       records: normalizeRecords(parsed),
       tombstones: [],
@@ -190,7 +194,7 @@ function decodeRemotePayload(content: string): SyncPayload {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: typeof parsed?.updatedAt === 'string' ? parsed.updatedAt : new Date(0).toISOString(),
     records: normalizeRecords(Array.isArray(parsed?.records) ? parsed.records : []),
     tombstones: normalizeTombstones(Array.isArray(parsed?.tombstones) ? parsed.tombstones : []),
@@ -224,7 +228,7 @@ function mergePayloads(local: SyncPayload, remote: SyncPayload): SyncPayload {
   })
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: new Date().toISOString(),
     records: Array.from(records.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     tombstones: Array.from(tombstones.values()).sort((a, b) => b.deletedAt.localeCompare(a.deletedAt)),
@@ -261,19 +265,35 @@ async function applyPayloadToLocal(payload: SyncPayload) {
 
 function normalizeRecords(records: Array<Partial<VocabRecord>>) {
   return records
-    .map((record) => {
+    .map((record): Omit<VocabRecord, 'id'> | null => {
       const wordOrPhrase = normalizeWordOrPhrase(String(record.wordOrPhrase || ''))
-      const meaning = String(record.meaning || '')
-      if (!wordOrPhrase || !meaning) return null
+      const term = String(record.term || record.wordOrPhrase || '').trim()
+      if (!wordOrPhrase || !term) return null
+
+      // Reject legacy v1 records (had a `meaning` string but no `senses` array).
+      const senses = normalizeSenses(record.senses)
+      if (senses.length === 0) return null
+
+      const pos = VALID_POS.includes(record.pos as PosType) ? (record.pos as PosType) : 'other'
+      const phonetic = String(record.phonetic || '').trim()
+      const mnemonic = String(record.mnemonic || '').trim()
+      const tags = Array.isArray(record.tags) ? record.tags.filter((t): t is string => typeof t === 'string') : []
+      const sourceUrl = String(record.sourceUrl || '').trim()
+      const sourceContext = String(record.sourceContext || '').trim()
 
       const createdAt = normalizeDate(record.createdAt, record.updatedAt)
       const updatedAt = normalizeDate(record.updatedAt, record.createdAt)
-      // Familiarity fields may be missing on legacy payloads — backfill with
-      // the same defaults the local DB uses so a freshly synced record looks
-      // identical to one that has always lived locally.
+
       return withFamiliarityDefaults({
         wordOrPhrase,
-        meaning,
+        term,
+        phonetic,
+        pos,
+        senses,
+        mnemonic,
+        tags,
+        sourceUrl,
+        sourceContext,
         createdAt,
         updatedAt,
         score: typeof record.score === 'number' ? clampScore(record.score) : 0,
@@ -282,7 +302,26 @@ function normalizeRecords(records: Array<Partial<VocabRecord>>) {
         lastDecayAt: normalizeOptionalDate(record.lastDecayAt),
       })
     })
-    .filter(Boolean) as Array<Omit<VocabRecord, 'id'>>
+    .filter((r): r is Omit<VocabRecord, 'id'> => r !== null)
+}
+
+function normalizeSenses(senses: unknown): VocabSense[] {
+  if (!Array.isArray(senses)) return []
+  return senses
+    .map((sense, i): VocabSense | null => {
+      if (!sense || typeof sense !== 'object') return null
+      const s = sense as Record<string, unknown>
+      const definition = String(s.definition || '').trim()
+      if (!definition) return null
+      return {
+        id: typeof s.id === 'string' ? s.id : `s${i + 1}`,
+        definition,
+        example: String(s.example || '').trim(),
+        exampleTranslation: String(s.exampleTranslation || '').trim(),
+      }
+    })
+    .filter((s): s is VocabSense => s !== null)
+    .slice(0, 3)
 }
 
 function normalizeTombstones(tombstones: Array<Partial<VocabTombstone>>) {

@@ -61,7 +61,11 @@ export function VocabList() {
     try {
       const lowerKeyword = searchKeyword.toLowerCase()
       const results = await db.records
-        .filter((r) => r.wordOrPhrase.toLowerCase().includes(lowerKeyword))
+        .filter((r) =>
+          r.wordOrPhrase.toLowerCase().includes(lowerKeyword) ||
+          (r.term?.toLowerCase().includes(lowerKeyword) ?? false) ||
+          (r.senses?.some((s) => s.definition.toLowerCase().includes(lowerKeyword)) ?? false),
+        )
         .toArray()
       setRecords(results)
     } catch (error) {
@@ -153,15 +157,20 @@ export function VocabList() {
                       <div className="flex items-center gap-2">
                         <span className={`vocabify-level-dot is-${levelSuffix} shrink-0`} aria-hidden />
                         <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
-                          {record.wordOrPhrase}
+                          {record.term || record.wordOrPhrase}
                         </h3>
+                        {record.pos && (
+                          <span className="rounded-[3px] bg-secondary px-1 py-[1px] text-[9px] font-semibold uppercase tracking-wide text-foreground/80">
+                            {record.pos}
+                          </span>
+                        )}
                         <span className="tabular shrink-0 text-[10px] text-muted-foreground">
                           {FAMILIARITY_LEVELS[level].label} · {record.score}
                         </span>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={(e) => { e.stopPropagation(); speak(record.wordOrPhrase) }}
+                          onClick={(e) => { e.stopPropagation(); speak(record.term || record.wordOrPhrase) }}
                           aria-label="Pronounce"
                           title="Pronounce"
                           className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
@@ -169,14 +178,39 @@ export function VocabList() {
                           <Volume2 className="h-3 w-3" />
                         </Button>
                       </div>
-                      <p
-                        className={cn(
-                          'mt-1 text-[12px] leading-relaxed text-muted-foreground',
-                          !isExpanded && 'line-clamp-2',
-                        )}
-                      >
-                        {record.meaning}
-                      </p>
+                      {record.phonetic && (
+                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{record.phonetic}</p>
+                      )}
+                      {isExpanded ? (
+                        <div className="mt-1 space-y-2">
+                          {record.senses.map((sense, i) => (
+                            <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                              <p className="text-[12px] leading-relaxed text-foreground">
+                                <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
+                                {sense.definition}
+                              </p>
+                              {sense.example && (
+                                <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
+                              )}
+                              {sense.exampleTranslation && (
+                                <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
+                              )}
+                            </div>
+                          ))}
+                          {record.mnemonic && (
+                            <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{record.mnemonic}</p>
+                          )}
+                          {record.sourceUrl && (
+                            <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                              源: {new URL(record.sourceUrl).hostname}
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
+                          {record.senses?.[0]?.definition || ''}
+                        </p>
+                      )}
                       <p className="mt-1.5 tabular text-[10px] text-muted-foreground/70">
                         {new Date(record.updatedAt).toLocaleDateString()}
                       </p>

@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unified selection popover** replacing the previous TooltipBtn + side Sheet split. Three states (operation-bar / card / edit) share one positioned shell. New-word flow: select → 操作栏 (查询 / 复制 / 更多) → click 查询 → popover expands inline into a streaming structured card → 加入词库 stores the result. Saved-word flow: hover or select → card renders immediately from storage with familiarity marks + edit / delete in the footer. Inline edit mode lets users tweak any field (term / phonetic / pos / senses / mnemonic) without leaving the page.
+- **Structured AI response** via `streamText` + JSON-only prompt + tolerant partial-JSON parser. `lib/aiSchema.ts` defines a Zod schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`); `lib/partialJson.ts` repairs unfinished strings/arrays/objects so each chunk yields a `Partial<VocabResponse>` for field-by-field rendering. Background port now emits `partial` / `complete` / `error` instead of raw `chunk`.
+- **Structured `VocabRecord` schema**: `term`, `phonetic`, `pos`, `senses[]` (each `{ definition, example, exampleTranslation, id }`), `mnemonic`, `tags`, `sourceUrl`, `sourceContext`. `saveFromAiResponse` + `updateRecordFields` helpers; `searchRecords` widens to match definitions and display term.
+- `useAIStream` hook (`entrypoints/content/useAIStream.ts`) wrapping the Chrome `ai-stream` Port lifecycle.
+
+### Changed
+- Side Sheet (`VocabifySheet` + `InPageUI`) is now Wordlist-only — Tabs and the AI Explain pane have been removed. AI lookup is entirely inline in the selection popover.
+- `VocabList` rows render the new structured fields: term, phonetic, pos chip, first sense's definition, with expansion revealing all senses, mnemonic, and source link.
+- GitHub sync payload bumped to `schemaVersion: 2`. `normalizeRecords` validates the new structured shape and drops legacy `meaning`-only records on import.
+- Dexie schema bumped to v5; the upgrade hook **clears legacy records** (per user direction — small dataset, no migration value).
+- Default prompt template rewritten to demand strict JSON output matching the schema; new `{SOURCE_CONTEXT}` placeholder added alongside `{SELECTION}` / `{LANGUAGE}`.
+
+### Removed
+- `components/AIExplanation.tsx`, `entrypoints/content/components/TooltipBtn.tsx`, `entrypoints/content/components/TooltipIndicator.tsx` — superseded by `SelectionPopover.tsx`.
+- `triggerSelection` message (was an unused no-op).
+
+
 - Initial implementation of the Vocabify extension.
 - Added GitHub synchronization for IndexedDB data.
 - Integrated Google TTS API for word pronunciation.

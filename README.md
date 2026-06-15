@@ -25,7 +25,8 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - **Streamed AI explanations.** Powered by the Vercel AI SDK with thirteen first-party providers and fallbacks, plus OpenAI-compatible custom endpoints.
 - **Familiarity scoring.** Every saved word carries a 0–100 score across four tiers — New, Learning, Familiar, Mastered — each with its own highlight color.
 - **Lazy spaced decay.** Scores decay over time, but only settle the moment a word is rendered or marked. No background timers, no battery cost.
-- **In-page wordlist.** A side panel inside the page itself, so review never requires a context switch.
+- **Unified selection popover.** Select a new word → operation bar (查询 / 复制 / 更多). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → the same card appears instantly with familiarity marks + inline edit / delete.
+- **In-page wordlist.** A side panel for reviewing saved words, opened from the popup or the popover's settings menu.
 - **GitHub sync.** Device-Flow OAuth into a private `__Vocabify_Data_Center__` repo. Tombstones travel with the records, so deletions propagate too.
 - **Local-first storage.** Dexie-backed IndexedDB; nothing leaves the browser unless you sync it.
 
@@ -41,11 +42,11 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - Dynamic model discovery once an API key is entered, with static fallback lists when discovery fails.
 - Any OpenAI-compatible endpoint can be added as a `custom:*` provider via `baseURL`.
 - Multi-provider failover: if one provider errors, the next configured agent is tried automatically.
-- Customizable Markdown prompt template and target language. The default template returns a Meaning / Usage / Examples / Notes structure.
-- Streaming output with timeouts (`totalMs: 18s`, `chunkMs: 8s`) and abort support.
+- Customizable JSON-only prompt template and target language. The default template instructs the AI to return strict JSON matching the Vocabify schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`).
+- Streaming output with timeouts (`totalMs: 18s`, `chunkMs: 8s`) and abort support. A tolerant partial-JSON parser feeds the popover field-by-field as data arrives.
 
 ### Vocabulary management
-- In-page side sheet with two tabs: **Search** (the AI explanation view) and **My Wordlist**.
+- In-page side sheet — Wordlist only (AI lookup lives in the selection popover now).
 - Search, edit, expand, and paginate saved entries without leaving the page.
 - Records are normalized (trim + lowercase) so duplicates collapse cleanly.
 
@@ -88,11 +89,13 @@ entrypoints/
   content/               # Selection popover + in-page sheet (Shadow DOM)
   options/               # Provider, prompt, highlight, sync settings
   popup/                 # Browser-action popup
-components/              # Sheet, VocabList, AIExplanation, shadcn/ui primitives
+components/              # Sheet (Wordlist-only), VocabList, shadcn/ui primitives
 lib/
   aiService.ts           # Vercel AI SDK provider switch + streaming
+  aiSchema.ts            # Zod schema for structured AI output (VocabResponse)
+  partialJson.ts         # Tolerant incremental JSON parser
   familiarity.ts         # 0-100 score engine, decay rules, mark deltas
-  vocabifyDb.ts          # Dexie schema (v4) + tombstone tracking
+  vocabifyDb.ts          # Dexie schema (v5, structured) + tombstone tracking
   highlightService.ts    # Custom Highlight API + <mark> fallback
   githubSync.ts          # Device Flow + syncdata.json read/write
 typings/

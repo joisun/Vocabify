@@ -15,25 +15,33 @@ import { createTogetherAI } from '@ai-sdk/togetherai'
 import { createXai } from '@ai-sdk/xai'
 import { promptTemplate, targetLanguage, getNormalizedAgents } from '@/utils/storage'
 import { AiAgentApiKey } from '@/typings/aiModelAdaptor'
-import { Language_Placeholder, Selection_Placeholder } from '@/const'
+import {
+  Language_Placeholder,
+  Selection_Placeholder,
+  SourceContext_Placeholder,
+} from '@/const'
+import { vocabResponseSchema, type VocabResponse } from './aiSchema'
+import { parsePartialJson } from './partialJson'
 
 export interface AIStreamOptions {
   text: string
+  sourceContext?: string
   abortSignal?: AbortSignal
-  onChunk?: (chunk: string) => void
-  onComplete?: (fullText: string) => void
+  onPartial?: (partial: Partial<VocabResponse>) => void
+  onComplete?: (final: VocabResponse) => void
   onError?: (error: Error) => void
 }
 
 export class AIService {
-  private async getPrompt(text: string): Promise<string> {
+  private async getPrompt(text: string, sourceContext?: string): Promise<string> {
     const template = await promptTemplate.getValue()
     const language = await targetLanguage.getValue()
     const resolvedTemplate = template
       .split(Selection_Placeholder).join(text)
       .split(Language_Placeholder).join(language)
+      .split(SourceContext_Placeholder).join(sourceContext || 'N/A')
 
-    return `${resolvedTemplate}\n\nTarget Language: ${language}\n\nText to explain: ${text}`
+    return resolvedTemplate
   }
 
   private createModel(agent: AiAgentApiKey): LanguageModel {
@@ -84,27 +92,63 @@ export class AIService {
       maxRetries: 0,
       abortSignal: options.abortSignal,
       timeout: {
-        totalMs: 18_000,
-        chunkMs: 8_000,
+        totalMs: 60_000,
+        chunkMs: 30_000,
       },
     })
 
-    let fullText = ''
+    let buffer = ''
+    let lastPartial: Partial<VocabResponse> | null = null
+
     for await (const chunk of textStream) {
-      fullText += chunk
-      options.onChunk?.(chunk)
+      buffer += chunk
+
+      const { partial, complete } = parsePartialJson(buffer)
+
+      // 只在 partial 真正变化时才触发回调（避免重复）
+      if (options.onPartial && !this.isPartialEqual(lastPartial, partial)) {
+        options.onPartial(partial)
+        lastPartial = partial
+      }
+
+      if (complete) {
+        // 流已完整，可提前结束
+        break
+      }
     }
 
-    if (!fullText.trim()) {
-      throw new Error(`${agent.providerLabel} returned an empty explanation`)
+    // 流结束后做最终验证
+    const { partial } = parsePartialJson(buffer)
+    const result = vocabResponseSchema.safeParse(partial)
+
+    if (!result.success) {
+      const firstIssue = result.error.issues[0]
+      const path = firstIssue?.path.join('.') || 'root'
+      throw new Error(
+        `${agent.providerLabel} returned invalid JSON: ${path} - ${firstIssue?.message || 'schema mismatch'}`,
+      )
     }
 
-    options.onComplete?.(fullText)
+    options.onComplete?.(result.data)
+  }
+
+  private isPartialEqual(
+    a: Partial<VocabResponse> | null,
+    b: Partial<VocabResponse>,
+  ): boolean {
+    if (!a) return false
+    // 浅比较顶层 key + senses 长度
+    const keysA = Object.keys(a).sort()
+    const keysB = Object.keys(b).sort()
+    if (keysA.length !== keysB.length) return false
+    if (keysA.some((k, i) => k !== keysB[i])) return false
+    if (a.senses?.length !== b.senses?.length) return false
+    return true
   }
 
   async streamExplanation(options: AIStreamOptions): Promise<void> {
     const agents = await getNormalizedAgents()
-    const prompt = await this.getPrompt(options.text)
+    const prompt = await this.getPrompt(options.text, options.sourceContext)
 
     if (!agents.length) {
       options.onError?.(new Error('No AI providers configured'))
