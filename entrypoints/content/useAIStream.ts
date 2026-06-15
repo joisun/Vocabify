@@ -8,6 +8,7 @@ export interface UseAIStreamResult {
   final: VocabResponse | null
   status: AIStreamStatus
   error: string | null
+  streamingText: string
   start: (text: string, sourceContext?: string) => void
   retry: () => void
   abort: () => void
@@ -24,9 +25,11 @@ export function useAIStream(): UseAIStreamResult {
   const [final, setFinal] = useState<VocabResponse | null>(null)
   const [status, setStatus] = useState<AIStreamStatus>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [streamingText, setStreamingText] = useState('')
 
   const portRef = useRef<chrome.runtime.Port | null>(null)
   const lastRequestRef = useRef<{ text: string; sourceContext?: string } | null>(null)
+  const rawBufferRef = useRef('')
 
   const cleanup = useCallback(() => {
     try {
@@ -47,6 +50,8 @@ export function useAIStream(): UseAIStreamResult {
     setFinal(null)
     setError(null)
     setStatus('loading')
+    setStreamingText('')
+    rawBufferRef.current = ''
     lastRequestRef.current = { text, sourceContext }
 
     try {
@@ -58,11 +63,22 @@ export function useAIStream(): UseAIStreamResult {
         if (msg.type === 'partial' && msg.partial) {
           setStatus('streaming')
           setPartial(msg.partial)
+          // Only clear streaming text preview when we have actual structured data
+          if (msg.partial.term || (msg.partial.senses && msg.partial.senses.length > 0)) {
+            setStreamingText('')
+          }
+        } else if (msg.type === 'chunk' && msg.chunk) {
+          // Accumulate raw buffer for token-level preview
+          rawBufferRef.current += msg.chunk
+          const tail = rawBufferRef.current.slice(-200).trim()
+          setStreamingText(tail)
+          setStatus('streaming')
         } else if (msg.type === 'complete' && msg.value) {
           settled = true
           setFinal(msg.value)
           setPartial(msg.value)
           setStatus('success')
+          setStreamingText('')
           cleanup()
         } else if (msg.type === 'error') {
           settled = true
@@ -99,7 +115,7 @@ export function useAIStream(): UseAIStreamResult {
     setStatus('idle')
   }, [cleanup])
 
-  return { partial, final, status, error, start, retry, abort }
+  return { partial, final, status, error, streamingText, start, retry, abort }
 }
 
 function normalizeError(value: unknown) {

@@ -27,6 +27,7 @@ export interface AIStreamOptions {
   text: string
   sourceContext?: string
   abortSignal?: AbortSignal
+  onChunk?: (chunk: string) => void
   onPartial?: (partial: Partial<VocabResponse>) => void
   onComplete?: (final: VocabResponse) => void
   onError?: (error: Error) => void
@@ -86,7 +87,7 @@ export class AIService {
   }
 
   private async streamWithVercelSdk(agent: AiAgentApiKey, prompt: string, options: AIStreamOptions) {
-    const { textStream } = await streamText({
+    const { fullStream } = await streamText({
       model: this.createModel(agent),
       prompt,
       maxRetries: 0,
@@ -99,31 +100,33 @@ export class AIService {
 
     let buffer = ''
 
-    for await (const chunk of textStream) {
-      buffer += chunk
+    for await (const part of fullStream) {
+      if (part.type === 'reasoning-delta') {
+        // 讯飞的 reasoning_content 会被映射为这个类型
+        options.onChunk?.(part.text)
+      } else if (part.type === 'text-delta') {
+        buffer += part.text
+        options.onChunk?.(part.text)
 
-      const { partial, complete } = parsePartialJson(buffer)
+        const { partial, complete } = parsePartialJson(buffer)
+        options.onPartial?.(partial)
 
-      options.onPartial?.(partial)
-
-      if (complete) {
-        break
+        if (complete) break
       }
     }
 
-    // 流结束后做最终验证
     const { partial } = parsePartialJson(buffer)
-    const result = vocabResponseSchema.safeParse(partial)
+    const parseResult = vocabResponseSchema.safeParse(partial)
 
-    if (!result.success) {
-      const firstIssue = result.error.issues[0]
+    if (!parseResult.success) {
+      const firstIssue = parseResult.error.issues[0]
       const path = firstIssue?.path.join('.') || 'root'
       throw new Error(
         `${agent.providerLabel} returned invalid JSON: ${path} - ${firstIssue?.message || 'schema mismatch'}`,
       )
     }
 
-    options.onComplete?.(result.data)
+    options.onComplete?.(parseResult.data)
   }
 
   async streamExplanation(options: AIStreamOptions): Promise<void> {

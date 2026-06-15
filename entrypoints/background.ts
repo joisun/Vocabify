@@ -129,6 +129,9 @@ export default defineBackground(() => {
               text: msg.text,
               sourceContext: msg.sourceContext,
               abortSignal: abortController.signal,
+              onChunk: (chunk) => {
+                postToPort({ type: 'chunk', chunk })
+              },
               onPartial: (partial) => {
                 postToPort({ type: 'partial', partial })
               },

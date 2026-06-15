@@ -47,6 +47,7 @@ export interface SelectionPopoverProps {
   record?: Partial<VocabResponse> | VocabRecord
   streaming?: boolean
   errorMessage?: string | null
+  streamingText?: string
 
   savedRecord?: VocabRecord | null
   onSave?: () => void
@@ -85,8 +86,12 @@ export function SelectionPopover(props: SelectionPopoverProps) {
         container={portalContainer}
         className={cn(
           NO_SELECTION_CONTAINER,
-          'dark w-auto min-w-[200px] max-w-[320px] p-0 border-white/8 bg-popover text-popover-foreground shadow-[0_4px_12px_rgba(0,0,0,0.15)]',
+          'dark p-0 border-white/12 shadow-none ring-1 ring-inset ring-white/4',
+          mode === 'operation-bar' && 'w-[260px]',
+          mode === 'card' && 'w-[340px]',
+          mode === 'edit' && 'w-[380px]',
         )}
+        style={{ backgroundColor: 'hsl(240 4% 20%)' }}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onOpenAutoFocus={(e) => e.preventDefault()}
@@ -124,6 +129,7 @@ export function SelectionPopover(props: SelectionPopoverProps) {
             onRetry={props.onRetry}
             onSpeak={props.onSpeak}
             onDismiss={onDismiss}
+            streamingText={props.streamingText}
           />
         )}
         {mode === 'edit' && props.record && (
@@ -208,6 +214,7 @@ function OperationBar({
 function Card({
   record, streaming, errorMessage, savedRecord,
   onSave, onMark, onEnterEdit, onDelete, onRetry, onSpeak, onDismiss,
+  streamingText,
 }: {
   record?: Partial<VocabResponse> | VocabRecord
   streaming?: boolean
@@ -220,6 +227,7 @@ function Card({
   onRetry?: () => void
   onSpeak?: () => void
   onDismiss: () => void
+  streamingText?: string
 }) {
   const term = record?.term
   const phonetic = record?.phonetic
@@ -264,13 +272,18 @@ function Card({
           </div>
         ) : (
           <>
+            {streamingText && !senses?.length && (
+              <div className="py-2">
+                <p className="text-[11px] font-mono leading-relaxed text-white/50 break-all">{streamingText}</p>
+              </div>
+            )}
             {(senses && senses.length > 0) ? (
               <div className="space-y-1.5 py-1">
                 {senses.map((sense, i) => (
                   <SenseRow key={i} index={i} sense={sense} streaming={streaming} />
                 ))}
               </div>
-            ) : streaming ? (
+            ) : streaming && !streamingText ? (
               <div className="space-y-1.5 py-1"><SenseSkeleton /></div>
             ) : null}
             {(mnemonic || streaming) && (
