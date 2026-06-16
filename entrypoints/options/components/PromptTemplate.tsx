@@ -4,17 +4,20 @@ import { DefaultPromptTemplate, Language_Placeholder, Selection_Placeholder } fr
 import { promptTemplate } from '@/utils/storage'
 import { useDebounce } from '@uidotdev/usehooks'
 import { AlertCircle, RotateCcw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import OptionSection from './OptionSection'
 
 const PromptTemplate = () => {
   const [inputValue, setInputValue] = useState<string>(DefaultPromptTemplate)
   const debouncedInputValue = useDebounce(inputValue, 1500)
+  const hydratedRef = useRef(false)
+  const userEditedRef = useRef(false)
 
   useEffect(() => {
     promptTemplate.getValue().then((storedVal) => {
       if (storedVal) setInputValue(storedVal)
+      hydratedRef.current = true
     })
   }, [])
 
@@ -22,9 +25,10 @@ const PromptTemplate = () => {
   const hasLanguagePlaceholder = inputValue.includes(Language_Placeholder)
 
   useEffect(() => {
+    if (!hydratedRef.current || !userEditedRef.current) return
     if (hasSelectionPlaceholder && hasLanguagePlaceholder) {
       promptTemplate
-        .setValue(inputValue)
+        .setValue(debouncedInputValue)
         .then(() => toast.success('Prompt template saved'))
         .catch(() => toast.error('Save failed'))
     }
@@ -32,6 +36,7 @@ const PromptTemplate = () => {
   }, [debouncedInputValue])
 
   const handleReset = () => {
+    userEditedRef.current = false
     setInputValue(DefaultPromptTemplate)
     promptTemplate
       .setValue(DefaultPromptTemplate)
@@ -62,7 +67,10 @@ const PromptTemplate = () => {
     >
       <Textarea
         value={inputValue}
-        onChange={(event) => setInputValue(event.target.value)}
+        onChange={(event) => {
+          userEditedRef.current = true
+          setInputValue(event.target.value)
+        }}
         placeholder="Enter your prompt template..."
         rows={12}
         className="w-full font-mono text-[12px] leading-relaxed scrollbar-thin"

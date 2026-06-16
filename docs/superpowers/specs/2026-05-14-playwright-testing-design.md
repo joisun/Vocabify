@@ -45,7 +45,7 @@ The selection flow test defaults to a mocked OpenAI-compatible endpoint hosted b
 - `providerId: custom:mock-compatible`
 - `providerLabel: Mock Compatible`
 - `model: mock-model`
-- `baseURL: <fixture>/compatible/v1` (default mocked mode)
+- `baseURL: <fixture>/v1` (default mocked OpenAI-compatible mode)
 - target language `English`
 
 The mocked endpoint returns chunked SSE data so UI streaming behavior is still validated end-to-end through the runtime port flow.
@@ -54,7 +54,8 @@ Live Google mode remains available by setting `VOCABIFY_LIVE_GOOGLE=1` and `VOCA
 Provider configuration follows the single-active-provider settings model:
 
 - Popular first-party providers are shown as preset choices and store `providerId`, label, API key, and model.
-- GLM, Kimi, and custom providers use OpenAI-compatible `baseURL`, API key, and model fields.
+- GLM and Kimi use OpenAI-compatible `baseURL`, API key, and model fields.
+- Custom providers use OpenAI-compatible `baseURL`, API key, and model fields via Vercel AI SDK.
 - Only one provider is active; there is no fallback chain or drag-and-drop priority ordering.
 - Model suggestions may be fetched after an API key is entered, but users can always type the model manually.
 

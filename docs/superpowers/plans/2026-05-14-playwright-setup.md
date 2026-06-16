@@ -82,7 +82,7 @@ Current runtime contract:
 
 - Provider settings use one active provider rather than a fallback chain.
 - Popular first-party providers are shown alongside GLM / Kimi OpenAI-compatible presets and a Custom Provider flow.
-- Custom providers remain supported as OpenAI-compatible endpoints with a user-provided `baseURL`.
+- Custom providers remain supported via a user-provided OpenAI-compatible base URL handled by Vercel AI SDK.
 - Model suggestions may load dynamically after API key entry, and users can type model names manually.
 
 Run:

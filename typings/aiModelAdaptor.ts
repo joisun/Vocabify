@@ -55,14 +55,6 @@ export interface AiAgentApiKey {
 
 export type AiAgentApiKeys = AiAgentApiKey[]
 
-export const DEFAULT_GEMINI_AGENT: AiAgentApiKey = {
-  providerId: 'custom:XunFei',
-  providerLabel: 'XunFei',
-  apiKey: 'HFdZiBSMjJCogCcAUBYA:vnMnxnJfXpfXQiCFGtbh',
-  model: 'spark-x',
-  baseURL:'https://spark-api-open.xf-yun.com/agent/v1'
-}
-
 export function getProviderTemplate(providerId: string): AIProviderTemplate | undefined {
   return AI_PROVIDER_TEMPLATES.find((template) => template.id === providerId)
 }

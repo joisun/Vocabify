@@ -1,4 +1,4 @@
-import { AiAgentApiKeys, DEFAULT_GEMINI_AGENT, normalizeAgentConfigs } from '@/typings/aiModelAdaptor'
+import { AiAgentApiKeys, normalizeAgentConfigs } from '@/typings/aiModelAdaptor'
 import { DefaultPromptTemplate, DefaultLanguage } from '@/const'
 
 /**--------------------------- OPTION PAGE ---------------------------*/
@@ -19,12 +19,7 @@ export const agentsStorage = storage.defineItem<AiAgentApiKeys>('local:agents', 
 
 export async function getNormalizedAgents() {
   const raw = await agentsStorage.getValue()
-  const normalized = normalizeAgentConfigs(raw)
-  if (normalized.length > 0) return normalized
-
-  const seededAgents: AiAgentApiKeys = [DEFAULT_GEMINI_AGENT]
-  await agentsStorage.setValue(seededAgents)
-  return seededAgents
+  return normalizeAgentConfigs(raw)
 }
 /** 回显样式 */
 export type highlightStyleSettingsType = {

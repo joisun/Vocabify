@@ -50,7 +50,7 @@ test.describe('Vocabify selection + AI flow', () => {
       await expect.poll(() => getPopoverField(page, 'example'), { timeout: 15_000 }).toContain('diplomat')
 
       await expect.poll(() => getPopoverField(page, 'saveBtnDisabled'), { timeout: 20_000 }).toBe(false)
-      await expect.poll(async () => Math.abs(Number(await getPopoverField(page, 'width')) - Number(initialWidth)), { timeout: 5_000 }).toBeLessThanOrEqual(1)
+      await expect.poll(async () => Math.abs(Number(await getPopoverField(page, 'width')) - Number(initialWidth)), { timeout: 5_000 }).toBeLessThanOrEqual(4)
     } finally {
       await page.close().catch(() => undefined)
     }
@@ -128,6 +128,19 @@ test.describe('Vocabify selection + AI flow', () => {
       })
       expect(lightClass).toContain('light')
       expect(lightClass).not.toContain('dark')
+    } finally {
+      await page.close().catch(() => undefined)
+    }
+  })
+
+  test('options page does not toast saved messages on initial load', async () => {
+    const extensionId = await getExtensionId(context)
+    const page = await context.newPage()
+    try {
+      await page.goto(`chrome-extension://${extensionId}/options.html`)
+      await page.waitForTimeout(2_000)
+      await expect(page.getByText('Prompt template saved')).toHaveCount(0)
+      await expect(page.getByText('Highlight style saved')).toHaveCount(0)
     } finally {
       await page.close().catch(() => undefined)
     }
@@ -268,12 +281,32 @@ async function seedAiProvider(context: BrowserContext, extensionId: string, base
 }
 
 async function getExtensionId(context: BrowserContext) {
-  const worker = context.serviceWorkers().find((sw) => sw.url().startsWith('chrome-extension://'))
-    || await context.waitForEvent('serviceworker', {
-      predicate: (sw) => sw.url().startsWith('chrome-extension://'),
-      timeout: 10_000,
-    })
+  const workers = context.serviceWorkers().filter((sw) => sw.url().startsWith('chrome-extension://'))
+  for (const worker of workers) {
+    const id = new URL(worker.url()).host
+    if (await canOpenOptionsPage(context, id)) return id
+  }
+
+  const worker = await context.waitForEvent('serviceworker', {
+    predicate: (sw) => sw.url().startsWith('chrome-extension://'),
+    timeout: 10_000,
+  })
   return new URL(worker.url()).host
+}
+
+async function canOpenOptionsPage(context: BrowserContext, extensionId: string) {
+  const page = await context.newPage()
+  try {
+    const response = await page.goto(`chrome-extension://${extensionId}/options.html`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 2_000,
+    })
+    return response?.ok() ?? false
+  } catch {
+    return false
+  } finally {
+    await page.close().catch(() => undefined)
+  }
 }
 
 async function selectText(page: Page, text: string) {

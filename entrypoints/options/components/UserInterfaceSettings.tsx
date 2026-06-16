@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { cn } from '@/lib/utils'
 import { hightlightStyle, recordPageSize } from '@/utils/storage'
 import { Minus, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { RgbaColorPicker } from 'react-colorful'
 import { toast } from 'sonner'
 import OptionSection from './OptionSection'
@@ -76,7 +76,8 @@ const PageSizeSetter = () => {
 }
 
 const HighlightStyleSetter = () => {
-  const [initialized, setInitialized] = useState(false)
+  const hydratedRef = useRef(false)
+  const userEditedRef = useRef(false)
   const [settings, setSettings] = useState({
     type: 'underline',
     style: 'solid',
@@ -95,20 +96,21 @@ const HighlightStyleSetter = () => {
     hightlightStyle.getValue().then((res) => {
       if (res) {
         setSettings(res)
-        setInitialized(true)
       }
+      hydratedRef.current = true
     })
   }, [])
 
   useEffect(() => {
-    if (!initialized) return
+    if (!hydratedRef.current || !userEditedRef.current) return
     hightlightStyle
       .setValue(settings)
       .then(() => toast.success('Highlight style saved'))
       .catch(() => toast.error('Save failed'))
-  }, [initialized, settings])
+  }, [settings])
 
   const updateSettings = (updates: Partial<typeof settings>) => {
+    userEditedRef.current = true
     setSettings((prev) => ({ ...prev, ...updates }))
   }
 

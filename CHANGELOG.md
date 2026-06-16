@@ -30,11 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Popover edit inputs unfocusable**: `onMouseDown preventDefault` on the popover container now skips `<input>`, `<textarea>`, and `<select>` elements.
 - **Popover invisible in light mode**: inner container forces `dark` class (design decision — floating tool palette always uses dark professional theme per CLAUDE.md).
 - **Dark overlay border fatigue**: reduced dark-mode hairline contrast and removed default overlay shadows across options sections, popovers, tooltips, dropdowns, form controls, sheet frame, toast, and the selection popover.
+- **Custom provider endpoint handling**: user-defined custom providers follow the same OpenAI-compatible base URL path as GLM and Kimi, using Vercel AI SDK instead of custom SSE glue.
+- **Options initial save toasts**: opening the options page no longer triggers "Prompt template saved" or "Highlight style saved" before the user edits anything.
 - **Selection popover dismissed on query click**: added `isVocabifyUiEvent` guard to the `mouseup` listener.
 - **AI stream timeout with reasoning models**: increased `chunkMs` from 8s to 30s to accommodate providers that emit `reasoning_content` before `content`.
 
 ### Removed
 - Multi-provider failover, provider drag-and-drop ordering, and unused provider SDK dependencies for xAI, Groq, Mistral, Cohere, Fireworks, Together.ai, Cerebras, Perplexity, and DeepInfra.
+- Hardcoded seeded XunFei/Spark provider credentials; users must explicitly configure their own provider in Options.
 - `components/AIExplanation.tsx`, `entrypoints/content/components/TooltipBtn.tsx`, `entrypoints/content/components/TooltipIndicator.tsx` — superseded by `SelectionPopover.tsx`.
 - `triggerSelection` message (was an unused no-op).
 

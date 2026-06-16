@@ -64,7 +64,7 @@
 
 **遗漏的细节**：
 - Vercel AI SDK 的 `streamText` 依赖 `fetch` streaming，在 Chrome Extension Service Worker 中需要验证兼容性（MV3 Service Worker 支持 streaming fetch，但有超时限制）
-- 讯飞 Spark 使用 WebSocket 协议，Vercel AI SDK 不原生支持，需要保留自定义适配器或考虑是否继续支持讯飞
+- 讯飞 Spark 不再内置默认凭据或专用适配；如用户显式配置 OpenAI-compatible base URL，则按 Vercel AI SDK custom provider 标准路径请求
 - 当前设计已取消"按顺序尝试多个模型"的 fallback 逻辑，仅使用用户配置的单个 active provider
 - 流式响应需要通过 `chrome.runtime.Port`（长连接）传回 Content Script，而非 `sendMessage`（一次性消息）——这是流式的关键，原计划未提及
 - 需要处理 Service Worker 被浏览器休眠后重新激活的场景（MV3 的 Service Worker 生命周期问题）
@@ -196,7 +196,7 @@ Content Script 挂载点
 |--------|----------|------|
 | Shadow DOM + Tailwind 样式注入 | 🔴 高 | 需要 Vite 构建配置配合，调试困难 |
 | MV3 Service Worker 流式响应 | 🔴 高 | Service Worker 生命周期限制，需要充分测试 |
-| 讯飞 Spark WebSocket 适配 | 🟡 中 | Vercel AI SDK 不支持，需要决策是否保留 |
+| 讯飞 Spark custom endpoint 兼容性 | 🟡 中 | 不内置默认凭据；仅在用户显式配置 OpenAI-compatible base URL 时尝试请求，provider 侧错误需透传 |
 | Dexie 数据迁移兼容性 | 🟡 中 | 现有用户数据不能丢失 |
 | CSS Custom Highlight API 兼容性 | 🟡 中 | Firefox 支持有限，需要 fallback |
 | SPA 页面高亮重触发 | 🟡 中 | MutationObserver 性能开销需要控制 |

@@ -39,7 +39,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 
 ### AI-powered explanations
 - First-party providers via Vercel AI SDK: OpenAI, Anthropic, Gemini, and DeepSeek.
-- OpenAI-compatible presets: GLM and Kimi. Any other compatible endpoint can be added as a custom provider with `baseURL`.
+- OpenAI-compatible presets and custom providers use provider base URLs. Vercel AI SDK handles the standard `/chat/completions` request path.
 - One active provider is used for AI lookup. There is no fallback chain or provider priority ordering.
 - Model suggestions load when the provider exposes `/models`; the model can always be typed manually.
 - Customizable JSON-only prompt template and target language. The default template instructs the AI to return strict JSON matching the Vocabify schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`).
