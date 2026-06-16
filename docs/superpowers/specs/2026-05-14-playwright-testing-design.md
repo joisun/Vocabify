@@ -51,12 +51,12 @@ The selection flow test defaults to a mocked OpenAI-compatible endpoint hosted b
 The mocked endpoint returns chunked SSE data so UI streaming behavior is still validated end-to-end through the runtime port flow.
 Live Google mode remains available by setting `VOCABIFY_LIVE_GOOGLE=1` and `VOCABIFY_GOOGLE_API_KEY`.
 
-Provider configuration follows Vercel AI SDK terminology without exposing implementation-only choices in the UI:
+Provider configuration follows the single-active-provider settings model:
 
-- First-party providers are selected from a fixed Vercel AI SDK provider list and only store `providerId`, label, API key, and model.
-- Custom providers remain supported as OpenAI-compatible endpoints with `baseURL`, API key, and model fields.
-- Model lists are fetched dynamically after an API key is entered, then fall back to static defaults if discovery fails.
-- First-party providers use their official `@ai-sdk/*` packages through `streamText`; only custom providers use `@ai-sdk/openai-compatible`.
+- Popular first-party providers are shown as preset choices and store `providerId`, label, API key, and model.
+- GLM, Kimi, and custom providers use OpenAI-compatible `baseURL`, API key, and model fields.
+- Only one provider is active; there is no fallback chain or drag-and-drop priority ordering.
+- Model suggestions may be fetched after an API key is entered, but users can always type the model manually.
 
 ## Current E2E Coverage
 
@@ -65,15 +65,12 @@ Provider configuration follows Vercel AI SDK terminology without exposing implem
 - Existing WXT dev Chrome is reachable through CDP.
 - The content script injects `#vocabify-root`.
 - Selecting `nuanced phrase` opens `[data-testid="vocabify-selection-popover"]`.
-- The selection popover is a compact `role="toolbar"` and stays within the 340-380 px desktop width range.
-- Clicking `[data-testid="vocabify-explain-action"]` opens `[data-testid="vocabify-sheet"]` inside ShadowRoot.
-- The sheet is a floating liquid-glass panel with viewport spacing on all sides instead of being edge-attached.
-- Opening the sheet must not emit Radix Dialog title/description accessibility warnings.
-- The header settings button opens the extension `options.html` page through the background context.
-- `[data-testid="vocabify-ai-loading"]` appears in the Explanation area before streamed AI output arrives, and `[data-testid="vocabify-retry-mesh-action"]` can restart the request during loading.
-- `[data-testid="vocabify-ai-result"]` receives streamed AI output.
-- `[data-testid="vocabify-retry-mesh-action"]` replaces the old retry icon in the result action row.
-- Long AI output scrolls inside `[data-testid="vocabify-ai-result-scroll"]` without clipping the result container, including a real mouse-wheel interaction.
+- Clicking `[data-testid="vocabify-operation-query"]` expands the operation bar into the inline structured card.
+- Streaming renders field-level content (`term`, `definition`, `example`) instead of exposing raw JSON or provider reasoning text.
+- The popover width remains stable while streamed fields arrive.
+- The save action remains disabled until a complete structured result is available.
+- Popover edit mode inputs remain focusable and editable inside ShadowRoot.
+- Theme changes through `vocabify-theme` propagate to the content script container.
 - `[data-testid="vocabify-save-action"]` becomes enabled.
 - The My Wordlist tab exposes `[data-testid="vocabify-github-sync"]` and the GitHub connect action.
 

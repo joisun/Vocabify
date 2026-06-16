@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[6px] text-[13px] font-medium select-none cursor-pointer " +
     "transition-colors duration-150 " +
-    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 " +
+    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:ring-offset-0 dark:focus-visible:ring-white/12 " +
     "disabled:pointer-events-none disabled:opacity-40 " +
     "[&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
@@ -18,7 +18,7 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-border bg-card text-foreground hover:bg-secondary dark:border-white/8",
+          "border border-border bg-card text-foreground hover:bg-secondary dark:border-white/[0.04]",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:

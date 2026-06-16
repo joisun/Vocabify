@@ -1,18 +1,9 @@
 import { streamText, type LanguageModel } from 'ai'
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { createCerebras } from '@ai-sdk/cerebras'
-import { createCohere } from '@ai-sdk/cohere'
-import { createDeepInfra } from '@ai-sdk/deepinfra'
 import { createDeepSeek } from '@ai-sdk/deepseek'
-import { createFireworks } from '@ai-sdk/fireworks'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { createGroq } from '@ai-sdk/groq'
-import { createMistral } from '@ai-sdk/mistral'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { createPerplexity } from '@ai-sdk/perplexity'
-import { createTogetherAI } from '@ai-sdk/togetherai'
-import { createXai } from '@ai-sdk/xai'
 import { promptTemplate, targetLanguage, getNormalizedAgents } from '@/utils/storage'
 import { AiAgentApiKey } from '@/typings/aiModelAdaptor'
 import {
@@ -53,26 +44,8 @@ export class AIService {
         return createAnthropic({ apiKey: agent.apiKey })(agent.model)
       case 'google':
         return createGoogleGenerativeAI({ apiKey: agent.apiKey })(agent.model)
-      case 'xai':
-        return createXai({ apiKey: agent.apiKey })(agent.model)
-      case 'groq':
-        return createGroq({ apiKey: agent.apiKey })(agent.model)
-      case 'mistral':
-        return createMistral({ apiKey: agent.apiKey })(agent.model)
-      case 'cohere':
-        return createCohere({ apiKey: agent.apiKey })(agent.model)
       case 'deepseek':
         return createDeepSeek({ apiKey: agent.apiKey })(agent.model)
-      case 'fireworks':
-        return createFireworks({ apiKey: agent.apiKey })(agent.model)
-      case 'togetherai':
-        return createTogetherAI({ apiKey: agent.apiKey })(agent.model)
-      case 'cerebras':
-        return createCerebras({ apiKey: agent.apiKey })(agent.model)
-      case 'perplexity':
-        return createPerplexity({ apiKey: agent.apiKey })(agent.model)
-      case 'deepinfra':
-        return createDeepInfra({ apiKey: agent.apiKey })(agent.model)
       default:
         if (agent.providerId.startsWith('custom:')) {
           if (!agent.baseURL) throw new Error(`${agent.providerLabel} requires a baseURL`)
@@ -138,19 +111,13 @@ export class AIService {
       return
     }
 
-    let lastError: Error | null = null
-
-    for (const agent of agents) {
-      try {
-        await this.streamWithVercelSdk(agent, prompt, options)
-        return
-      } catch (error) {
-        console.error(`Failed with ${agent.providerLabel} (${agent.model}):`, error)
-        lastError = error instanceof Error ? error : new Error(String(error))
-      }
+    const agent = agents[0]
+    try {
+      await this.streamWithVercelSdk(agent, prompt, options)
+    } catch (error) {
+      console.error(`Failed with ${agent.providerLabel} (${agent.model}):`, error)
+      options.onError?.(error instanceof Error ? error : new Error(String(error)))
     }
-
-    options.onError?.(lastError || new Error('All AI providers failed'))
   }
 }
 

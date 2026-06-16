@@ -43,12 +43,12 @@ const PageSizeSetter = () => {
   }, [])
 
   return (
-    <div className="flex items-center justify-between border-b border-border pb-4 dark:border-white/8">
+    <div className="flex items-center justify-between border-b border-border pb-4 dark:border-white/[0.04]">
       <div>
         <Label className="text-[13px] font-medium">Records per page</Label>
         <p className="text-[12px] text-muted-foreground">How many words to show in the list.</p>
       </div>
-      <div className="inline-flex items-center gap-1 rounded-[6px] border border-border bg-card p-0.5 dark:border-white/8">
+      <div className="inline-flex items-center gap-1 rounded-[6px] border border-border bg-card p-0.5 dark:border-white/[0.04]">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -118,7 +118,7 @@ const HighlightStyleSetter = () => {
     <div className="space-y-4">
       <Label className="text-[13px] font-medium">Custom highlight style</Label>
 
-      <div className="rounded-[6px] border border-border bg-secondary px-4 py-3 dark:border-white/8">
+      <div className="rounded-[6px] border border-border bg-secondary px-4 py-3 dark:border-white/[0.04]">
         <p
           className="leading-relaxed"
           style={{

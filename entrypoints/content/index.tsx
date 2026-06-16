@@ -213,7 +213,7 @@ export default defineContentScript({
             onEditCommit={handleEditCommit}
             onEditCancel={() => setPopoverState((s) => (s ? { ...s, mode: 'card' } : s))}
             saving={saving}
-            streamingText={aiStream.streamingText}
+            hasReceivedChunk={aiStream.hasReceivedChunk}
           />
         </>
       )

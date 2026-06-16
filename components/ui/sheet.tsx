@@ -175,7 +175,7 @@ SheetContentBody.displayName = "SheetContentBody"
 
 function VocabifyPanelFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[12px] border border-border bg-popover text-popover-foreground dark:border-white/8">
+    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[12px] border border-border bg-popover text-popover-foreground dark:border-white/[0.04]">
       <div className="relative z-10 flex h-full min-h-0 flex-col">{children}</div>
     </div>
   )

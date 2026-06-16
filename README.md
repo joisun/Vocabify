@@ -22,7 +22,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 ## Highlights
 
 - **Selection-driven flow.** Highlight a word on any page; a compact action popover surfaces explain / save / mark options without breaking your reading position.
-- **Streamed AI explanations.** Powered by the Vercel AI SDK with thirteen first-party providers and fallbacks, plus OpenAI-compatible custom endpoints.
+- **Streamed AI explanations.** Powered by one active AI provider at a time: popular first-party providers plus OpenAI-compatible GLM / Kimi / custom endpoints.
 - **Familiarity scoring.** Every saved word carries a 0–100 score across four tiers — New, Learning, Familiar, Mastered — each with its own highlight color.
 - **Lazy spaced decay.** Scores decay over time, but only settle the moment a word is rendered or marked. No background timers, no battery cost.
 - **Unified selection popover.** Select a new word → operation bar (查询 / 复制 / 更多). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → the same card appears instantly with familiarity marks + inline edit / delete.
@@ -38,12 +38,12 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - Selections inside form fields, contenteditable regions, or extension UI are ignored.
 
 ### AI-powered explanations
-- First-party providers via Vercel AI SDK: OpenAI, Anthropic, Google, xAI, Groq, Mistral, Cohere, DeepSeek, Fireworks, Together.ai, Cerebras, Perplexity, DeepInfra.
-- Dynamic model discovery once an API key is entered, with static fallback lists when discovery fails.
-- Any OpenAI-compatible endpoint can be added as a `custom:*` provider via `baseURL`.
-- Multi-provider failover: if one provider errors, the next configured agent is tried automatically.
+- First-party providers via Vercel AI SDK: OpenAI, Anthropic, Gemini, and DeepSeek.
+- OpenAI-compatible presets: GLM and Kimi. Any other compatible endpoint can be added as a custom provider with `baseURL`.
+- One active provider is used for AI lookup. There is no fallback chain or provider priority ordering.
+- Model suggestions load when the provider exposes `/models`; the model can always be typed manually.
 - Customizable JSON-only prompt template and target language. The default template instructs the AI to return strict JSON matching the Vocabify schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`).
-- Streaming output with timeouts (`totalMs: 18s`, `chunkMs: 8s`) and abort support. A tolerant partial-JSON parser feeds the popover field-by-field as data arrives.
+- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`) and abort support. A tolerant partial-JSON parser feeds the popover field-by-field as data arrives, while raw JSON and provider reasoning stay hidden from the user-facing card.
 
 ### Vocabulary management
 - In-page side sheet — Wordlist only (AI lookup lives in the selection popover now).
@@ -71,7 +71,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 ### Customization
 - Highlight color, underline type (wavy / straight / dashed), thickness, offset, and inversion behavior.
 - Target language for explanations.
-- Per-provider API keys and selected models.
+- Single active AI provider, API key, base URL when needed, and model.
 - Light / dark theme.
 
 ### Pronunciation

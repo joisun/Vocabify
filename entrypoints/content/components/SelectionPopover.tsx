@@ -47,7 +47,7 @@ export interface SelectionPopoverProps {
   record?: Partial<VocabResponse> | VocabRecord
   streaming?: boolean
   errorMessage?: string | null
-  streamingText?: string
+  hasReceivedChunk?: boolean
 
   savedRecord?: VocabRecord | null
   onSave?: () => void
@@ -86,7 +86,7 @@ export function SelectionPopover(props: SelectionPopoverProps) {
         container={portalContainer}
         className={cn(
           NO_SELECTION_CONTAINER,
-          'dark p-0 border-white/12 shadow-none ring-1 ring-inset ring-white/4',
+          'dark p-0 border-white/[0.04] shadow-none ring-0 focus-visible:outline-none',
           mode === 'operation-bar' && 'w-[260px]',
           mode === 'card' && 'w-[340px]',
           mode === 'edit' && 'w-[380px]',
@@ -129,7 +129,7 @@ export function SelectionPopover(props: SelectionPopoverProps) {
             onRetry={props.onRetry}
             onSpeak={props.onSpeak}
             onDismiss={onDismiss}
-            streamingText={props.streamingText}
+            hasReceivedChunk={props.hasReceivedChunk}
           />
         )}
         {mode === 'edit' && props.record && (
@@ -214,7 +214,7 @@ function OperationBar({
 function Card({
   record, streaming, errorMessage, savedRecord,
   onSave, onMark, onEnterEdit, onDelete, onRetry, onSpeak, onDismiss,
-  streamingText,
+  hasReceivedChunk,
 }: {
   record?: Partial<VocabResponse> | VocabRecord
   streaming?: boolean
@@ -227,21 +227,24 @@ function Card({
   onRetry?: () => void
   onSpeak?: () => void
   onDismiss: () => void
-  streamingText?: string
+  hasReceivedChunk?: boolean
 }) {
   const term = record?.term
   const phonetic = record?.phonetic
   const pos = record?.pos
   const senses = record?.senses
   const mnemonic = record?.mnemonic
+  const hasSenses = !!senses?.length
+  const isWaitingForModel = !!streaming && !hasReceivedChunk && !term && !hasSenses
+  const isBuildingResult = !!streaming && hasReceivedChunk && !hasSenses
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col" data-testid="vocabify-selection-popover">
       <div className="flex items-start justify-between gap-2 px-3 pt-2.5 pb-1.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h2 className="font-display text-[15px] font-semibold tracking-tight text-white truncate">
-              {term || <Skeleton width={80} />}
+            <h2 className="font-display text-[15px] font-semibold tracking-tight text-white truncate" data-testid="vocabify-stream-term">
+              {term || (streaming ? <Skeleton width={88} /> : '—')}
             </h2>
             {onSpeak && (
               <Button variant="ghost" size="icon-sm" onClick={onSpeak} className="h-5 w-5 text-white/50 hover:bg-white/10 hover:text-white" aria-label="Pronounce" title="Pronounce">
@@ -250,11 +253,11 @@ function Card({
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-1.5">
-            <span className="font-mono text-[11px] text-white/50">
+            <span className="font-mono text-[11px] text-white/50" data-testid="vocabify-stream-phonetic">
               {phonetic || (streaming ? <Skeleton width={64} /> : '—')}
             </span>
             {pos && (
-              <span className="rounded bg-white/10 px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-wide text-white/70">{pos}</span>
+              <span className="rounded bg-white/10 px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-wide text-white/70" data-testid="vocabify-stream-pos">{pos}</span>
             )}
           </div>
         </div>
@@ -272,24 +275,32 @@ function Card({
           </div>
         ) : (
           <>
-            {streamingText && !senses?.length && (
-              <div className="py-2">
-                <p className="text-[11px] font-mono leading-relaxed text-white/50 break-all">{streamingText}</p>
+            {isWaitingForModel && (
+              <div className="space-y-1.5 py-1" data-testid="vocabify-stream-waiting">
+                <SenseSkeleton />
+                <div className="rounded border border-white/[0.04] bg-surface px-2.5 py-1.5">
+                  <div className="flex items-center gap-2 text-[11px] text-white/45">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-ai-pulse" />
+                    Preparing structured explanation
+                  </div>
+                </div>
               </div>
             )}
-            {(senses && senses.length > 0) ? (
-              <div className="space-y-1.5 py-1">
+            {hasSenses ? (
+              <div className="space-y-1.5 py-1" data-testid="vocabify-stream-senses">
                 {senses.map((sense, i) => (
                   <SenseRow key={i} index={i} sense={sense} streaming={streaming} />
                 ))}
               </div>
-            ) : streaming && !streamingText ? (
-              <div className="space-y-1.5 py-1"><SenseSkeleton /></div>
+            ) : isBuildingResult ? (
+              <div className="space-y-1.5 py-1" data-testid="vocabify-stream-building">
+                <SenseSkeleton active />
+              </div>
             ) : null}
             {(mnemonic || streaming) && (
-              <div className="mt-2 border-t border-white/8 pt-2">
+              <div className="mt-2 border-t border-white/[0.04] pt-2">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-white/50">联想记忆</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-white/80">
+                <p className="mt-1 text-[12px] leading-relaxed text-white/80" data-testid="vocabify-stream-mnemonic">
                   {mnemonic || (streaming ? <Skeleton width={200} /> : null)}
                 </p>
               </div>
@@ -303,7 +314,7 @@ function Card({
         )}
       </div>
 
-      <div className="flex items-center gap-1 border-t border-white/8 px-2 py-1.5">
+      <div className="flex items-center gap-1 border-t border-white/[0.04] px-2 py-1.5">
         {savedRecord ? (
           <SavedFooter savedRecord={savedRecord} onMark={onMark} onEnterEdit={onEnterEdit} onDelete={onDelete} />
         ) : (
@@ -317,25 +328,28 @@ function Card({
 function SenseRow({ index, sense, streaming }: { index: number; sense: { definition?: string; example?: string; exampleTranslation?: string }; streaming?: boolean }) {
   const num = `①②③`[index] || `${index + 1}`
   return (
-    <div className="rounded border border-white/8 bg-[#323232] px-2.5 py-1.5">
+    <div className="rounded border border-white/[0.04] bg-surface px-2.5 py-1.5 animate-fade-in">
       <div className="flex items-baseline gap-1.5">
-        <span className="text-[11px] font-medium text-[#5b5bf8]">{num}</span>
-        <p className="text-[12px] leading-relaxed text-white/90">{sense.definition || (streaming ? <Skeleton width={140} /> : null)}</p>
+        <span className="text-[11px] font-medium text-primary">{num}</span>
+        <p className="text-[12px] leading-relaxed text-white/90" data-testid="vocabify-stream-definition">{sense.definition || (streaming ? <Skeleton width={140} /> : null)}</p>
       </div>
       {(sense.example || streaming) && (
-        <p className="mt-1 text-[11px] italic leading-relaxed text-white/60">"{sense.example || (streaming ? <Skeleton width={180} /> : '')}"</p>
+        <p className="mt-1 text-[11px] italic leading-relaxed text-white/60" data-testid="vocabify-stream-example">"{sense.example || (streaming ? <Skeleton width={180} /> : '')}"</p>
       )}
       {sense.exampleTranslation && (
-        <p className="mt-0.5 text-[11px] leading-relaxed text-white/50">{sense.exampleTranslation}</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-white/50" data-testid="vocabify-stream-translation">{sense.exampleTranslation}</p>
       )}
     </div>
   )
 }
 
-function SenseSkeleton() {
+function SenseSkeleton({ active = false }: { active?: boolean }) {
   return (
-    <div className="rounded border border-white/8 bg-[#323232] px-2.5 py-1.5">
-      <div className="vocabify-skeleton-breathe h-3.5 w-4/5 rounded" />
+    <div className="rounded border border-white/[0.04] bg-surface px-2.5 py-1.5">
+      <div className="flex items-center gap-1.5">
+        <div className="vocabify-skeleton-breathe h-3.5 w-4/5 rounded" />
+        {active && <span className="h-3 w-px bg-primary/80 animate-ai-pulse" aria-hidden />}
+      </div>
       <div className="vocabify-skeleton-breathe mt-2 h-3 w-full rounded" style={{ animationDelay: '0.08s' }} />
     </div>
   )

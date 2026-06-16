@@ -80,10 +80,10 @@ const browser = await chromium.connectOverCDP(webSocketDebuggerUrl)
 
 Current runtime contract:
 
-- Provider selection is fixed and shown as a single Vercel AI SDK first-party provider list plus Custom Provider.
+- Provider settings use one active provider rather than a fallback chain.
+- Popular first-party providers are shown alongside GLM / Kimi OpenAI-compatible presets and a Custom Provider flow.
 - Custom providers remain supported as OpenAI-compatible endpoints with a user-provided `baseURL`.
-- Model discovery happens dynamically after API key entry, with static fallbacks.
-- First-party providers use their official `@ai-sdk/*` packages through `streamText`; only Custom Provider uses `@ai-sdk/openai-compatible`.
+- Model suggestions may load dynamically after API key entry, and users can type model names manually.
 
 Run:
 

@@ -41,14 +41,16 @@ test.describe('Vocabify selection + AI flow', () => {
       await selectText(page, 'nuanced phrase')
       await clickQuery(page)
 
-      // Partial should appear before complete (term shows first)
-      await expect.poll(() => getPopoverField(page, 'term'), { timeout: 10_000 }).toBeTruthy()
+      await expect.poll(() => getPopoverField(page, 'width'), { timeout: 10_000 }).toBeGreaterThan(330)
+      const initialWidth = await getPopoverField(page, 'width')
 
-      // Wait for senses to appear incrementally
-      await expect.poll(() => getPopoverField(page, 'sensesCount'), { timeout: 15_000 }).toBeGreaterThan(0)
+      await expect.poll(() => getPopoverField(page, 'term'), { timeout: 10_000 }).toBe('nuanced phrase')
+      await expect.poll(() => getPopoverField(page, 'rawJsonVisible'), { timeout: 5_000 }).toBe(false)
+      await expect.poll(() => getPopoverField(page, 'definition'), { timeout: 15_000 }).toContain('subtle expression')
+      await expect.poll(() => getPopoverField(page, 'example'), { timeout: 15_000 }).toContain('diplomat')
 
-      // Final state: save button enabled
       await expect.poll(() => getPopoverField(page, 'saveBtnDisabled'), { timeout: 20_000 }).toBe(false)
+      await expect.poll(async () => Math.abs(Number(await getPopoverField(page, 'width')) - Number(initialWidth)), { timeout: 5_000 }).toBeLessThanOrEqual(1)
     } finally {
       await page.close().catch(() => undefined)
     }
@@ -169,8 +171,14 @@ test.describe('Vocabify selection + AI flow', () => {
       const shadow = root?.shadowRoot
       const popover = shadow?.querySelector('[data-testid="vocabify-selection-popover"]')
       if (!popover) return null
-      if (f === 'term') return popover.querySelector('h2')?.textContent?.trim() || null
-      if (f === 'sensesCount') return popover.querySelectorAll('.rounded.border').length
+      if (f === 'term') return popover.querySelector('[data-testid="vocabify-stream-term"]')?.textContent?.trim() || null
+      if (f === 'definition') return popover.querySelector('[data-testid="vocabify-stream-definition"]')?.textContent?.trim() || null
+      if (f === 'example') return popover.querySelector('[data-testid="vocabify-stream-example"]')?.textContent?.trim() || null
+      if (f === 'rawJsonVisible') {
+        const text = popover.textContent || ''
+        return text.includes('"term"') || text.includes('"senses"') || text.includes('{') || text.includes('reasoning_content')
+      }
+      if (f === 'width') return Math.round(popover.getBoundingClientRect().width)
       if (f === 'saveBtnDisabled') {
         const btn = popover.querySelector('[data-testid="vocabify-save-action"]') as HTMLButtonElement | null
         return btn?.disabled ?? null

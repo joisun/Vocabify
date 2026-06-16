@@ -17,8 +17,8 @@ const SelectTrigger = React.forwardRef<
     className={cn(
       "flex h-8 w-full items-center justify-between whitespace-nowrap rounded-[6px] border border-input bg-card px-2.5 py-1 text-[13px] text-foreground",
       "transition-colors duration-150",
-      "focus:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring",
-      "dark:border-white/8 dark:bg-surface",
+      "focus:outline-none focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:border-ring/50",
+      "dark:border-white/[0.04] dark:bg-surface dark:focus-visible:ring-white/12 dark:focus-visible:border-white/10",
       "disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
       className
     )}
@@ -69,7 +69,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       className={cn(
         "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-[8px] border border-border bg-popover text-popover-foreground",
-        "dark:border-white/8",
+        "dark:border-white/[0.04]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         position === "popper" &&
@@ -137,7 +137,7 @@ const SelectSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-border dark:bg-white/8", className)}
+    className={cn("-mx-1 my-1 h-px bg-border/80 dark:bg-white/[0.04]", className)}
     {...props}
   />
 ))

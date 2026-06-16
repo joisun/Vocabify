@@ -12,8 +12,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           "placeholder:text-muted-foreground",
           "transition-colors duration-150",
           "file:border-0 file:bg-transparent file:text-[13px] file:font-medium file:text-foreground",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring",
-          "dark:border-white/8 dark:bg-surface",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:border-ring/50",
+          "dark:border-white/[0.04] dark:bg-surface dark:focus-visible:ring-white/12 dark:focus-visible:border-white/10",
           "disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}

@@ -65,7 +65,7 @@
 **遗漏的细节**：
 - Vercel AI SDK 的 `streamText` 依赖 `fetch` streaming，在 Chrome Extension Service Worker 中需要验证兼容性（MV3 Service Worker 支持 streaming fetch，但有超时限制）
 - 讯飞 Spark 使用 WebSocket 协议，Vercel AI SDK 不原生支持，需要保留自定义适配器或考虑是否继续支持讯飞
-- 当前 `AIServiceManager` 的"按顺序尝试多个模型"的 fallback 逻辑需要在新架构中保留
+- 当前设计已取消"按顺序尝试多个模型"的 fallback 逻辑，仅使用用户配置的单个 active provider
 - 流式响应需要通过 `chrome.runtime.Port`（长连接）传回 Content Script，而非 `sendMessage`（一次性消息）——这是流式的关键，原计划未提及
 - 需要处理 Service Worker 被浏览器休眠后重新激活的场景（MV3 的 Service Worker 生命周期问题）
 
@@ -144,7 +144,7 @@ Content Script 挂载点
 - `react-virtualized`（重量级虚拟列表库）→ 可替换为更轻量的 `@tanstack/react-virtual` 或 `react-window`
 - `typed.js`（打字机效果）→ 可用纯 CSS animation 或简单的 `setInterval` 替代
 - `react-keep-alive`（组件缓存）→ 废弃 Sidepanel 后可能不再需要
-- `react-beautiful-dnd`（拖拽，仅有类型声明）→ 确认是否实际使用，未使用则删除
+- 拖拽排序依赖已移除，provider 配置不再表达优先级
 
 ---
 
@@ -159,7 +159,7 @@ Content Script 挂载点
 
 ### Phase 2：AI 服务层
 1. 引入 Vercel AI SDK
-2. 替换 LangChain，保留 fallback 逻辑和 PromptTemplate
+2. 替换 LangChain，保留 PromptTemplate，AI 查询仅使用单个 active provider
 3. 实现 Background → Content Script 的流式 Port 通信
 4. 验证：流式 AI 响应正常工作
 

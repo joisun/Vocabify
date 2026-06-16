@@ -20,13 +20,13 @@ export default function OptionSection({
     <section
       id={id}
       className={cn(
-        "rounded-[10px] border border-border bg-card text-card-foreground",
-        "dark:border-white/8",
+        "rounded-[10px] bg-card text-card-foreground",
+        "ring-1 ring-border/30 dark:ring-white/[0.03]",
         className,
       )}
     >
       {(title || description) ? (
-        <header className="border-b border-border px-5 py-3 dark:border-white/8">
+        <header className="px-5 pb-1 pt-4">
           {title ? (
             <h2 className="font-display text-[14px] font-semibold tracking-tight">
               {title}
@@ -39,7 +39,7 @@ export default function OptionSection({
           ) : null}
         </header>
       ) : null}
-      <div className="space-y-4 px-5 py-4">{children}</div>
+      <div className="flex flex-col gap-4 px-5 py-4">{children}</div>
     </section>
   )
 }

@@ -48,7 +48,7 @@ function App() {
     <>
       <MockLoading />
       <div className="min-h-screen bg-background text-foreground">
-        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur dark:border-white/8">
+        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur dark:border-white/[0.04]">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
             <div className="leading-tight">
               <h1 className="font-display text-[14px] font-semibold tracking-tight">Vocabify</h1>
@@ -111,7 +111,7 @@ function ThemeToggle() {
   ]
 
   return (
-    <div className="inline-flex items-center rounded-[6px] border border-border bg-card p-0.5 dark:border-white/8">
+    <div className="inline-flex items-center rounded-[6px] border border-border bg-card p-0.5 dark:border-white/[0.04]">
       {options.map((opt) => {
         const Icon = opt.icon
         const isActive = theme === opt.value

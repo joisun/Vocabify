@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unified theme system** (`lib/theme.ts`): single localStorage key `vocabify-theme` with `light | dark | system` support, shared across options page, popup, and content script with cross-tab sync via `StorageEvent`.
 
 ### Changed
+- Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
 - Side Sheet (`VocabifySheet` + `InPageUI`) is now Wordlist-only — Tabs and the AI Explain pane have been removed. AI lookup is entirely inline in the selection popover.
 - `VocabList` rows render the new structured fields: term, phonetic, pos chip, first sense's definition, with expansion revealing all senses, mnemonic, and source link.
 - GitHub sync payload bumped to `schemaVersion: 2`. `normalizeRecords` validates the new structured shape and drops legacy `meaning`-only records on import.
@@ -24,13 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Theme provider now uses unified `vocabify-theme` key (previously `vite-ui-theme` in options, separate key in content script).
 
 ### Fixed
+- **Rough streaming preview**: removed raw chunk / JSON text from the selection popover. Streaming now renders as a field-level structured card while provider reasoning stays hidden.
 - **Streaming not incremental**: removed `isPartialEqual` equality gate in `aiService.ts` that suppressed partial updates when only values (not structure) changed.
 - **Popover edit inputs unfocusable**: `onMouseDown preventDefault` on the popover container now skips `<input>`, `<textarea>`, and `<select>` elements.
 - **Popover invisible in light mode**: inner container forces `dark` class (design decision — floating tool palette always uses dark professional theme per CLAUDE.md).
+- **Dark overlay border fatigue**: reduced dark-mode hairline contrast and removed default overlay shadows across options sections, popovers, tooltips, dropdowns, form controls, sheet frame, toast, and the selection popover.
 - **Selection popover dismissed on query click**: added `isVocabifyUiEvent` guard to the `mouseup` listener.
 - **AI stream timeout with reasoning models**: increased `chunkMs` from 8s to 30s to accommodate providers that emit `reasoning_content` before `content`.
 
 ### Removed
+- Multi-provider failover, provider drag-and-drop ordering, and unused provider SDK dependencies for xAI, Groq, Mistral, Cohere, Fireworks, Together.ai, Cerebras, Perplexity, and DeepInfra.
 - `components/AIExplanation.tsx`, `entrypoints/content/components/TooltipBtn.tsx`, `entrypoints/content/components/TooltipIndicator.tsx` — superseded by `SelectionPopover.tsx`.
 - `triggerSelection` message (was an unused no-op).
 
