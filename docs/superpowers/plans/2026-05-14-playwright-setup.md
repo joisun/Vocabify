@@ -73,10 +73,10 @@ const browser = await chromium.connectOverCDP(webSocketDebuggerUrl)
 - Seed `chrome.storage.local` from the extension options page.
 - Select text on a local fixture page.
 - Assert the compact toolbar appears.
-- Click Explain.
-- Assert the sheet appears inside ShadowRoot.
-- Assert the sheet settles as a floating liquid-glass panel with non-zero viewport spacing.
-- Assert streamed AI result appears and Save becomes enabled.
+- Click Query.
+- Assert the inline selection popover appears inside ShadowRoot.
+- Assert streamed structured JSON fields appear from chunked SSE without exposing raw JSON.
+- Assert Save becomes enabled after the complete structured result arrives.
 
 Current runtime contract:
 

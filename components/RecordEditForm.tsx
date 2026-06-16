@@ -58,7 +58,7 @@ export function RecordEditForm({ initial, saving, onCommit, onCancel }: RecordEd
           <select
             value={pos}
             onChange={(e) => setPos(e.target.value as PosType)}
-            className="h-8 w-full rounded-md border border-border bg-background px-2 text-[12px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            className="h-8 w-full rounded-md border border-input bg-card px-2 text-[12px] text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/30 focus-visible:border-ring/50 dark:border-white/[0.04] dark:bg-surface dark:focus-visible:ring-white/12 dark:focus-visible:border-white/10"
           >
             {(['n', 'v', 'adj', 'adv', 'phrase', 'other'] as PosType[]).map((p) => (
               <option key={p} value={p}>{p}</option>
@@ -78,7 +78,7 @@ export function RecordEditForm({ initial, saving, onCommit, onCancel }: RecordEd
         </div>
 
         {senses.map((sense, i) => (
-          <div key={i} className="rounded-[5px] border border-border bg-secondary/40 p-2 space-y-1.5">
+          <div key={i} className="rounded-[5px] border border-border/60 bg-secondary/40 p-2 space-y-1.5 dark:border-white/[0.04] dark:bg-white/[0.025]">
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-primary">{`①②③`[i] || i + 1}</span>
               {senses.length > 1 && (

@@ -48,7 +48,7 @@ The selection flow test defaults to a mocked OpenAI-compatible endpoint hosted b
 - `baseURL: <fixture>/v1` (default mocked OpenAI-compatible mode)
 - target language `English`
 
-The mocked endpoint returns chunked SSE data so UI streaming behavior is still validated end-to-end through the runtime port flow.
+The mocked endpoint returns chunked SSE data, including chunks split inside JSON string values, so UI streaming behavior is validated end-to-end through the runtime port flow.
 Live Google mode remains available by setting `VOCABIFY_LIVE_GOOGLE=1` and `VOCABIFY_GOOGLE_API_KEY`.
 
 Provider configuration follows the single-active-provider settings model:
@@ -67,7 +67,7 @@ Provider configuration follows the single-active-provider settings model:
 - The content script injects `#vocabify-root`.
 - Selecting `nuanced phrase` opens `[data-testid="vocabify-selection-popover"]`.
 - Clicking `[data-testid="vocabify-operation-query"]` expands the operation bar into the inline structured card.
-- Streaming renders field-level content (`term`, `definition`, `example`) instead of exposing raw JSON or provider reasoning text.
+- Streaming renders field-level content (`term`, `definition`, `example`) from incomplete JSON chunks instead of exposing raw JSON or provider reasoning text.
 - The popover width remains stable while streamed fields arrive.
 - The save action remains disabled until a complete structured result is available.
 - Popover edit mode inputs remain focusable and editable inside ShadowRoot.

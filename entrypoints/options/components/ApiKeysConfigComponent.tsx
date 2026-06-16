@@ -177,8 +177,10 @@ const ApiKeysConfigComponent = () => {
   const [model, setModel] = useState(DEFAULT_PROVIDER_TEMPLATE.defaultModel)
   const [models, setModels] = useState<string[]>(DEFAULT_PROVIDER_TEMPLATE.staticModels)
   const [fetchState, setFetchState] = useState<ModelFetchState>({ loading: false, error: '' })
+  const [saving, setSaving] = useState(false)
 
   const fetchTimer = useRef<number | null>(null)
+  const fetchSeq = useRef(0)
   const selectedChoice = useMemo(() => getChoice(selectedProvider), [selectedProvider])
   const isCustom = selectedChoice.kind === 'custom'
   const needsBaseURL = selectedChoice.kind !== 'built-in'
@@ -202,6 +204,7 @@ const ApiKeysConfigComponent = () => {
   useEffect(() => {
     const trimmedKey = apiKey.trim()
     const trimmedBaseURL = baseURL.trim()
+    const requestSeq = ++fetchSeq.current
     if (!trimmedKey) {
       setModels(getStaticModels(selectedChoice, model))
       setFetchState({ loading: false, error: '' })
@@ -222,8 +225,10 @@ const ApiKeysConfigComponent = () => {
           baseURL: trimmedBaseURL,
           apiKey: trimmedKey,
         })
+        if (requestSeq !== fetchSeq.current) return
         setModels(fetchedModels.length ? fetchedModels : getStaticModels(selectedChoice, model))
       } catch (error) {
+        if (requestSeq !== fetchSeq.current) return
         setFetchState({
           loading: false,
           error: error instanceof Error ? error.message : 'Model list unavailable.',
@@ -231,6 +236,7 @@ const ApiKeysConfigComponent = () => {
         setModels(getStaticModels(selectedChoice, model))
         return
       }
+      if (requestSeq !== fetchSeq.current) return
       setFetchState({ loading: false, error: '' })
     }, 500)
 
@@ -269,6 +275,8 @@ const ApiKeysConfigComponent = () => {
   function selectProvider(choiceId: string) {
     if (choiceId === selectedProvider) return
     const choice = getChoice(choiceId)
+    fetchSeq.current += 1
+    if (fetchTimer.current) window.clearTimeout(fetchTimer.current)
     setSelectedProvider(choiceId)
     setFetchState({ loading: false, error: '' })
     setBaseURL(choice.baseURL || '')
@@ -277,8 +285,8 @@ const ApiKeysConfigComponent = () => {
     setModels(choice.staticModels)
   }
 
-  function saveProvider() {
-    if (!canSave) return
+  async function saveProvider() {
+    if (!canSave || saving) return
     const identity = resolveProviderId()
     const next: AiAgentApiKey = {
       providerId: identity.providerId,
@@ -287,14 +295,25 @@ const ApiKeysConfigComponent = () => {
       model: model.trim(),
       ...(needsBaseURL ? { baseURL: normalizeBaseURL(baseURL) } : {}),
     }
-    setActiveAgent(next)
-    agentsStorage.setValue([next])
+    setSaving(true)
+    try {
+      await agentsStorage.setValue([next])
+      setActiveAgent(next)
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function clearProvider() {
-    setActiveAgent(null)
-    setApiKey('')
-    agentsStorage.setValue([])
+  async function clearProvider() {
+    if (saving) return
+    setSaving(true)
+    try {
+      await agentsStorage.setValue([])
+      setActiveAgent(null)
+      setApiKey('')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -375,7 +394,7 @@ const ApiKeysConfigComponent = () => {
             type="button"
             variant="ghost"
             onClick={clearProvider}
-            disabled={!activeAgent}
+            disabled={!activeAgent || saving}
             className="text-muted-foreground hover:!bg-destructive/10 hover:!text-destructive"
           >
             <Trash2 className="h-4 w-4" />
@@ -384,10 +403,10 @@ const ApiKeysConfigComponent = () => {
           <Button
             type="button"
             onClick={saveProvider}
-            disabled={!canSave || !isDirty}
+            disabled={!canSave || !isDirty || saving}
             className="disabled:bg-secondary disabled:text-muted-foreground disabled:shadow-none"
           >
-            <Save className="h-4 w-4" />
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save
           </Button>
         </CardFooter>

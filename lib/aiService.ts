@@ -75,8 +75,8 @@ export class AIService {
 
     for await (const part of fullStream) {
       if (part.type === 'reasoning-delta') {
-        // 讯飞的 reasoning_content 会被映射为这个类型
-        options.onChunk?.(part.text)
+        // Reasoning is not user-visible structured content.
+        continue
       } else if (part.type === 'text-delta') {
         buffer += part.text
         options.onChunk?.(part.text)

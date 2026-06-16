@@ -35,8 +35,9 @@ test.describe('Vocabify selection + AI flow', () => {
 
   test('streaming shows incremental updates before final result', async () => {
     const page = await context.newPage()
+    let restoreStorage = async () => {}
     try {
-      await setupPage(page)
+      restoreStorage = await setupPage(page)
 
       await selectText(page, 'nuanced phrase')
       await clickQuery(page)
@@ -52,14 +53,16 @@ test.describe('Vocabify selection + AI flow', () => {
       await expect.poll(() => getPopoverField(page, 'saveBtnDisabled'), { timeout: 20_000 }).toBe(false)
       await expect.poll(async () => Math.abs(Number(await getPopoverField(page, 'width')) - Number(initialWidth)), { timeout: 5_000 }).toBeLessThanOrEqual(4)
     } finally {
+      await restoreStorage()
       await page.close().catch(() => undefined)
     }
   })
 
   test('popover edit mode inputs are focusable and editable', async () => {
     const page = await context.newPage()
+    let restoreStorage = async () => {}
     try {
-      await setupPage(page)
+      restoreStorage = await setupPage(page)
 
       await selectText(page, 'nuanced phrase')
       await clickQuery(page)
@@ -88,6 +91,7 @@ test.describe('Vocabify selection + AI flow', () => {
 
       expect(typed?.value).toBe('test edit')
     } finally {
+      await restoreStorage()
       await page.close().catch(() => undefined)
     }
   })
@@ -153,7 +157,7 @@ test.describe('Vocabify selection + AI flow', () => {
     await expect(page.locator('#target-paragraph')).toBeVisible()
     await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
     const extensionId = await getExtensionId(context)
-    await seedAiProvider(context, extensionId, mockBaseUrl)
+    return seedAiProvider(context, extensionId, mockBaseUrl)
   }
 
   async function clickQuery(page: Page) {
@@ -222,10 +226,12 @@ test.describe('Vocabify selection + AI flow', () => {
         })
 
         const chunks = [
-          chunk('{\n  "term": "nuanced phrase",\n  "phonetic": "/njuːˈɑːnst/",\n'),
-          chunk('  "pos": "phrase",\n  "senses": [\n    {\n'),
-          chunk('      "definition": "A subtle expression conveying detailed meaning",\n'),
-          chunk('      "example": "The diplomat used a nuanced phrase",\n'),
+          chunk('```json\n{\n  "term": "nuanced'),
+          chunk(' phrase",\n  "phonetic": "/njuːˈɑːnst/",\n'),
+          chunk('  "pos": "phrase",\n  "senses": [\n    {\n      "definition": "A subtle'),
+          chunk(' expression conveying detailed meaning",\n'),
+          chunk('      "example": "The diplomat used'),
+          chunk(' a nuanced phrase",\n'),
           chunk('      "exampleTranslation": "外交官使用了微妙的措辞"\n    }\n  ],\n'),
           chunk('  "mnemonic": "nuance (subtle) + phrase"\n}\n'),
           '{"id":"x","object":"chat.completion.chunk","created":0,"model":"m","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n',
@@ -265,6 +271,9 @@ async function getBrowserWsUrl(baseUrl: string) {
 async function seedAiProvider(context: BrowserContext, extensionId: string, baseUrl: string) {
   const page = await context.newPage()
   await page.goto(`chrome-extension://${extensionId}/options.html`)
+  const previous = await page.evaluate(() => {
+    return chrome.storage.local.get(['agents', 'targetLanguage'])
+  }) as { agents?: unknown; targetLanguage?: unknown }
   await page.evaluate((url) => {
     return chrome.storage.local.set({
       agents: [{
@@ -278,6 +287,30 @@ async function seedAiProvider(context: BrowserContext, extensionId: string, base
     })
   }, baseUrl)
   await page.close()
+
+  return async () => {
+    const restorePage = await context.newPage()
+    try {
+      await restorePage.goto(`chrome-extension://${extensionId}/options.html`)
+      await restorePage.evaluate((snapshot) => {
+        const updates: Record<string, unknown> = {}
+        const removals: string[] = []
+        for (const key of ['agents', 'targetLanguage'] as const) {
+          if (Object.prototype.hasOwnProperty.call(snapshot, key)) {
+            updates[key] = snapshot[key]
+          } else {
+            removals.push(key)
+          }
+        }
+        return Promise.all([
+          Object.keys(updates).length ? chrome.storage.local.set(updates) : Promise.resolve(),
+          removals.length ? chrome.storage.local.remove(removals) : Promise.resolve(),
+        ])
+      }, previous)
+    } finally {
+      await restorePage.close().catch(() => undefined)
+    }
+  }
 }
 
 async function getExtensionId(context: BrowserContext) {

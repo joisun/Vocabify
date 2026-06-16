@@ -93,7 +93,7 @@ components/              # Sheet (Wordlist-only), VocabList, shadcn/ui primitive
 lib/
   aiService.ts           # Vercel AI SDK provider switch + streaming
   aiSchema.ts            # Zod schema for structured AI output (VocabResponse)
-  partialJson.ts         # Tolerant incremental JSON parser
+  partialJson.ts         # Field-level streaming JSON parser + final repair path
   familiarity.ts         # 0-100 score engine, decay rules, mark deltas
   vocabifyDb.ts          # Dexie schema (v5, structured) + tombstone tracking
   highlightService.ts    # Custom Highlight API + <mark> fallback
