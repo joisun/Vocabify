@@ -132,7 +132,7 @@ export function VocabList() {
           placeholder="Search vocabulary"
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
-          className="h-8 pl-8 text-[12px]"
+          className="h-8 pl-8 text-[12px] focus-visible:ring-inset"
           aria-label="Search vocabulary"
         />
       </div>
@@ -165,7 +165,7 @@ export function VocabList() {
                   key={record.id}
                   className={cn(
                     'rounded-[8px] border border-border bg-card transition-colors animate-fade-in',
-                    'hover:bg-secondary/40 dark:border-white/8',
+                    'hover:bg-secondary/40 dark:border-white/[0.04]',
                     isExpanded && 'bg-secondary/40',
                   )}
                 >
@@ -290,7 +290,7 @@ export function VocabList() {
 const ListSkeleton = () => (
   <ul className="space-y-1.5" aria-label="Loading vocabulary">
     {Array.from({ length: 4 }).map((_, i) => (
-      <li key={i} className="rounded-[8px] border border-border bg-card p-3 dark:border-white/8">
+      <li key={i} className="rounded-[8px] border border-border bg-card p-3 dark:border-white/[0.04]">
         <div className="vocabify-skeleton-breathe h-3.5 w-1/3 rounded" />
         <div className="vocabify-skeleton-breathe mt-2 h-3 w-full rounded" />
         <div className="vocabify-skeleton-breathe mt-1.5 h-3 w-4/5 rounded" />
@@ -385,7 +385,7 @@ function GitHubSyncControl({ recordCount, onSynced }: { recordCount: number; onS
 
   return (
     <section
-      className="shrink-0 rounded-[8px] border border-border bg-card px-2.5 py-2 dark:border-white/8"
+      className="shrink-0 rounded-[8px] border border-border bg-card px-2.5 py-2 dark:border-white/[0.04]"
       data-testid="vocabify-github-sync"
       aria-label="GitHub vocabulary sync"
     >
@@ -443,7 +443,7 @@ function GitHubSyncControl({ recordCount, onSynced }: { recordCount: number; onS
       </div>
 
       {deviceFlow ? (
-        <div className="mt-2 rounded-[6px] border border-border bg-secondary px-2.5 py-2 text-[11px] leading-4 text-muted-foreground dark:border-white/8" data-testid="vocabify-github-device-flow">
+        <div className="mt-2 rounded-[6px] border border-border bg-secondary px-2.5 py-2 text-[11px] leading-4 text-muted-foreground dark:border-white/[0.04]" data-testid="vocabify-github-device-flow">
           <div className="flex items-center justify-between gap-2">
             <span>Enter this code on GitHub</span>
             <div className="flex items-center gap-0.5">
@@ -458,7 +458,7 @@ function GitHubSyncControl({ recordCount, onSynced }: { recordCount: number; onS
           <button
             type="button"
             onClick={copyCode}
-            className="mt-1 flex w-full items-center justify-between rounded-[4px] border border-border bg-card px-2 py-1.5 font-mono text-[14px] font-semibold tracking-[0.16em] text-foreground transition-colors hover:bg-secondary dark:border-white/8"
+            className="mt-1 flex w-full items-center justify-between rounded-[4px] border border-border bg-card px-2 py-1.5 font-mono text-[14px] font-semibold tracking-[0.16em] text-foreground transition-colors hover:bg-secondary dark:border-white/[0.04]"
             aria-label="Copy GitHub device code"
           >
             {deviceFlow.user_code}

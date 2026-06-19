@@ -18,7 +18,7 @@ import {
   type AIProviderId,
   type AiAgentApiKey,
 } from '@/typings/aiModelAdaptor'
-import { agentsStorage, getNormalizedAgents } from '@/utils/storage'
+import { agentsStorage, aiMaxRetries, getNormalizedAgents } from '@/utils/storage'
 import OptionSection from './OptionSection'
 
 type ModelFetchState = {
@@ -321,6 +321,7 @@ const ApiKeysConfigComponent = () => {
       id="providers"
       title="API provider"
     >
+      <AiBehaviorSettings />
       <Card className="border-border/50 shadow-none dark:border-white/[0.03]">
         <CardContent className="flex flex-col gap-4 p-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
@@ -413,6 +414,49 @@ const ApiKeysConfigComponent = () => {
       </Card>
 
     </OptionSection>
+  )
+}
+
+function AiBehaviorSettings() {
+  const [maxRetries, setMaxRetries] = useState('2')
+  const hydratedRef = useRef(false)
+
+  useEffect(() => {
+    aiMaxRetries.getValue().then((value) => {
+      setMaxRetries(String(value ?? 2))
+      hydratedRef.current = true
+    })
+  }, [])
+
+  function update(value: string) {
+    setMaxRetries(value)
+    if (!hydratedRef.current) return
+    aiMaxRetries.setValue(Number(value))
+  }
+
+  return (
+    <Card className="mb-3 border-border/50 shadow-none dark:border-white/[0.03]">
+      <CardContent className="flex items-center justify-between gap-4 p-4">
+        <div>
+          <Label className="text-[13px] font-medium">Automatic retry</Label>
+          <p className="text-[12px] text-muted-foreground">Retry failed lookups before showing an error.</p>
+        </div>
+        <div className="w-32">
+          <Select value={maxRetries} onValueChange={update}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[0, 1, 2, 3, 4, 5].map((value) => (
+                <SelectItem key={value} value={String(value)}>
+                  {value} {value === 1 ? 'retry' : 'retries'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

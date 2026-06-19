@@ -40,7 +40,7 @@ const sheetVariants = cva(
           "inset-x-3 bottom-3 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:inset-x-4 sm:bottom-4",
         left: "bottom-3 left-3 top-3 w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:bottom-4 sm:left-4 sm:top-4 sm:w-[min(340px,calc(100vw-2rem))]",
         right:
-          "right-3 top-[20vh] h-[min(60vh,640px)] max-h-[calc(100vh-24px)] w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:right-4 sm:w-[min(340px,calc(100vw-2rem))]",
+          "right-3 top-[12vh] h-[min(78vh,760px)] max-h-[calc(100vh-24px)] w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:right-4 sm:w-[min(340px,calc(100vw-2rem))]",
       },
     },
     defaultVariants: {
@@ -51,7 +51,9 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  frameClassName?: string
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
@@ -84,6 +86,7 @@ const SheetContentBody = React.forwardRef<
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  frameClassName,
   style,
   ...props
 }, ref) => {
@@ -167,15 +170,24 @@ const SheetContentBody = React.forwardRef<
       }}
       {...props}
     >
-      <VocabifyPanelFrame>{children}</VocabifyPanelFrame>
+      <VocabifyPanelFrame className={frameClassName}>{children}</VocabifyPanelFrame>
     </SheetPrimitive.Content>
   )
 })
 SheetContentBody.displayName = "SheetContentBody"
 
-function VocabifyPanelFrame({ children }: { children: React.ReactNode }) {
+function VocabifyPanelFrame({
+  children,
+  className,
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[12px] border border-border bg-popover text-popover-foreground dark:border-white/[0.04]">
+    <div className={cn(
+      "relative h-full min-h-0 w-full overflow-hidden rounded-[12px] border border-border bg-popover text-popover-foreground dark:border-white/[0.04]",
+      className,
+    )}>
       <div className="relative z-10 flex h-full min-h-0 flex-col">{children}</div>
     </div>
   )

@@ -25,8 +25,8 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - **Streamed AI explanations.** Powered by one active AI provider at a time: popular first-party providers plus OpenAI-compatible GLM / Kimi / custom endpoints.
 - **Familiarity scoring.** Every saved word carries a 0–100 score across four tiers — New, Learning, Familiar, Mastered — each with its own highlight color.
 - **Lazy spaced decay.** Scores decay over time, but only settle the moment a word is rendered or marked. No background timers, no battery cost.
-- **Unified selection popover.** Select a new word → operation bar (查询 / 复制 / 更多). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → the same card appears instantly with familiarity marks + inline edit / delete.
-- **In-page wordlist.** A side panel for reviewing saved words, opened from the popup or the popover's settings menu.
+- **Unified reading overlays.** Select a new word → operation bar (查询 / 复制). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → a virtual-anchor popover renders the same saved-word card with familiarity marks + inline edit / delete.
+- **In-page wordlist.** A side panel for reviewing saved words, opened directly from the toolbar icon or the popover's settings menu.
 - **GitHub sync.** Device-Flow OAuth into a private `__Vocabify_Data_Center__` repo. Tombstones travel with the records, so deletions propagate too.
 - **Local-first storage.** Dexie-backed IndexedDB; nothing leaves the browser unless you sync it.
 
@@ -43,7 +43,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - One active provider is used for AI lookup. There is no fallback chain or provider priority ordering.
 - Model suggestions load when the provider exposes `/models`; the model can always be typed manually.
 - Customizable JSON-only prompt template and target language. The default template instructs the AI to return strict JSON matching the Vocabify schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`).
-- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`) and abort support. A tolerant partial-JSON parser feeds the popover field-by-field as data arrives, while raw JSON and provider reasoning stay hidden from the user-facing card.
+- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`), abort support, and configurable automatic retry. A tolerant partial-JSON parser feeds the popover field-by-field as data arrives, while raw JSON and provider reasoning stay hidden from the user-facing card.
 
 ### Vocabulary management
 - In-page side sheet — Wordlist only (AI lookup lives in the selection popover now).
@@ -60,6 +60,8 @@ Built for serious readers, not gamified learners. The interface stays out of the
 ### Highlighting
 - Uses the CSS Custom Highlight API on modern Chromium / Safari and a `<mark>` fallback elsewhere.
 - Records are bucketed by tier so the same four-color visual language applies to both rendering paths.
+- Saved-word hover uses coordinate hit-testing for CSS Custom Highlight ranges because those highlights do not create DOM trigger elements.
+- Custom highlight decoration supports underline, background, or both, with 1–4 px underline thickness and configurable background opacity.
 - A debounced `MutationObserver` re-paints after SPA navigations.
 
 ### GitHub synchronization
@@ -70,6 +72,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 
 ### Customization
 - Highlight color, underline type (wavy / straight / dashed), thickness, offset, and inversion behavior.
+- Example translations can be always visible or hidden until hovering the eye reveal control.
 - Target language for explanations.
 - Single active AI provider, API key, base URL when needed, and model.
 - Light / dark theme.
@@ -86,9 +89,8 @@ WXT, React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Vercel AI SDK, Dexie, R
 ```
 entrypoints/
   background.ts          # GitHub Device Flow proxy + message routing
-  content/               # Selection popover + in-page sheet (Shadow DOM)
+  content/               # Selection popover, saved-word hover card, in-page sheet
   options/               # Provider, prompt, highlight, sync settings
-  popup/                 # Browser-action popup
 components/              # Sheet (Wordlist-only), VocabList, shadcn/ui primitives
 lib/
   aiService.ts           # Vercel AI SDK provider switch + streaming

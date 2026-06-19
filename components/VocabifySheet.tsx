@@ -13,6 +13,7 @@ export function VocabifySheet({ open, onOpenChange, children }: VocabifySheetPro
       <SheetContent
         side="right"
         className="flex flex-col gap-0 p-0"
+        frameClassName="bg-popover text-popover-foreground"
         data-testid="vocabify-sheet"
       >
         <div className="sr-only">

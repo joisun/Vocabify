@@ -9,7 +9,7 @@ export default defineConfig({
       default_title: "Click to open panel",
     },
     host_permissions: ["*://*/*"],
-    permissions: ["storage", "identity"],
+    permissions: ["storage", "identity", "scripting"],
   },
   dev: {
     server: {

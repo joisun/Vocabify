@@ -5,6 +5,11 @@ import { aiService } from '@/lib/aiService'
 export default defineBackground(() => {
   console.log('Vocabify background started', { id: browser.runtime.id })
 
+  chrome.action.onClicked.addListener((tab) => {
+    if (!tab.id) return
+    void openWordlistOnTab(tab)
+  })
+
   // Handle getting highlight style settings
   onMessage('getHighlightStyleSettings', async () => {
     return (await hightlightStyle.getValue()) || null
@@ -138,6 +143,9 @@ export default defineBackground(() => {
               onComplete: (value) => {
                 postToPort({ type: 'complete', value })
               },
+              onRetry: (attempt, maxRetries, error) => {
+                postToPort({ type: 'retry', attempt, maxRetries, error: error.message })
+              },
               onError: (error) => {
                 postToPort({ type: 'error', error: error.message })
               }
@@ -153,6 +161,40 @@ export default defineBackground(() => {
     }
   })
 })
+
+async function openWordlistOnTab(tab: chrome.tabs.Tab) {
+  if (!tab.id) return
+
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: 'openVocabList' })
+    return
+  } catch (error) {
+    if (!isMissingReceiverError(error) || !isInjectablePage(tab.url)) {
+      console.warn('Failed to open in-page wordlist from action click:', error)
+      return
+    }
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content-scripts/content.js'],
+    })
+    await chrome.tabs.sendMessage(tab.id, { type: 'openVocabList' })
+  } catch (error) {
+    console.warn('Failed to inject content script for in-page wordlist:', error)
+  }
+}
+
+function isMissingReceiverError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.includes('Receiving end does not exist')
+}
+
+function isInjectablePage(url?: string) {
+  if (!url) return false
+  return /^https?:\/\//.test(url)
+}
 
 function githubFetch(token: string, url: string, init: RequestInit = {}) {
   return fetch(url, {

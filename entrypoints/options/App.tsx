@@ -20,35 +20,42 @@ const NAV: Array<{ id: SectionId; label: string; icon: React.ComponentType<{ cla
 
 function App() {
   const [active, setActive] = React.useState<SectionId>('providers')
+  const scrollRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
     const onScroll = () => {
+      const scroller = scrollRef.current
+      if (!scroller) return
+      const scrollerTop = scroller.getBoundingClientRect().top
       const offsets = NAV.map((nav) => {
         const el = document.getElementById(nav.id)
         if (!el) return { id: nav.id, top: Number.POSITIVE_INFINITY }
-        return { id: nav.id, top: Math.abs(el.getBoundingClientRect().top - 80) }
+        return { id: nav.id, top: Math.abs(el.getBoundingClientRect().top - scrollerTop - 32) }
       })
       const next = offsets.reduce((closest, current) =>
         current.top < closest.top ? current : closest,
       )
       setActive(next.id)
     }
-    window.addEventListener('scroll', onScroll, { passive: true })
+    const scroller = scrollRef.current
+    scroller?.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => scroller?.removeEventListener('scroll', onScroll)
   }, [])
 
   function scrollTo(id: SectionId) {
     const el = document.getElementById(id)
-    if (!el) return
-    window.scrollTo({ top: el.offsetTop - 64, behavior: 'smooth' })
+    const scroller = scrollRef.current
+    if (!el || !scroller) return
+    const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 24
+    scroller.scrollTo({ top, behavior: 'smooth' })
   }
 
   return (
     <>
       <MockLoading />
-      <div className="min-h-screen bg-background text-foreground">
-        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur dark:border-white/[0.04]">
+      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <header className="z-30 shrink-0 border-b border-border bg-background/95 backdrop-blur dark:border-white/[0.04]">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
             <div className="leading-tight">
               <h1 className="font-display text-[14px] font-semibold tracking-tight">Vocabify</h1>
@@ -60,39 +67,41 @@ function App() {
           </div>
         </header>
 
-        <main className="mx-auto flex max-w-5xl gap-8 px-6 py-8 pb-32">
-          <aside className="sticky top-20 hidden h-max w-44 shrink-0 self-start md:block">
-            <nav className="flex flex-col gap-0.5">
-              {NAV.map((nav) => {
-                const Icon = nav.icon
-                const isActive = active === nav.id
-                return (
-                  <button
-                    key={nav.id}
-                    type="button"
-                    onClick={() => scrollTo(nav.id)}
-                    className={cn(
-                      'flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium transition-colors',
-                      isActive
-                        ? 'bg-secondary text-foreground'
-                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {nav.label}
-                  </button>
-                )
-              })}
-            </nav>
-          </aside>
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+          <main className="mx-auto flex max-w-5xl gap-8 px-6 py-8 pb-32">
+            <aside className="sticky top-6 hidden h-max w-44 shrink-0 self-start md:block">
+              <nav className="flex flex-col gap-0.5">
+                {NAV.map((nav) => {
+                  const Icon = nav.icon
+                  const isActive = active === nav.id
+                  return (
+                    <button
+                      key={nav.id}
+                      type="button"
+                      onClick={() => scrollTo(nav.id)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium transition-colors',
+                        isActive
+                          ? 'bg-secondary text-foreground'
+                          : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {nav.label}
+                    </button>
+                  )
+                })}
+              </nav>
+            </aside>
 
-          <div className="min-w-0 flex-1 space-y-5">
-            <ApiKeysConfigComponent />
-            <TargetLanguageSetting />
-            <PromptTemplate />
-            <UserInterfaceSettings />
-          </div>
-        </main>
+            <div className="min-w-0 flex-1 space-y-5">
+              <ApiKeysConfigComponent />
+              <TargetLanguageSetting />
+              <PromptTemplate />
+              <UserInterfaceSettings />
+            </div>
+          </main>
+        </div>
       </div>
     </>
   )

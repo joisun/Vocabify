@@ -8,6 +8,7 @@ export interface UseAIStreamResult {
   final: VocabResponse | null
   status: AIStreamStatus
   error: string | null
+  retryInfo: { attempt: number; maxRetries: number; error: string } | null
   hasReceivedChunk: boolean
   start: (text: string, sourceContext?: string) => void
   retry: () => void
@@ -25,6 +26,7 @@ export function useAIStream(): UseAIStreamResult {
   const [final, setFinal] = useState<VocabResponse | null>(null)
   const [status, setStatus] = useState<AIStreamStatus>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [retryInfo, setRetryInfo] = useState<{ attempt: number; maxRetries: number; error: string } | null>(null)
   const [hasReceivedChunk, setHasReceivedChunk] = useState(false)
 
   const portRef = useRef<chrome.runtime.Port | null>(null)
@@ -48,6 +50,7 @@ export function useAIStream(): UseAIStreamResult {
     setPartial({})
     setFinal(null)
     setError(null)
+    setRetryInfo(null)
     setStatus('loading')
     setHasReceivedChunk(false)
     lastRequestRef.current = { text, sourceContext }
@@ -64,16 +67,25 @@ export function useAIStream(): UseAIStreamResult {
         } else if (msg.type === 'chunk' && msg.chunk) {
           setHasReceivedChunk(true)
           setStatus('streaming')
+        } else if (msg.type === 'retry') {
+          setRetryInfo({
+            attempt: Number(msg.attempt) || 0,
+            maxRetries: Number(msg.maxRetries) || 0,
+            error: normalizeError(msg.error),
+          })
+          setStatus('loading')
         } else if (msg.type === 'complete' && msg.value) {
           settled = true
           setFinal(msg.value)
           setPartial(msg.value)
+          setRetryInfo(null)
           setStatus('success')
           cleanup()
         } else if (msg.type === 'error') {
           settled = true
           console.error('AI stream error:', msg.error)
           setError(normalizeError(msg.error))
+          setRetryInfo(null)
           setStatus('error')
           cleanup()
         }
@@ -105,7 +117,7 @@ export function useAIStream(): UseAIStreamResult {
     setStatus('idle')
   }, [cleanup])
 
-  return { partial, final, status, error, hasReceivedChunk, start, retry, abort }
+  return { partial, final, status, error, retryInfo, hasReceivedChunk, start, retry, abort }
 }
 
 function normalizeError(value: unknown) {

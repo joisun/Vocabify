@@ -70,8 +70,10 @@ Provider configuration follows the single-active-provider settings model:
 - Streaming renders field-level content (`term`, `definition`, `example`) from incomplete JSON chunks instead of exposing raw JSON or provider reasoning text.
 - The popover width remains stable while streamed fields arrive.
 - The save action remains disabled until a complete structured result is available.
+- Saved-word hover uses `[data-testid="vocabify-saved-hover-card"]` rather than the selection operation popover, remains open when the pointer moves from the highlighted word onto the card, and covers records that exist before the content UI initializes.
+- Failed AI lookup shows `[data-testid="vocabify-stream-error"]` with the provider error after configured automatic retries are exhausted.
 - Popover edit mode inputs remain focusable and editable inside ShadowRoot.
-- Theme changes through `vocabify-theme` propagate to the content script container.
+- Theme changes through `chrome.storage.local["vocabify-theme"]` propagate from Options to the content script container.
 - `[data-testid="vocabify-save-action"]` becomes enabled.
 - The My Wordlist tab exposes `[data-testid="vocabify-github-sync"]` and the GitHub connect action.
 

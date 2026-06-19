@@ -3,12 +3,22 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { hightlightStyle, recordPageSize } from '@/utils/storage'
+import { hightlightStyle, recordPageSize, translationRevealMode, type TranslationRevealMode } from '@/utils/storage'
 import { Minus, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { RgbaColorPicker } from 'react-colorful'
 import { toast } from 'sonner'
 import OptionSection from './OptionSection'
+
+type HighlightSettingsState = {
+  type: string
+  style: string
+  offset: string
+  thickness: string
+  color: { r: number; g: number; b: number; a: number }
+  backgroundOpacity: string
+  invertColor: boolean
+}
 
 export default function UserInterfaceSettings() {
   return (
@@ -18,8 +28,48 @@ export default function UserInterfaceSettings() {
       description="Personalise how saved words are highlighted on every page."
     >
       <PageSizeSetter />
+      <TranslationRevealSetter />
       <HighlightStyleSetter />
     </OptionSection>
+  )
+}
+
+const TranslationRevealSetter = () => {
+  const [mode, setMode] = useState<TranslationRevealMode>('hover')
+  const hydratedRef = useRef(false)
+
+  useEffect(() => {
+    translationRevealMode.getValue().then((value) => {
+      setMode(value)
+      hydratedRef.current = true
+    })
+  }, [])
+
+  function update(value: TranslationRevealMode) {
+    setMode(value)
+    if (hydratedRef.current) translationRevealMode.setValue(value)
+  }
+
+  return (
+    <div className="flex items-center justify-between border-b border-border pb-4 dark:border-white/[0.04]">
+      <div>
+        <Label className="text-[13px] font-medium">Example translation</Label>
+        <p className="text-[12px] text-muted-foreground">Control whether example translations are hidden during review.</p>
+      </div>
+      <div className="w-48">
+        <Select value={mode} onValueChange={(value) => update(value as TranslationRevealMode)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="hover">Hide until hover</SelectItem>
+              <SelectItem value="always">Always show</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
   )
 }
 
@@ -78,24 +128,20 @@ const PageSizeSetter = () => {
 const HighlightStyleSetter = () => {
   const hydratedRef = useRef(false)
   const userEditedRef = useRef(false)
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<HighlightSettingsState>({
     type: 'underline',
     style: 'solid',
     offset: '1',
     thickness: '1',
     color: { r: 91, g: 91, b: 248, a: 0.45 },
+    backgroundOpacity: '0.18',
     invertColor: false,
   })
-
-  const typeSet = {
-    underline: 'underline',
-    'under-over': 'underline overline',
-  }
 
   useEffect(() => {
     hightlightStyle.getValue().then((res) => {
       if (res) {
-        setSettings(res)
+        setSettings(normalizeHighlightSettings(res))
       }
       hydratedRef.current = true
     })
@@ -115,6 +161,9 @@ const HighlightStyleSetter = () => {
   }
 
   const decoColor = `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.color.a})`
+  const backgroundColor = `rgba(${settings.color.r}, ${settings.color.g}, ${settings.color.b}, ${settings.backgroundOpacity})`
+  const hasUnderline = settings.type === 'underline' || settings.type === 'underline-background'
+  const hasBackground = settings.type === 'background' || settings.type === 'underline-background'
 
   return (
     <div className="space-y-4">
@@ -127,12 +176,12 @@ const HighlightStyleSetter = () => {
             color: settings.invertColor
               ? `rgba(${255 - settings.color.r}, ${255 - settings.color.g}, ${255 - settings.color.b})`
               : undefined,
-            textDecorationLine: settings.type !== 'background' ? typeSet[settings.type as keyof typeof typeSet] : undefined,
-            textDecorationColor: settings.type !== 'background' ? decoColor : undefined,
-            textDecorationStyle: settings.type !== 'background' ? (settings.style as any) : undefined,
-            textDecorationThickness: settings.type !== 'background' ? `${settings.thickness}px` : undefined,
-            textUnderlineOffset: settings.type !== 'background' ? `${settings.offset}px` : undefined,
-            backgroundColor: settings.type === 'background' ? decoColor : undefined,
+            textDecorationLine: hasUnderline ? 'underline' : undefined,
+            textDecorationColor: hasUnderline ? decoColor : undefined,
+            textDecorationStyle: hasUnderline ? (settings.style as any) : undefined,
+            textDecorationThickness: hasUnderline ? `${settings.thickness}px` : undefined,
+            textUnderlineOffset: hasUnderline ? `${settings.offset}px` : undefined,
+            backgroundColor: hasBackground ? backgroundColor : undefined,
           }}
         >
           <span className="font-display text-base font-semibold tracking-tight">Vocabulary</span>{' '}
@@ -147,14 +196,14 @@ const HighlightStyleSetter = () => {
             <SelectContent>
               <SelectGroup>
                 <SelectItem value="underline">Underline</SelectItem>
-                <SelectItem value="under-over">Under + Over line</SelectItem>
                 <SelectItem value="background">Background</SelectItem>
+                <SelectItem value="underline-background">Underline + Background</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
         </FieldRow>
 
-        {settings.type !== 'background' && (
+        {hasUnderline && (
           <FieldRow label="Line style">
             <Select onValueChange={(v) => updateSettings({ style: v })} value={settings.style}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -171,7 +220,7 @@ const HighlightStyleSetter = () => {
           </FieldRow>
         )}
 
-        {settings.type !== 'background' && (
+        {hasUnderline && (
           <FieldRow label="Offset">
             <Select onValueChange={(v) => updateSettings({ offset: v })} value={settings.offset}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -188,7 +237,7 @@ const HighlightStyleSetter = () => {
           </FieldRow>
         )}
 
-        {settings.type !== 'background' && (
+        {hasUnderline && (
           <FieldRow label="Thickness">
             <Select onValueChange={(v) => updateSettings({ thickness: v })} value={settings.thickness}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -196,8 +245,25 @@ const HighlightStyleSetter = () => {
                 <SelectGroup>
                   <SelectItem value="1">1 px</SelectItem>
                   <SelectItem value="2">2 px</SelectItem>
+                  <SelectItem value="3">3 px</SelectItem>
                   <SelectItem value="4">4 px</SelectItem>
-                  <SelectItem value="8">8 px</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldRow>
+        )}
+
+        {hasBackground && (
+          <FieldRow label="Background opacity">
+            <Select onValueChange={(v) => updateSettings({ backgroundOpacity: v })} value={settings.backgroundOpacity}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="0.08">8%</SelectItem>
+                  <SelectItem value="0.12">12%</SelectItem>
+                  <SelectItem value="0.18">18%</SelectItem>
+                  <SelectItem value="0.24">24%</SelectItem>
+                  <SelectItem value="0.32">32%</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -249,3 +315,20 @@ const FieldRow = ({ label, children }: { label: string; children: React.ReactNod
     {children}
   </div>
 )
+
+function normalizeHighlightSettings(value: Partial<HighlightSettingsState>): HighlightSettingsState {
+  const legacyType = value.type === 'under-over' ? 'underline' : value.type
+  const type = ['underline', 'background', 'underline-background'].includes(String(legacyType))
+    ? String(legacyType)
+    : 'underline'
+  const thickness = ['1', '2', '3', '4'].includes(String(value.thickness)) ? String(value.thickness) : '2'
+  return {
+    type,
+    style: value.style || 'solid',
+    offset: value.offset || '1',
+    thickness,
+    color: value.color || { r: 91, g: 91, b: 248, a: 0.45 },
+    backgroundOpacity: value.backgroundOpacity || '0.18',
+    invertColor: !!value.invertColor,
+  }
+}

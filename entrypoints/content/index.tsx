@@ -2,6 +2,7 @@ import '@/assets/global.css'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import {
+  SavedWordPopover,
   SelectionPopover,
   type EditableFields,
   type PopoverMode,
@@ -25,12 +26,15 @@ import { FAMILIARITY_LEVELS, getLevel, MARK_DELTA, type MarkAction } from '@/lib
 import { NO_SELECTION_CONTAINER } from '@/const'
 import { checkIsDisabled, copyHandler } from './utils'
 import { useAIStream } from './useAIStream'
-import { THEME_STORAGE_KEY, resolveEffectiveTheme } from '@/lib/theme'
+import { THEME_STORAGE_KEY, resolveStoredEffectiveTheme } from '@/lib/theme'
 
-function applyThemeClass(target: HTMLElement) {
-  const effective = resolveEffectiveTheme()
-  target.classList.toggle('dark', effective === 'dark')
-  target.classList.toggle('light', effective === 'light')
+async function applyThemeClass(...targets: Array<HTMLElement | null>) {
+  const effective = await resolveStoredEffectiveTheme()
+  for (const target of targets) {
+    if (!target) continue
+    target.classList.toggle('dark', effective === 'dark')
+    target.classList.toggle('light', effective === 'light')
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,28 +47,128 @@ type PopoverState = {
   recordId?: number
 }
 
+type HoverState = {
+  rect: SelectionRect
+  recordId: number
+}
+
+// Mirrors HoverCard closeDelay behavior for virtual anchors; without a real
+// trigger/content pair, this grace window lets the pointer cross the gap.
+const HOVER_CLOSE_DELAY_MS = 300
+const HOVER_SAFE_AREA_PADDING = 12
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   cssInjectionMode: 'ui',
 
   async main(ctx) {
     let setPopoverStateFn: ((s: PopoverState | null) => void) | null = null
+    let closeSavedHoverFn: (() => void) | null = null
     let portalContainer: HTMLElement | null = null
 
     function InPageUIRoot() {
       const [open, setOpen] = useState(false)
       const [popoverState, setPopoverState] = useState<PopoverState | null>(null)
+      const [hoverState, setHoverState] = useState<HoverState | null>(null)
       const [savedRecord, setSavedRecord] = useState<VocabRecord | null>(null)
+      const [hoverRecord, setHoverRecord] = useState<VocabRecord | null>(null)
       const [saving, setSaving] = useState(false)
+      const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+      const hoverContentLockedRef = useRef(false)
+      const hoverContentRectRef = useRef<SelectionRect | null>(null)
+      const pointerRef = useRef({ x: 0, y: 0 })
       const aiStream = useAIStream()
+
+      function clearHoverCloseTimer() {
+        if (!hoverCloseTimerRef.current) return
+        clearTimeout(hoverCloseTimerRef.current)
+        hoverCloseTimerRef.current = null
+      }
+
+      function closeHoverPopover() {
+        clearHoverCloseTimer()
+        hoverContentLockedRef.current = false
+        hoverContentRectRef.current = null
+        setHoverState(null)
+      }
+
+      function scheduleHoverClose() {
+        clearHoverCloseTimer()
+        hoverCloseTimerRef.current = setTimeout(() => {
+          hoverCloseTimerRef.current = null
+          if (hoverContentLockedRef.current) return
+          setHoverState((current) => {
+            if (!current) return null
+            if (isPointInHoverSafeArea(pointerRef.current, current.rect, hoverContentRectRef.current)) {
+              scheduleHoverClose()
+              return current
+            }
+            return null
+          })
+        }, HOVER_CLOSE_DELAY_MS)
+      }
+
+      function openHoverPopover(hit: HoverEvent) {
+        clearHoverCloseTimer()
+        hoverContentLockedRef.current = false
+        hoverContentRectRef.current = null
+        setPopoverState(null)
+        setHoverState({ rect: hit.rect, recordId: hit.recordId })
+      }
 
       // Expose setter for DOM listeners
       useEffect(() => {
         setPopoverStateFn = setPopoverState
-        return () => { setPopoverStateFn = null }
+        closeSavedHoverFn = closeHoverPopover
+        return () => {
+          setPopoverStateFn = null
+          closeSavedHoverFn = null
+        }
       }, [])
 
-      // Load saved record when popover targets one
+      useEffect(() => {
+        let cancelled = false
+        let debounceTimer: ReturnType<typeof setTimeout> | undefined
+
+        const refreshHighlights = async () => {
+          await highlightService.highlightVocabulary()
+        }
+
+        void refreshHighlights()
+
+        const observer = highlightService.observeChanges(() => {
+          if (debounceTimer) clearTimeout(debounceTimer)
+          debounceTimer = setTimeout(() => {
+            void refreshHighlights()
+          }, 500)
+        })
+
+        highlightService.setHoverListener((hit) => {
+          if (cancelled) return
+          if (hit) {
+            openHoverPopover(hit)
+          } else {
+            scheduleHoverClose()
+          }
+        })
+
+        const handleStorageChange = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+          if (areaName !== 'local') return
+          if (changes.hightlightStyle) void refreshHighlights()
+        }
+        chrome.storage.onChanged.addListener(handleStorageChange)
+
+        return () => {
+          cancelled = true
+          if (debounceTimer) clearTimeout(debounceTimer)
+          observer.disconnect()
+          clearHoverCloseTimer()
+          highlightService.setHoverListener(null)
+          chrome.storage.onChanged.removeListener(handleStorageChange)
+        }
+      }, [])
+
+      // Load saved record when the selected popover targets one.
       useEffect(() => {
         let cancelled = false
         if (popoverState?.recordId != null) {
@@ -79,6 +183,23 @@ export default defineContentScript({
         return () => { cancelled = true }
       }, [popoverState?.recordId])
 
+      // Load saved record for hover preview separately so hover never mutates
+      // the selection popover's state machine.
+      useEffect(() => {
+        let cancelled = false
+        if (hoverState?.recordId != null) {
+          setHoverRecord(null)
+          db.records.get(hoverState.recordId).then(async (r) => {
+            if (cancelled || !r) return
+            const settled = await settleAndPersistDecay(r)
+            setHoverRecord(settled)
+          })
+        } else {
+          setHoverRecord(null)
+        }
+        return () => { cancelled = true }
+      }, [hoverState?.recordId])
+
       useEffect(() => {
         const handler = (msg: any) => {
           if (msg.type === 'openVocabList') setOpen(true)
@@ -87,12 +208,27 @@ export default defineContentScript({
         return () => chrome.runtime.onMessage.removeListener(handler)
       }, [])
 
+      useEffect(() => {
+        const handlePointerMove = (event: PointerEvent) => {
+          pointerRef.current = { x: event.clientX, y: event.clientY }
+        }
+        document.addEventListener('pointermove', handlePointerMove, { passive: true })
+        return () => document.removeEventListener('pointermove', handlePointerMove)
+      }, [])
+
       const cardRecord: Partial<VocabResponse> | VocabRecord | undefined = useMemo(() => {
         if (popoverState?.recordId != null && savedRecord) return savedRecord
         return aiStream.partial
       }, [popoverState?.recordId, savedRecord, aiStream.partial])
 
-      function dismiss() { setPopoverState(null) }
+      function dismiss() {
+        setPopoverState(null)
+        closeHoverPopover()
+      }
+
+      function dismissSelection() { setPopoverState(null) }
+
+      function dismissSavedHover() { closeHoverPopover() }
 
       function handleQuery() {
         if (!popoverState?.selectionText) return
@@ -109,6 +245,15 @@ export default defineContentScript({
       function handleSpeak() {
         const text = savedRecord?.term || cardRecord?.term || popoverState?.selectionText
         if (!text) return
+        speakText(text)
+      }
+
+      function handleHoverSpeak() {
+        if (!hoverRecord?.term) return
+        speakText(hoverRecord.term)
+      }
+
+      function speakText(text: string) {
         try {
           const u = new SpeechSynthesisUtterance(text)
           window.speechSynthesis.cancel()
@@ -146,10 +291,27 @@ export default defineContentScript({
         await highlightService.highlightVocabulary()
       }
 
+      async function handleHoverMark(action: MarkAction) {
+        if (!hoverRecord?.id) return
+        const next = await markRecord(hoverRecord.id, action)
+        if (!next) return
+        setHoverRecord(next)
+        const level = getLevel(next.score)
+        showMarkToast(`${FAMILIARITY_LEVELS[level].label} · ${next.score}`, formatDelta(MARK_DELTA[action]))
+        await highlightService.highlightVocabulary()
+      }
+
       async function handleDelete() {
         if (!savedRecord?.id) return
         await deleteRecordById(savedRecord.id)
         dismiss()
+        await highlightService.highlightVocabulary()
+      }
+
+      async function handleHoverDelete() {
+        if (!hoverRecord?.id) return
+        await deleteRecordById(hoverRecord.id)
+        dismissSavedHover()
         await highlightService.highlightVocabulary()
       }
 
@@ -196,13 +358,14 @@ export default defineContentScript({
             rect={popoverState?.rect ?? null}
             mode={popoverState?.mode ?? 'operation-bar'}
             portalContainer={portalContainer}
-            onDismiss={dismiss}
+            onDismiss={dismissSelection}
             selectionText={popoverState?.selectionText}
             onQuery={handleQuery}
             onCopy={handleCopy}
             record={cardRecord}
             streaming={aiStream.status === 'loading' || aiStream.status === 'streaming'}
             errorMessage={aiStream.status === 'error' ? aiStream.error : null}
+            retryInfo={aiStream.retryInfo}
             savedRecord={savedRecord}
             onSave={handleSave}
             onMark={handleMark}
@@ -215,6 +378,35 @@ export default defineContentScript({
             saving={saving}
             hasReceivedChunk={aiStream.hasReceivedChunk}
           />
+          {hoverState && hoverRecord && (
+            <SavedWordPopover
+              open
+              rect={hoverState.rect}
+              portalContainer={portalContainer}
+              record={hoverRecord}
+              savedRecord={hoverRecord}
+              onPointerEnter={() => {
+                hoverContentLockedRef.current = true
+                clearHoverCloseTimer()
+              }}
+              onPointerLeave={() => {
+                hoverContentLockedRef.current = false
+                scheduleHoverClose()
+              }}
+              onContentRectChange={(rect) => {
+                hoverContentRectRef.current = rect
+              }}
+              onMark={handleHoverMark}
+              onEnterEdit={() => {
+                setPopoverState({ rect: hoverState.rect, mode: 'edit', recordId: hoverState.recordId })
+                setSavedRecord(hoverRecord)
+                closeHoverPopover()
+              }}
+              onDelete={handleHoverDelete}
+              onSpeak={handleHoverSpeak}
+              onDismiss={dismissSavedHover}
+            />
+          )}
         </>
       )
     }
@@ -236,14 +428,25 @@ export default defineContentScript({
         })
         container.style.pointerEvents = 'auto'
 
-        applyThemeClass(container)
+        const syncTheme = () => {
+          void applyThemeClass(container, portalContainer)
+        }
+        syncTheme()
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        const onMediaChange = () => applyThemeClass(container)
+        const onMediaChange = syncTheme
         const onStorage = (event: StorageEvent) => {
-          if (event.key === THEME_STORAGE_KEY) applyThemeClass(container)
+          if (event.key === THEME_STORAGE_KEY) {
+            syncTheme()
+          }
+        }
+        const onChromeStorage = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+          if (areaName === 'local' && changes[THEME_STORAGE_KEY]) {
+            syncTheme()
+          }
         }
         mediaQuery.addEventListener('change', onMediaChange)
         window.addEventListener('storage', onStorage)
+        chrome.storage.onChanged.addListener(onChromeStorage)
 
         const reactMount = document.createElement('div')
         reactMount.id = 'vocabify-react-root'
@@ -253,15 +456,17 @@ export default defineContentScript({
         portalContainer.id = 'vocabify-portal-root'
         portalContainer.style.pointerEvents = 'auto'
         shadow.appendChild(portalContainer)
+        syncTheme()
 
         const root = ReactDOM.createRoot(reactMount)
         root.render(<InPageUIRoot />)
-        return { root, mediaQuery, onMediaChange, onStorage }
+        return { root, mediaQuery, onMediaChange, onStorage, onChromeStorage }
       },
       onRemove: (state) => {
         if (!state) return
         state.mediaQuery.removeEventListener('change', state.onMediaChange)
         window.removeEventListener('storage', state.onStorage)
+        chrome.storage.onChanged.removeListener(state.onChromeStorage)
         state.root.unmount()
       },
     })
@@ -274,10 +479,14 @@ export default defineContentScript({
       const target = event.target as HTMLElement | null
       if (target?.closest?.(`.${NO_SELECTION_CONTAINER}`)) return
       setPopoverStateFn?.(null)
+      closeSavedHoverFn?.()
     })
 
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') setPopoverStateFn?.(null)
+      if (event.key === 'Escape') {
+        setPopoverStateFn?.(null)
+        closeSavedHoverFn?.()
+      }
     })
 
     document.addEventListener('mouseup', async function (event) {
@@ -285,6 +494,7 @@ export default defineContentScript({
       const target = event.target
       if (checkIsDisabled(target)) return
       if (!(target instanceof HTMLElement)) return
+      if (target.closest('.vocabify-highlight')) return
       if (target.nodeName === 'INPUT' || target.nodeName === 'TEXTAREA') return
       if (target.isContentEditable) return
 
@@ -301,6 +511,7 @@ export default defineContentScript({
 
       const rect = getSelectionRect(range)
       if (!rect) return
+      if (!eventPointIntersectsSelection(event, range)) return
 
       const savedId = await lookupSavedRecordId(selectedText)
       if (savedId != null) {
@@ -312,23 +523,6 @@ export default defineContentScript({
       setPopoverStateFn?.({ rect, mode: 'operation-bar', selectionText: selectedText, sourceContext })
     })
 
-    // ── Highlight saved vocabulary ──────────────────────────────────────────
-    await highlightService.highlightVocabulary()
-
-    let debounceTimer: ReturnType<typeof setTimeout>
-    highlightService.observeChanges(() => {
-      clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(() => highlightService.highlightVocabulary(), 500)
-    })
-
-    // ── Hover on highlighted words ─────────────────────────────────────────
-    highlightService.setHoverListener((hit: HoverEvent | null) => {
-      if (!hit) {
-        setPopoverStateFn?.(null)
-        return
-      }
-      setPopoverStateFn?.({ rect: hit.rect, mode: 'card', recordId: hit.recordId })
-    })
   },
 })
 
@@ -346,6 +540,38 @@ function getSelectionRect(range: Range): SelectionRect | null {
   const rect = rects[rects.length - 1] || range.getBoundingClientRect()
   if (!rect || rect.width <= 0 || rect.height <= 0) return null
   return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height }
+}
+
+function eventPointIntersectsSelection(event: MouseEvent, range: Range): boolean {
+  const x = event.clientX
+  const y = event.clientY
+  if (x === 0 && y === 0) return false
+
+  const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0)
+  return rects.some((rect) =>
+    x >= rect.left
+    && x <= rect.right
+    && y >= rect.top
+    && y <= rect.bottom,
+  )
+}
+
+function isPointInHoverSafeArea(
+  point: { x: number; y: number },
+  anchorRect: SelectionRect,
+  contentRect: SelectionRect | null,
+): boolean {
+  if (!contentRect) return false
+
+  const left = Math.min(anchorRect.left, contentRect.left) - HOVER_SAFE_AREA_PADDING
+  const right = Math.max(anchorRect.right, contentRect.right) + HOVER_SAFE_AREA_PADDING
+  const top = Math.min(anchorRect.top, contentRect.top) - HOVER_SAFE_AREA_PADDING
+  const bottom = Math.max(anchorRect.bottom, contentRect.bottom) + HOVER_SAFE_AREA_PADDING
+
+  return point.x >= left
+    && point.x <= right
+    && point.y >= top
+    && point.y <= bottom
 }
 
 function extractSourceContext(range: Range): string {

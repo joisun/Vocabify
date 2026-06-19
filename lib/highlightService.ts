@@ -1,5 +1,6 @@
 import { db, settleAndPersistDecay, type VocabRecord } from '@/lib/vocabifyDb'
 import { getLevel, levelClassSuffix, type FamiliarityLevel } from '@/lib/familiarity'
+import { hightlightStyle, type highlightStyleSettingsType } from '@/utils/storage'
 
 const LEVELS: FamiliarityLevel[] = ['NEW', 'LEARNING', 'FAMILIAR', 'MASTERED']
 
@@ -10,33 +11,12 @@ const VOCABIFY_HIGHLIGHT_STYLE_ID = 'vocabify-highlight-styles'
  * `assets/global.css` so the in-page highlights paint correctly even though
  * the rest of the extension UI lives in a Shadow DOM.
  */
-const HIGHLIGHT_STYLES = `
-::highlight(vocab-new),
-.vocabify-highlight.vocabify-level-new {
-  background-color: hsl(142 71% 45% / 0.18);
-  color: inherit;
+const LEVEL_FALLBACK_COLORS: Record<FamiliarityLevel, { r: number; g: number; b: number; a: number }> = {
+  NEW: { r: 34, g: 197, b: 94, a: 0.18 },
+  LEARNING: { r: 249, g: 115, b: 22, a: 0.22 },
+  FAMILIAR: { r: 59, g: 130, b: 246, a: 0.18 },
+  MASTERED: { r: 168, g: 85, b: 247, a: 0.10 },
 }
-::highlight(vocab-learning),
-.vocabify-highlight.vocabify-level-learning {
-  background-color: hsl(28 100% 50% / 0.22);
-  color: inherit;
-}
-::highlight(vocab-familiar),
-.vocabify-highlight.vocabify-level-familiar {
-  background-color: hsl(211 100% 50% / 0.18);
-  color: inherit;
-}
-::highlight(vocab-mastered),
-.vocabify-highlight.vocabify-level-mastered {
-  background-color: hsl(270 60% 60% / 0.10);
-  color: inherit;
-}
-.vocabify-highlight {
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background-color 160ms ease;
-}
-`
 
 export type HoverRect = {
   top: number
@@ -64,15 +44,15 @@ export type HoverListener = (event: HoverEvent | null) => void
  *   - CSS Custom Highlight API (modern Chromium / Safari)  →  ::highlight(vocab-<level>)
  *   - <mark class="vocabify-highlight vocabify-level-<level>"> (everything else)
  *
- * Both feed a Monica-style hover detector — DOM marks bind delegated mouseover,
- * the highlight-API path uses caretPositionFromPoint coordinate hit-testing.
+ * Both feed the saved-word hover detector. DOM marks bind delegated mouseover;
+ * the CSS Highlight path has no DOM trigger, so it uses coordinate hit-testing.
  * Decay is settled lazily right before each pass so colors always reflect the
  * up-to-date score, no background timer required.
  */
 export class HighlightService {
   private highlights: Map<string, Highlight> = new Map()
   private supportsCustomHighlight: boolean = false
-  private styleInjected = false
+  private styleElement: HTMLStyleElement | null = null
 
   // Hover detection state
   private records: VocabRecord[] = []
@@ -89,7 +69,7 @@ export class HighlightService {
   }
 
   async highlightVocabulary() {
-    this.ensureStylesInjected()
+    await this.ensureStylesInjected()
     const rawRecords = await db.records.toArray()
     const records = await Promise.all(rawRecords.map((record) => settleAndPersistDecay(record)))
     this.records = records
@@ -123,21 +103,16 @@ export class HighlightService {
    * but the marks we paint live on the host document and can't see those styles. The CSS Custom
    * Highlight API also needs `::highlight(...)` selectors registered on the host stylesheet.
    */
-  private ensureStylesInjected() {
-    if (this.styleInjected) return
+  private async ensureStylesInjected() {
     if (typeof document === 'undefined') return
 
-    const existing = document.getElementById(VOCABIFY_HIGHLIGHT_STYLE_ID)
-    if (existing) {
-      this.styleInjected = true
-      return
+    const style = this.styleElement || document.getElementById(VOCABIFY_HIGHLIGHT_STYLE_ID) as HTMLStyleElement | null
+    this.styleElement = style || document.createElement('style')
+    this.styleElement.id = VOCABIFY_HIGHLIGHT_STYLE_ID
+    this.styleElement.textContent = buildHighlightStyles(await hightlightStyle.getValue())
+    if (!this.styleElement.isConnected) {
+      document.head.appendChild(this.styleElement)
     }
-
-    const style = document.createElement('style')
-    style.id = VOCABIFY_HIGHLIGHT_STYLE_ID
-    style.textContent = HIGHLIGHT_STYLES
-    document.head.appendChild(style)
-    this.styleInjected = true
   }
 
   private highlightWithCustomAPI(records: VocabRecord[]) {
@@ -425,6 +400,57 @@ function rangeContainsPoint(range: Range, node: Node, offset: number): boolean {
   } catch {
     return false
   }
+}
+
+function buildHighlightStyles(settings: highlightStyleSettingsType) {
+  const normalized = normalizeHighlightSettings(settings)
+  return LEVELS.map((level) => {
+    const suffix = levelClassSuffix(level)
+    const color = normalized.useCustomColor ? normalized.color : LEVEL_FALLBACK_COLORS[level]
+    const decorationColor = rgba(color, color.a)
+    const backgroundColor = rgba(color, normalized.backgroundOpacity)
+    const declarations = [
+      'color: inherit',
+      normalized.hasBackground ? `background-color: ${backgroundColor}` : 'background-color: transparent',
+      normalized.hasUnderline ? `text-decoration-line: underline` : 'text-decoration-line: none',
+      normalized.hasUnderline ? `text-decoration-color: ${decorationColor}` : '',
+      normalized.hasUnderline ? `text-decoration-style: ${normalized.style}` : '',
+      normalized.hasUnderline ? `text-decoration-thickness: ${normalized.thickness}px` : '',
+      normalized.hasUnderline ? `text-underline-offset: ${normalized.offset}px` : '',
+    ].filter(Boolean).join(';\n  ')
+
+    return `::highlight(vocab-${suffix}),
+.vocabify-highlight.vocabify-level-${suffix} {
+  ${declarations};
+}
+`
+  }).join('\n') + `
+.vocabify-highlight {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 160ms ease;
+}
+`
+}
+
+function normalizeHighlightSettings(settings: highlightStyleSettingsType) {
+  const type = settings.type === 'under-over' ? 'underline' : settings.type
+  const hasUnderline = type === 'underline' || type === 'underline-background'
+  const hasBackground = type === 'background' || type === 'underline-background'
+  return {
+    hasUnderline,
+    hasBackground,
+    style: settings.style || 'solid',
+    thickness: ['1', '2', '3', '4'].includes(settings.thickness) ? settings.thickness : '2',
+    offset: settings.offset || '1',
+    color: settings.color,
+    backgroundOpacity: Number(settings.backgroundOpacity || settings.color.a || 0.18),
+    useCustomColor: true,
+  }
+}
+
+function rgba(color: { r: number; g: number; b: number; a: number }, alpha: number) {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`
 }
 
 export const highlightService = new HighlightService()

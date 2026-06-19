@@ -14,6 +14,7 @@ test.describe('Vocabify selection + AI flow', () => {
   let server: http.Server | undefined
   let pageUrl: string
   let mockBaseUrl: string
+  let failingBaseUrl: string
   let browser: Browser
   let context: BrowserContext
 
@@ -21,6 +22,7 @@ test.describe('Vocabify selection + AI flow', () => {
     const fixture = await startFixtureServer()
     pageUrl = fixture.pageUrl
     mockBaseUrl = fixture.mockBaseUrl
+    failingBaseUrl = fixture.failingBaseUrl
     browser = await chromium.connectOverCDP(await getBrowserWsUrl(devtoolsUrl))
     context = browser.contexts()[0]
     if (!context) throw new Error(`No browser context at ${devtoolsUrl}. Run pnpm dev first.`)
@@ -96,6 +98,67 @@ test.describe('Vocabify selection + AI flow', () => {
     }
   })
 
+  test('saved word hover shows preview and remains open when moving onto it', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page)
+
+      await selectText(page, 'nuanced phrase')
+      await clickQuery(page)
+      await waitForAiComplete(page)
+      await clickInShadow(page, '[data-testid="vocabify-save-action"]')
+      await expect.poll(() => getSavedHighlightRect(page), { timeout: 10_000 }).not.toBeNull()
+
+      const rect = await getSavedHighlightRect(page)
+      expect(rect).not.toBeNull()
+      await page.mouse.move(rect!.left + rect!.width / 2, rect!.top + rect!.height / 2)
+
+      await expect.poll(() => getShadowField(page, 'savedHoverVisible'), { timeout: 5_000 }).toBe(true)
+      await expect.poll(() => getShadowField(page, 'operationBarVisible'), { timeout: 1_000 }).toBe(false)
+
+      const hoverRect = await getShadowField(page, 'savedHoverRect') as { left: number; top: number; width: number; height: number } | null
+      expect(hoverRect).not.toBeNull()
+      const gapPoint = getPointBetweenRects(rect!, hoverRect!)
+      await page.mouse.move(gapPoint.x, gapPoint.y)
+      await page.waitForTimeout(420)
+      await expect.poll(() => getShadowField(page, 'savedHoverVisible'), { timeout: 1_000 }).toBe(true)
+
+      await page.mouse.move(hoverRect!.left + hoverRect!.width / 2, hoverRect!.top + hoverRect!.height / 2, { steps: 12 })
+      await page.waitForTimeout(120)
+
+      await expect.poll(() => getShadowField(page, 'savedHoverVisible'), { timeout: 2_000 }).toBe(true)
+      await expect.poll(() => getShadowField(page, 'operationBarVisible'), { timeout: 1_000 }).toBe(false)
+      await page.mouse.move(4, 4)
+      await expect.poll(() => getShadowField(page, 'savedHoverVisible'), { timeout: 2_000 }).toBe(false)
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
+  test('saved word hover works for records that exist before content UI initializes', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page)
+      await seedSavedRecordBeforeReload(page)
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
+      await expect.poll(() => getSavedHighlightRect(page), { timeout: 10_000 }).not.toBeNull()
+
+      const rect = await getSavedHighlightRect(page)
+      expect(rect).not.toBeNull()
+      await page.mouse.move(rect!.left + rect!.width / 2, rect!.top + rect!.height / 2)
+
+      await expect.poll(() => getShadowField(page, 'savedHoverVisible'), { timeout: 5_000 }).toBe(true)
+      await expect.poll(() => getShadowField(page, 'operationBarVisible'), { timeout: 1_000 }).toBe(false)
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
   test('theme syncs from options to content script', async () => {
     const extensionId = await getExtensionId(context)
     const page = await context.newPage()
@@ -103,11 +166,8 @@ test.describe('Vocabify selection + AI flow', () => {
       await page.goto(pageUrl)
       await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
 
-      // Set dark theme via localStorage (simulating options page change)
-      await page.evaluate(() => {
-        localStorage.setItem('vocabify-theme', 'dark')
-        window.dispatchEvent(new StorageEvent('storage', { key: 'vocabify-theme', newValue: 'dark' }))
-      })
+      // Set dark theme via extension storage, matching the options page data path.
+      await setExtensionStorage(context, extensionId, { 'vocabify-theme': 'dark' })
       await page.waitForTimeout(300)
 
       const containerClass = await page.evaluate(() => {
@@ -117,12 +177,13 @@ test.describe('Vocabify selection + AI flow', () => {
         return container?.className
       })
       expect(containerClass).toContain('dark')
+      await expect.poll(() => getShadowField(page, 'portalClass'), { timeout: 3_000 }).toContain('dark')
 
-      // Switch to light
-      await page.evaluate(() => {
-        localStorage.setItem('vocabify-theme', 'light')
-        window.dispatchEvent(new StorageEvent('storage', { key: 'vocabify-theme', newValue: 'light' }))
-      })
+      await selectText(page, 'nuanced phrase')
+      await expect.poll(() => getShadowField(page, 'popoverBackground'), { timeout: 3_000 }).toBe('rgb(43, 43, 45)')
+
+      // Switch to light through the same extension-wide storage key.
+      await setExtensionStorage(context, extensionId, { 'vocabify-theme': 'light' })
       await page.waitForTimeout(300)
 
       const lightClass = await page.evaluate(() => {
@@ -132,6 +193,8 @@ test.describe('Vocabify selection + AI flow', () => {
       })
       expect(lightClass).toContain('light')
       expect(lightClass).not.toContain('dark')
+      await expect.poll(() => getShadowField(page, 'portalClass'), { timeout: 3_000 }).toContain('light')
+      await expect.poll(() => getShadowField(page, 'popoverBackground'), { timeout: 3_000 }).toBe('rgb(255, 255, 255)')
     } finally {
       await page.close().catch(() => undefined)
     }
@@ -150,14 +213,85 @@ test.describe('Vocabify selection + AI flow', () => {
     }
   })
 
+  test('failed lookup shows provider error after configured retries', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page, failingBaseUrl, { aiMaxRetries: 1 })
+
+      await selectText(page, 'nuanced phrase')
+      await clickQuery(page)
+
+      await expect.poll(() => getShadowField(page, 'errorText'), { timeout: 20_000 }).toContain('rate limit exceeded')
+      await expect.poll(() => getShadowField(page, 'errorText'), { timeout: 1_000 }).toContain('retried 1 time')
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
   // ─── Helpers ─────────────────────────────────────────────────────────
 
-  async function setupPage(page: Page) {
+  async function setupPage(page: Page, baseUrl = mockBaseUrl, extraStorage: Record<string, unknown> = {}) {
     await page.goto(pageUrl)
+    await clearFixtureDatabase(page)
+    await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.locator('#target-paragraph')).toBeVisible()
     await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
     const extensionId = await getExtensionId(context)
-    return seedAiProvider(context, extensionId, mockBaseUrl)
+    return seedAiProvider(context, extensionId, baseUrl, extraStorage)
+  }
+
+  async function clearFixtureDatabase(page: Page) {
+    await page.evaluate(() => new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase('VocabifyIndexDB')
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+      request.onblocked = () => resolve()
+    }))
+  }
+
+  async function seedSavedRecordBeforeReload(page: Page) {
+    await page.evaluate(() => new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('VocabifyIndexDB')
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        const db = request.result
+        const tx = db.transaction('records', 'readwrite')
+        const store = tx.objectStore('records')
+        const now = new Date().toISOString()
+        store.put({
+          id: 1,
+          wordOrPhrase: 'nuanced phrase',
+          term: 'nuanced phrase',
+          phonetic: '/njuːˈɑːnst/',
+          pos: 'phrase',
+          senses: [{
+            id: 's1',
+            definition: 'A subtle expression conveying detailed meaning',
+            example: 'The diplomat used a nuanced phrase',
+            exampleTranslation: '外交官使用了微妙的措辞',
+          }],
+          mnemonic: 'nuance (subtle) + phrase',
+          tags: [],
+          sourceUrl: window.location.href,
+          sourceContext: 'Meticulous readers often pause at a nuanced phrase.',
+          createdAt: now,
+          updatedAt: now,
+          score: 0,
+          firstMarkedAt: null,
+          lastMarkedAt: null,
+        })
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => {
+          db.close()
+          reject(tx.error)
+        }
+      }
+    }))
   }
 
   async function clickQuery(page: Page) {
@@ -204,6 +338,57 @@ test.describe('Vocabify selection + AI flow', () => {
     }, field)
   }
 
+  function getShadowField(page: Page, field: string) {
+    return page.evaluate((f) => {
+      const root = document.getElementById('vocabify-root')
+      const shadow = root?.shadowRoot
+      if (!shadow) return null
+      if (f === 'savedHoverVisible') return !!shadow.querySelector('[data-testid="vocabify-saved-hover-card"]')
+      if (f === 'operationBarVisible') return !!shadow.querySelector('[data-testid="vocabify-operation-query"]')
+      if (f === 'retryingVisible') return !!shadow.querySelector('[data-testid="vocabify-stream-retrying"]')
+      if (f === 'errorText') return shadow.querySelector('[data-testid="vocabify-stream-error"]')?.textContent?.trim() || null
+      if (f === 'portalClass') return shadow.querySelector('#vocabify-portal-root')?.className || null
+      if (f === 'popoverBackground') {
+        const popover = shadow.querySelector('[data-radix-popper-content-wrapper] [data-side]') as HTMLElement | null
+        return popover ? getComputedStyle(popover).backgroundColor : null
+      }
+      if (f === 'savedHoverRect') {
+        const el = shadow.querySelector('[data-testid="vocabify-saved-hover-card"]')
+        if (!el) return null
+        const rect = el.getBoundingClientRect()
+        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+      }
+      return null
+    }, field)
+  }
+
+  function getSavedHighlightRect(page: Page) {
+    return page.evaluate(() => {
+      const el = document.querySelector('.vocabify-highlight')
+      if (el) {
+        const rect = el.getBoundingClientRect()
+        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+      }
+
+      const paragraph = document.getElementById('target-paragraph')
+      if (!paragraph) return null
+      const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT)
+      let node = walker.nextNode()
+      while (node) {
+        const idx = (node.textContent || '').indexOf('nuanced phrase')
+        if (idx >= 0) {
+          const range = document.createRange()
+          range.setStart(node, idx)
+          range.setEnd(node, idx + 'nuanced phrase'.length)
+          const rect = range.getBoundingClientRect()
+          return { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+        }
+        node = walker.nextNode()
+      }
+      return null
+    })
+  }
+
   async function startFixtureServer() {
     const fixturePath = path.join(projectRoot, 'tests/fixtures/selection-page.html')
     const html = await fs.readFile(fixturePath)
@@ -247,6 +432,15 @@ test.describe('Vocabify selection + AI flow', () => {
         return
       }
 
+      if (request.method === 'POST' && url.pathname === '/fail/v1/chat/completions') {
+        response.writeHead(429, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        })
+        response.end(JSON.stringify({ error: { message: 'rate limit exceeded', code: 'rate_limit' } }))
+        return
+      }
+
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' })
       response.end(html)
     })
@@ -254,7 +448,11 @@ test.describe('Vocabify selection + AI flow', () => {
     await new Promise<void>((r) => server!.listen(0, '127.0.0.1', () => r()))
     const addr = server.address()
     if (!addr || typeof addr === 'string') throw new Error('Server start failed')
-    return { pageUrl: `http://127.0.0.1:${addr.port}`, mockBaseUrl: `http://127.0.0.1:${addr.port}/v1` }
+    return {
+      pageUrl: `http://127.0.0.1:${addr.port}`,
+      mockBaseUrl: `http://127.0.0.1:${addr.port}/v1`,
+      failingBaseUrl: `http://127.0.0.1:${addr.port}/fail/v1`,
+    }
   }
 })
 
@@ -268,13 +466,23 @@ async function getBrowserWsUrl(baseUrl: string) {
   return meta.webSocketDebuggerUrl as string
 }
 
-async function seedAiProvider(context: BrowserContext, extensionId: string, baseUrl: string) {
+async function setExtensionStorage(context: BrowserContext, extensionId: string, values: Record<string, unknown>) {
+  const page = await context.newPage()
+  try {
+    await page.goto(`chrome-extension://${extensionId}/options.html`)
+    await page.evaluate((nextValues) => chrome.storage.local.set(nextValues), values)
+  } finally {
+    await page.close().catch(() => undefined)
+  }
+}
+
+async function seedAiProvider(context: BrowserContext, extensionId: string, baseUrl: string, extraStorage: Record<string, unknown> = {}) {
   const page = await context.newPage()
   await page.goto(`chrome-extension://${extensionId}/options.html`)
   const previous = await page.evaluate(() => {
-    return chrome.storage.local.get(['agents', 'targetLanguage'])
-  }) as { agents?: unknown; targetLanguage?: unknown }
-  await page.evaluate((url) => {
+    return chrome.storage.local.get(['agents', 'targetLanguage', 'aiMaxRetries', 'translationRevealMode', 'hightlightStyle', 'vocabify-theme'])
+  }) as Record<string, unknown>
+  await page.evaluate(({ url, extra }) => {
     return chrome.storage.local.set({
       agents: [{
         providerId: 'custom:mock',
@@ -284,8 +492,9 @@ async function seedAiProvider(context: BrowserContext, extensionId: string, base
         baseURL: url,
       }],
       targetLanguage: 'English',
+      ...extra,
     })
-  }, baseUrl)
+  }, { url: baseUrl, extra: extraStorage })
   await page.close()
 
   return async () => {
@@ -295,7 +504,7 @@ async function seedAiProvider(context: BrowserContext, extensionId: string, base
       await restorePage.evaluate((snapshot) => {
         const updates: Record<string, unknown> = {}
         const removals: string[] = []
-        for (const key of ['agents', 'targetLanguage'] as const) {
+        for (const key of ['agents', 'targetLanguage', 'aiMaxRetries', 'translationRevealMode', 'hightlightStyle', 'vocabify-theme'] as const) {
           if (Object.prototype.hasOwnProperty.call(snapshot, key)) {
             updates[key] = snapshot[key]
           } else {
@@ -372,4 +581,18 @@ function chunk(content: string) {
 
 function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms))
+}
+
+function getPointBetweenRects(
+  anchor: { left: number; top: number; width: number; height: number },
+  content: { left: number; top: number; width: number; height: number },
+) {
+  const anchorCenterX = anchor.left + anchor.width / 2
+  const anchorCenterY = anchor.top + anchor.height / 2
+  const contentCenterX = content.left + content.width / 2
+  const contentCenterY = content.top + content.height / 2
+  return {
+    x: (anchorCenterX + contentCenterX) / 2,
+    y: (anchorCenterY + contentCenterY) / 2,
+  }
 }

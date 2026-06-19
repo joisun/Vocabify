@@ -1,5 +1,6 @@
 import { AiAgentApiKeys, normalizeAgentConfigs } from '@/typings/aiModelAdaptor'
 import { DefaultPromptTemplate, DefaultLanguage } from '@/const'
+import type { ThemePreference } from '@/lib/theme'
 
 /**--------------------------- OPTION PAGE ---------------------------*/
 /** 自定义 Prompt */
@@ -33,7 +34,8 @@ export type highlightStyleSettingsType = {
   offset: string
   style: string
   thickness: string
-  type: string
+  type: 'underline' | 'background' | 'underline-background' | string
+  backgroundOpacity: string
 }
 export const hightlightStyle = storage.defineItem<highlightStyleSettingsType>('local:hightlightStyle', {
   fallback: {
@@ -48,10 +50,25 @@ export const hightlightStyle = storage.defineItem<highlightStyleSettingsType>('l
     style: 'wavy',
     thickness: '2',
     type: 'underline',
+    backgroundOpacity: '0.18',
   },
 })
 export const recordPageSize = storage.defineItem<number>('local:recordPageSize', {
   fallback: 5,
+})
+
+export const aiMaxRetries = storage.defineItem<number>('local:aiMaxRetries', {
+  fallback: 2,
+})
+
+export type TranslationRevealMode = 'hover' | 'always'
+
+export const translationRevealMode = storage.defineItem<TranslationRevealMode>('local:translationRevealMode', {
+  fallback: 'hover',
+})
+
+export const themePreference = storage.defineItem<ThemePreference>('local:vocabify-theme', {
+  fallback: 'system',
 })
 
 export const githubAccessToken = storage.defineItem<string | null>('local:githubAccessToken', {

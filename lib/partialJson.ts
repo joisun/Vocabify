@@ -63,13 +63,22 @@ function mergeSenses(
   parsed: Partial<VocabResponse>['senses'],
   scanned: Partial<VocabResponse>['senses'],
 ): Partial<VocabResponse>['senses'] {
-  if (!scanned?.length) return parsed
-  if (!parsed?.length) return scanned
+  const parsedFilled = filterFilledSenses(parsed)
+  const scannedFilled = filterFilledSenses(scanned)
 
-  return scanned.map((sense, index) => ({
-    ...parsed[index],
+  if (!scannedFilled.length) return parsedFilled.length ? parsedFilled : undefined
+  if (!parsedFilled.length) return scannedFilled
+
+  return scannedFilled.map((sense, index) => ({
+    ...parsedFilled[index],
     ...sense,
   }))
+}
+
+function filterFilledSenses(senses: Partial<VocabResponse>['senses']) {
+  return (senses || [])
+    .filter((sense) => sense.definition || sense.example || sense.exampleTranslation)
+    .slice(0, 3)
 }
 
 function scanPartialObject(source: string): Partial<VocabResponse> {

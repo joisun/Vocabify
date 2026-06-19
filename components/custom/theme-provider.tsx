@@ -1,7 +1,13 @@
 // https://ui.shadcn.com/docs/dark-mode/vite
 import { createContext, useContext, useEffect, useState } from "react"
 import { Toaster } from "@/components/ui/sonner"
-import { THEME_STORAGE_KEY, resolveEffectiveTheme, type ThemePreference } from "@/lib/theme"
+import {
+    THEME_STORAGE_KEY,
+    getStoredThemePreference,
+    resolveEffectiveTheme,
+    setStoredThemePreference,
+    type ThemePreference,
+} from "@/lib/theme"
 
 type ThemeProviderProps = {
     children: React.ReactNode
@@ -26,8 +32,16 @@ export function ThemeProvider({
     ...props
 }: ThemeProviderProps) {
     const [theme, setThemeState] = useState<ThemePreference>(
-        () => (localStorage.getItem(THEME_STORAGE_KEY) as ThemePreference) || defaultTheme
+        defaultTheme
     )
+
+    useEffect(() => {
+        let cancelled = false
+        getStoredThemePreference().then((storedTheme) => {
+            if (!cancelled) setThemeState(storedTheme)
+        })
+        return () => { cancelled = true }
+    }, [])
 
     useEffect(() => {
         const root = window.document.documentElement
@@ -41,6 +55,13 @@ export function ThemeProvider({
                 setThemeState(e.newValue as ThemePreference)
             }
         }
+        const onChromeStorage = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+            if (areaName !== 'local') return
+            const next = changes[THEME_STORAGE_KEY]?.newValue
+            if (next === 'light' || next === 'dark' || next === 'system') {
+                setThemeState(next)
+            }
+        }
         const onMedia = () => {
             if (theme === 'system') {
                 const root = window.document.documentElement
@@ -49,10 +70,12 @@ export function ThemeProvider({
             }
         }
         window.addEventListener('storage', onStorage)
+        chrome.storage?.onChanged?.addListener(onChromeStorage)
         const mq = window.matchMedia('(prefers-color-scheme: dark)')
         mq.addEventListener('change', onMedia)
         return () => {
             window.removeEventListener('storage', onStorage)
+            chrome.storage?.onChanged?.removeListener(onChromeStorage)
             mq.removeEventListener('change', onMedia)
         }
     }, [theme])
@@ -60,8 +83,8 @@ export function ThemeProvider({
     const value = {
         theme,
         setTheme: (next: ThemePreference) => {
-            localStorage.setItem(THEME_STORAGE_KEY, next)
             setThemeState(next)
+            void setStoredThemePreference(next)
         },
     }
 
