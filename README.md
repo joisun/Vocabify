@@ -42,7 +42,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - OpenAI-compatible presets and custom providers use provider base URLs. Vercel AI SDK handles the standard `/chat/completions` request path.
 - One active provider is used for AI lookup. There is no fallback chain or provider priority ordering.
 - Model suggestions load when the provider exposes `/models`; the model can always be typed manually.
-- Customizable JSON-only prompt template and target language. The default template instructs the AI to return strict JSON matching the Vocabify schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`).
+- Customizable prompt template and target language. The user prompt must include `{SELECTION}` and `{LANGUAGE}` (`{SOURCE_CONTEXT}` is optional); Vocabify sends product behavior plus target-language guidance and the strict JSON schema contract (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`) as internal system messages, then sends the resolved prompt as the user message.
 - Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`), abort support, and configurable automatic retry. A tolerant partial-JSON parser feeds the popover field-by-field as data arrives, while raw JSON and provider reasoning stay hidden from the user-facing card.
 
 ### Vocabulary management

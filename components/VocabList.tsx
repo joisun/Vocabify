@@ -160,6 +160,8 @@ export function VocabList() {
               const isExpanded = expanded === record.id
               const level = getLevel(record.score)
               const levelSuffix = levelClassSuffix(level)
+              const isPhrase = record.pos === 'phrase'
+              const phraseTranslation = record.senses?.[0]?.definition || ''
               return (
                 <li
                   key={record.id}
@@ -181,7 +183,7 @@ export function VocabList() {
                         <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
                           {record.term || record.wordOrPhrase}
                         </h3>
-                        {record.pos && (
+                        {record.pos && !isPhrase && (
                           <span className="rounded-[3px] bg-secondary px-1 py-[1px] text-[9px] font-semibold uppercase tracking-wide text-foreground/80">
                             {record.pos}
                           </span>
@@ -200,7 +202,7 @@ export function VocabList() {
                           <Volume2 className="h-3 w-3" />
                         </Button>
                       </div>
-                      {record.phonetic && (
+                      {record.phonetic && !isPhrase && (
                         <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{record.phonetic}</p>
                       )}
                       {isExpanded ? (
@@ -221,21 +223,28 @@ export function VocabList() {
                           </div>
                         ) : (
                           <div className="mt-1 space-y-2">
-                            {record.senses.map((sense, i) => (
-                              <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
-                                <p className="text-[12px] leading-relaxed text-foreground">
-                                  <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
-                                  {sense.definition}
-                                </p>
-                                {sense.example && (
-                                  <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
-                                )}
-                                {sense.exampleTranslation && (
-                                  <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
-                                )}
+                            {isPhrase ? (
+                              <div className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
+                                <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">{phraseTranslation}</p>
                               </div>
-                            ))}
-                            {record.mnemonic && (
+                            ) : (
+                              record.senses.map((sense, i) => (
+                                <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                                  <p className="text-[12px] leading-relaxed text-foreground">
+                                    <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
+                                    {sense.definition}
+                                  </p>
+                                  {sense.example && (
+                                    <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
+                                  )}
+                                  {sense.exampleTranslation && (
+                                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                            {record.mnemonic && !isPhrase && (
                               <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{record.mnemonic}</p>
                             )}
                             {record.sourceUrl && (
@@ -247,7 +256,7 @@ export function VocabList() {
                         )
                       ) : (
                         <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
-                          {record.senses?.[0]?.definition || ''}
+                          {phraseTranslation}
                         </p>
                       )}
                       <p className="mt-1.5 tabular text-[10px] text-muted-foreground/70">

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
 - In-page wordlist sheet now opens taller, giving saved vocabulary more vertical reading space.
 - In-page wordlist sheet now uses the same theme-aware floating surface tokens as tooltips and selection popovers, with lower-contrast hairline borders.
+- Draggable in-page wordlist sheet now exits toward its snapped side when closed, so a sheet moved to the left no longer disappears to the right.
 - Highlight appearance settings now support Underline, Background, and Underline + Background modes, 1–4 px underline thickness, and configurable background opacity.
 - Saved-word hover previews are now separated from selection-driven lookup popovers. Selection lookup and saved-word preview both use controlled Popover shells, but saved-word hover is driven by highlight hit-testing instead of text selection state.
 - Side Sheet (`VocabifySheet` + `InPageUI`) is now Wordlist-only — Tabs and the AI Explain pane have been removed. AI lookup is entirely inline in the selection popover.
@@ -29,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VocabList` rows render the new structured fields: term, phonetic, pos chip, first sense's definition, with expansion revealing all senses, mnemonic, and source link.
 - GitHub sync payload bumped to `schemaVersion: 2`. `normalizeRecords` validates the new structured shape and drops legacy `meaning`-only records on import.
 - Dexie schema bumped to v5; the upgrade hook **clears legacy records** (per user direction — small dataset, no migration value).
-- Default prompt template rewritten to demand strict JSON output matching the schema; new `{SOURCE_CONTEXT}` placeholder added alongside `{SELECTION}` / `{LANGUAGE}`.
+- AI prompting now keeps product behavior, target-language guidance, and the strict JSON output contract in internal system messages, while the user-configured prompt with required `{SELECTION}` / `{LANGUAGE}` placeholders and optional `{SOURCE_CONTEXT}` is sent as the user message.
 - Theme provider now uses the extension-wide `vocabify-theme` storage key (previously `vite-ui-theme` in options, separate page-local state in content script).
 
 ### Fixed
@@ -37,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fine-grained streaming parser**: partial JSON parsing now extracts scalar fields and `senses[]` entries even when a provider cuts chunks inside a string, enabling per-text updates without provider-specific glue code.
 - **Selection card title stability**: the lookup card title now stays on the selected text while streaming, uses length-aware two-line truncation with an inline expand control, and no longer shows transient waiting labels.
 - **Lookup error visibility**: provider failures now render an explicit error state with the provider message and manual retry action instead of leaving an empty lookup card.
+- **Selected phrase integrity**: AI lookup now treats the exact selected text as the vocabulary item, keeps streaming/final `term` aligned with the selection, and marks multi-word selections as `phrase` instead of letting providers replace them with a single context word.
+- **Phrase lookup simplification**: multi-word selections now store and display translation only, without phonetic, part-of-speech chip, examples, or mnemonic fields.
+- **Selection title expansion**: the selection popover now shows `Show all` only when the title actually overflows the two-line clamp, and expanded titles keep a visible `Show less` control.
 - **Custom highlight style application**: content highlights now read the persisted Options style and repaint when highlight settings change.
 - **Highlight style save noise**: changing highlight appearance now saves silently without showing repeated success toasts.
 - **Invert highlight text color**: the Options preview and real page highlights now both apply the inverted decoration color.

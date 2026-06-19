@@ -35,12 +35,12 @@ const sheetVariants = cva(
   {
     variants: {
       side: {
-        top: "inset-x-3 top-3 data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top sm:inset-x-4 sm:top-4",
+        top: "inset-x-3 top-3 data-[state=open]:slide-in-from-top sm:inset-x-4 sm:top-4",
         bottom:
-          "inset-x-3 bottom-3 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:inset-x-4 sm:bottom-4",
-        left: "bottom-3 left-3 top-3 w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:bottom-4 sm:left-4 sm:top-4 sm:w-[min(340px,calc(100vw-2rem))]",
+          "inset-x-3 bottom-3 data-[state=open]:slide-in-from-bottom sm:inset-x-4 sm:bottom-4",
+        left: "bottom-3 left-3 top-3 w-[calc(100vw-1.5rem)] data-[state=open]:slide-in-from-left sm:bottom-4 sm:left-4 sm:top-4 sm:w-[min(340px,calc(100vw-2rem))]",
         right:
-          "right-3 top-[12vh] h-[min(78vh,760px)] max-h-[calc(100vh-24px)] w-[calc(100vw-1.5rem)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:right-4 sm:w-[min(340px,calc(100vw-2rem))]",
+          "right-3 top-[12vh] h-[min(78vh,760px)] max-h-[calc(100vh-24px)] w-[calc(100vw-1.5rem)] data-[state=open]:slide-in-from-right sm:right-4 sm:w-[min(340px,calc(100vw-2rem))]",
       },
     },
     defaultVariants: {
@@ -48,6 +48,8 @@ const sheetVariants = cva(
     },
   }
 )
+
+type SheetSide = NonNullable<VariantProps<typeof sheetVariants>["side"]>
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
@@ -90,6 +92,7 @@ const SheetContentBody = React.forwardRef<
   style,
   ...props
 }, ref) => {
+  const resolvedSide: SheetSide = side ?? "right"
   const contentRef = React.useRef<React.ElementRef<typeof SheetPrimitive.Content>>(null)
   const dragRef = React.useRef<{
     pointerId: number
@@ -98,6 +101,7 @@ const SheetContentBody = React.forwardRef<
     rect: DOMRect
   } | null>(null)
   const [dragFrame, setDragFrame] = React.useState<React.CSSProperties | null>(null)
+  const [exitSide, setExitSide] = React.useState<SheetSide>(resolvedSide)
 
   React.useImperativeHandle(ref, () => contentRef.current as React.ElementRef<typeof SheetPrimitive.Content>)
   useShadowDialogA11yMirror(contentRef)
@@ -118,7 +122,7 @@ const SheetContentBody = React.forwardRef<
   return (
     <SheetPrimitive.Content
       ref={contentRef}
-      className={cn(sheetVariants({ side }), className)}
+      className={cn(sheetVariants({ side: resolvedSide }), getSheetExitClass(exitSide), className)}
       style={{ ...style, ...dragFrame }}
       onOpenAutoFocus={(event) => {
         onOpenAutoFocus?.(event)
@@ -166,6 +170,7 @@ const SheetContentBody = React.forwardRef<
         const snapLeft = rect.left + rect.width / 2 < window.innerWidth / 2
           ? DRAG_MARGIN
           : window.innerWidth - rect.width - DRAG_MARGIN
+        setExitSide(snapLeft === DRAG_MARGIN ? "left" : "right")
         updateDragFrame(snapLeft, rect.top, rect)
       }}
       {...props}
@@ -195,6 +200,19 @@ function VocabifyPanelFrame({
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
+}
+
+function getSheetExitClass(side: SheetSide) {
+  switch (side) {
+    case "top":
+      return "data-[state=closed]:slide-out-to-top"
+    case "bottom":
+      return "data-[state=closed]:slide-out-to-bottom"
+    case "left":
+      return "data-[state=closed]:slide-out-to-left"
+    case "right":
+      return "data-[state=closed]:slide-out-to-right"
+  }
 }
 
 function useShadowDialogA11yMirror(contentRef: React.RefObject<HTMLElement>) {

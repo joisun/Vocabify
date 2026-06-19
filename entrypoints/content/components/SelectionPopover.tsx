@@ -326,16 +326,18 @@ function Card({
   hasReceivedChunk?: boolean
 }) {
   const term = record?.term
-  const title = term || selectionText || ''
+  const title = selectionText || term || ''
   const phonetic = record?.phonetic
   const pos = record?.pos
+  const isPhrase = pos === 'phrase' || isPhraseText(selectionText || term || '')
   const senses = record?.senses
   const mnemonic = record?.mnemonic
   const displaySenses = (senses || []).filter(hasSenseContent)
+  const phraseTranslation = getPhraseTranslation(displaySenses)
   const hasSenses = displaySenses.length > 0
   const isWaitingForModel = !!streaming && !hasReceivedChunk && !hasSenses
   const isBuildingResult = !!streaming && hasReceivedChunk && !hasSenses
-  const showMnemonic = !!mnemonic
+  const showMnemonic = !!mnemonic && !isPhrase
   const [translationMode, setTranslationMode] = React.useState<TranslationRevealMode>('hover')
 
   React.useEffect(() => {
@@ -362,14 +364,16 @@ function Card({
               </Button>
             )}
           </div>
-          <div className="mt-0.5 flex items-center gap-1.5">
-            <span className="font-mono text-[11px] text-muted-foreground" data-testid="vocabify-stream-phonetic">
-              {phonetic || (streaming ? null : '—')}
-            </span>
-            {pos && (
-              <span className="rounded bg-secondary px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="vocabify-stream-pos">{pos}</span>
-            )}
-          </div>
+          {!isPhrase && (
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span className="font-mono text-[11px] text-muted-foreground" data-testid="vocabify-stream-phonetic">
+                {phonetic || (streaming ? null : '—')}
+              </span>
+              {pos && (
+                <span className="rounded bg-secondary px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="vocabify-stream-pos">{pos}</span>
+              )}
+            </div>
+          )}
         </div>
         <button type="button" onClick={onDismiss} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" aria-label="Dismiss">
           <X className="h-3 w-3" />
@@ -403,7 +407,9 @@ function Card({
                 <span className="block h-1 w-12 rounded-full bg-primary/70 animate-ai-pulse" aria-label="Loading explanation" />
               </div>
             )}
-            {hasSenses ? (
+            {isPhrase ? (
+              <PhraseTranslation translation={phraseTranslation} streaming={streaming} />
+            ) : hasSenses ? (
               <div className="space-y-1.5 py-1" data-testid="vocabify-stream-senses">
                 {displaySenses.map((sense, i) => (
                   <SenseRow key={i} index={i} sense={sense} streaming={streaming} translationMode={translationMode} />
@@ -499,17 +505,71 @@ function SenseRow({
   )
 }
 
+function PhraseTranslation({
+  translation,
+  streaming,
+}: {
+  translation: string
+  streaming?: boolean
+}) {
+  if (!translation && !streaming) return null
+
+  return (
+    <div className="py-1" data-testid="vocabify-stream-senses">
+      <div className="rounded border border-border/60 bg-card px-2.5 py-2 animate-fade-in">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-foreground" data-testid="vocabify-stream-definition">
+          {translation || <Skeleton width={180} />}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function hasSenseContent(sense: { definition?: string; example?: string; exampleTranslation?: string }) {
   return !!(sense.definition || sense.example || sense.exampleTranslation)
 }
 
+function getPhraseTranslation(senses: Array<{ definition?: string; example?: string; exampleTranslation?: string }>) {
+  const first = senses[0]
+  return (first?.definition || first?.exampleTranslation || first?.example || '').trim()
+}
+
+function isPhraseText(text: string) {
+  return text.trim().split(/\s+/).length > 1
+}
+
 function TermTitle({ text }: { text: string }) {
+  const titleRef = React.useRef<HTMLHeadingElement>(null)
   const [expanded, setExpanded] = React.useState(false)
-  const canExpand = text.length > 34
+  const [canExpand, setCanExpand] = React.useState(false)
+
+  React.useLayoutEffect(() => {
+    const title = titleRef.current
+    if (!title) return
+
+    const measureOverflow = () => {
+      const style = window.getComputedStyle(title)
+      const lineHeight = Number.parseFloat(style.lineHeight)
+      const fontSize = Number.parseFloat(style.fontSize)
+      const resolvedLineHeight = Number.isFinite(lineHeight) ? lineHeight : fontSize * 1.3
+      setCanExpand(title.scrollHeight > resolvedLineHeight * 2 + 1)
+    }
+
+    measureOverflow()
+    const observer = new ResizeObserver(measureOverflow)
+    observer.observe(title)
+    return () => observer.disconnect()
+  }, [text])
+
+  React.useEffect(() => {
+    setExpanded(false)
+  }, [text])
 
   return (
     <div className="min-w-0 flex-1">
       <h2
+        ref={titleRef}
         className={cn(
           'font-display font-semibold tracking-tight text-foreground break-words',
           getTermTitleSize(text),
@@ -527,7 +587,7 @@ function TermTitle({ text }: { text: string }) {
           onClick={() => setExpanded((current) => !current)}
           aria-expanded={expanded}
         >
-          {expanded ? 'Collapse' : 'Show all'}
+          {expanded ? 'Show less' : 'Show all'}
         </button>
       )}
     </div>

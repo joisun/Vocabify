@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { DefaultPromptTemplate, Language_Placeholder, Selection_Placeholder } from '@/const'
+import { DefaultPromptTemplate, Language_Placeholder, Selection_Placeholder, SourceContext_Placeholder } from '@/const'
 import { promptTemplate } from '@/utils/storage'
 import { useDebounce } from '@uidotdev/usehooks'
 import { AlertCircle, RotateCcw } from 'lucide-react'
@@ -21,12 +21,9 @@ const PromptTemplate = () => {
     })
   }, [])
 
-  const hasSelectionPlaceholder = inputValue.includes(Selection_Placeholder)
-  const hasLanguagePlaceholder = inputValue.includes(Language_Placeholder)
-
   useEffect(() => {
     if (!hydratedRef.current || !userEditedRef.current) return
-    if (hasSelectionPlaceholder && hasLanguagePlaceholder) {
+    if (hasRequiredPlaceholders) {
       promptTemplate
         .setValue(debouncedInputValue)
         .then(() => toast.success('Prompt template saved'))
@@ -44,7 +41,10 @@ const PromptTemplate = () => {
       .catch(() => toast.error('Reset failed'))
   }
 
-  const missing = !hasSelectionPlaceholder || !hasLanguagePlaceholder
+  const hasSelectionPlaceholder = inputValue.includes(Selection_Placeholder)
+  const hasLanguagePlaceholder = inputValue.includes(Language_Placeholder)
+  const hasRequiredPlaceholders = hasSelectionPlaceholder && hasLanguagePlaceholder
+  const missing = !hasRequiredPlaceholders
   const missingLabel = !hasSelectionPlaceholder && !hasLanguagePlaceholder
     ? `${Selection_Placeholder} and ${Language_Placeholder}`
     : !hasSelectionPlaceholder
@@ -57,11 +57,14 @@ const PromptTemplate = () => {
       title="Prompt template"
       description={
         <>
-          Customise how Vocabify asks the AI for explanations. Use{' '}
+          Customise this user prompt freely. Vocabify keeps assistant identity and the required
+          output JSON contract in internal system messages. Use{' '}
           <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">{Selection_Placeholder}</code>{' '}
-          for selected text and{' '}
+          and{' '}
           <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">{Language_Placeholder}</code>{' '}
-          for the target language. Changes save automatically.
+          to describe the lookup.{' '}
+          <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">{SourceContext_Placeholder}</code>{' '}
+          is optional.
         </>
       }
     >
@@ -72,7 +75,7 @@ const PromptTemplate = () => {
           setInputValue(event.target.value)
         }}
         placeholder="Enter your prompt template..."
-        rows={12}
+        rows={10}
         className="w-full font-mono text-[12px] leading-relaxed scrollbar-thin"
         aria-label="Prompt template"
       />

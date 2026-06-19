@@ -211,6 +211,7 @@ chunk(' expression conveying detailed meaning" }]')
 ```
 
 Assert structured fields appear before final completion and raw JSON is not visible.
+For multi-word `phrase` selections, assert only `[data-testid="vocabify-stream-definition"]` as the translation. Do not expect `[data-testid="vocabify-stream-example"]`, phonetic text, pos chips, or mnemonic content.
 
 ## Manual UI Debugging With Existing Instance
 
@@ -230,4 +231,3 @@ When the user says the existing `pnpm run dev` instance is already configured:
 - Wrong extension id: stale service worker id. Verify by opening `options.html`.
 - Shadow DOM selector not found: query through `#vocabify-root.shadowRoot`, not `page.locator(...)` directly.
 - Test changed user's provider: missing snapshot/restore around `chrome.storage.local`.
-

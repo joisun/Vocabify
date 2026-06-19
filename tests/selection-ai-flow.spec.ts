@@ -50,7 +50,7 @@ test.describe('Vocabify selection + AI flow', () => {
       await expect.poll(() => getPopoverField(page, 'term'), { timeout: 10_000 }).toBe('nuanced phrase')
       await expect.poll(() => getPopoverField(page, 'rawJsonVisible'), { timeout: 5_000 }).toBe(false)
       await expect.poll(() => getPopoverField(page, 'definition'), { timeout: 15_000 }).toContain('subtle expression')
-      await expect.poll(() => getPopoverField(page, 'example'), { timeout: 15_000 }).toContain('diplomat')
+      await expect.poll(() => getPopoverField(page, 'example'), { timeout: 5_000 }).toBeNull()
 
       await expect.poll(() => getPopoverField(page, 'saveBtnDisabled'), { timeout: 20_000 }).toBe(false)
       await expect.poll(async () => Math.abs(Number(await getPopoverField(page, 'width')) - Number(initialWidth)), { timeout: 5_000 }).toBeLessThanOrEqual(4)

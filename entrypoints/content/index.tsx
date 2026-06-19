@@ -243,7 +243,7 @@ export default defineContentScript({
       }
 
       function handleSpeak() {
-        const text = savedRecord?.term || cardRecord?.term || popoverState?.selectionText
+        const text = savedRecord?.term || popoverState?.selectionText || cardRecord?.term
         if (!text) return
         speakText(text)
       }
