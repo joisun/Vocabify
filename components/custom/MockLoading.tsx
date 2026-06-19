@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import VocabifySvgIcon from "./VocabifySvgIcon.tsx"
 
 export default function MockLoading() {
   const [loading, setLoading] = useState(true);
@@ -10,9 +10,9 @@ export default function MockLoading() {
       const timer2 = setTimeout(() => {
         loadingRef.current?.remove();
         clearTimeout(timer2);
-      }, 600);
+      }, 200);
       clearTimeout(timer);
-    }, 500);
+    }, 800);
   }, []);
 
   return (
@@ -22,10 +22,8 @@ export default function MockLoading() {
       style={{ opacity: loading ? 1 : 0, pointerEvents: loading ? "auto" : "none" }}
       aria-hidden={!loading}
     >
-      <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-primary to-[hsl(211_100%_60%)] shadow-apple-md animate-spring-in">
-        <Sparkles className="h-7 w-7 text-primary-foreground animate-ai-pulse" />
-      </div>
-      <h1 className="font-display text-2xl font-semibold tracking-tight">Vocabify</h1>
+      <VocabifySvgIcon className="text-[48px] text-primary-foreground animate-ai-pulse" />
+      <h1 className="font-display text-xl font-semibold tracking-tight">Vocabify</h1>
     </div>
   );
 }

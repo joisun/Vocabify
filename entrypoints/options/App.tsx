@@ -8,6 +8,7 @@ import UserInterfaceSettings from './components/UserInterfaceSettings'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/custom/theme-provider'
 import { cn } from '@/lib/utils'
+import VocabifySvgIcon from '@/components/custom/VocabifySvgIcon'
 
 type SectionId = 'providers' | 'language' | 'prompt' | 'appearance'
 
@@ -58,7 +59,7 @@ function App() {
         <header className="z-30 shrink-0 border-b border-border bg-background/95 backdrop-blur dark:border-white/[0.04]">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
             <div className="leading-tight">
-              <h1 className="font-display text-[14px] font-semibold tracking-tight">Vocabify</h1>
+              <h1 className="inline-flex items-center font-display text-[14px] font-semibold tracking-tight"><VocabifySvgIcon className='text-xl'/>Vocabify</h1>
               <p className="text-[11px] text-muted-foreground">Settings</p>
             </div>
             <div className="ml-auto flex items-center gap-1">
