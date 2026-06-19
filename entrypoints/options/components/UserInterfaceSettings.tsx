@@ -7,7 +7,6 @@ import { hightlightStyle, recordPageSize, translationRevealMode, type Translatio
 import { Minus, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { RgbaColorPicker } from 'react-colorful'
-import { toast } from 'sonner'
 import OptionSection from './OptionSection'
 
 type HighlightSettingsState = {
@@ -151,8 +150,7 @@ const HighlightStyleSetter = () => {
     if (!hydratedRef.current || !userEditedRef.current) return
     hightlightStyle
       .setValue(settings)
-      .then(() => toast.success('Highlight style saved'))
-      .catch(() => toast.error('Save failed'))
+      .catch((error) => console.error('Highlight style save failed:', error))
   }, [settings])
 
   const updateSettings = (updates: Partial<typeof settings>) => {

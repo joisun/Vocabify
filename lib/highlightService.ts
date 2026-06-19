@@ -409,8 +409,9 @@ function buildHighlightStyles(settings: highlightStyleSettingsType) {
     const color = normalized.useCustomColor ? normalized.color : LEVEL_FALLBACK_COLORS[level]
     const decorationColor = rgba(color, color.a)
     const backgroundColor = rgba(color, normalized.backgroundOpacity)
+    const textColor = normalized.invertColor ? rgb(invertRgb(color)) : 'inherit'
     const declarations = [
-      'color: inherit',
+      `color: ${textColor}`,
       normalized.hasBackground ? `background-color: ${backgroundColor}` : 'background-color: transparent',
       normalized.hasUnderline ? `text-decoration-line: underline` : 'text-decoration-line: none',
       normalized.hasUnderline ? `text-decoration-color: ${decorationColor}` : '',
@@ -445,12 +446,25 @@ function normalizeHighlightSettings(settings: highlightStyleSettingsType) {
     offset: settings.offset || '1',
     color: settings.color,
     backgroundOpacity: Number(settings.backgroundOpacity || settings.color.a || 0.18),
+    invertColor: !!settings.invertColor,
     useCustomColor: true,
   }
 }
 
 function rgba(color: { r: number; g: number; b: number; a: number }, alpha: number) {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`
+}
+
+function rgb(color: { r: number; g: number; b: number }) {
+  return `rgb(${color.r}, ${color.g}, ${color.b})`
+}
+
+function invertRgb(color: { r: number; g: number; b: number }) {
+  return {
+    r: 255 - color.r,
+    g: 255 - color.g,
+    b: 255 - color.b,
+  }
 }
 
 export const highlightService = new HighlightService()

@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Selection card title stability**: the lookup card title now stays on the selected text while streaming, uses length-aware two-line truncation with an inline expand control, and no longer shows transient waiting labels.
 - **Lookup error visibility**: provider failures now render an explicit error state with the provider message and manual retry action instead of leaving an empty lookup card.
 - **Custom highlight style application**: content highlights now read the persisted Options style and repaint when highlight settings change.
+- **Highlight style save noise**: changing highlight appearance now saves silently without showing repeated success toasts.
+- **Invert highlight text color**: the Options preview and real page highlights now both apply the inverted decoration color.
 - **Streaming not incremental**: removed `isPartialEqual` equality gate in `aiService.ts` that suppressed partial updates when only values (not structure) changed.
 - **Options provider persistence race**: provider saves now await `chrome.storage.local` completion before updating the active state, and stale model-list requests are ignored after switching providers.
 - **Options select scroll lock**: settings page now scrolls inside the app shell, so opening Example translation or other select menus no longer pushes the sticky header and side navigation off-screen.
