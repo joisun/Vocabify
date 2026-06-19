@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Structured AI response** via `streamText` + JSON-only prompt + tolerant partial-JSON parser. `lib/aiSchema.ts` defines a Zod schema (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`); `lib/partialJson.ts` scans incomplete JSON field-by-field and keeps a final repair/schema path so each chunk yields a `Partial<VocabResponse>` for structured rendering. Background port emits `partial` / `complete` / `error` instead of exposing raw JSON.
 - **Structured `VocabRecord` schema**: `term`, `phonetic`, `pos`, `senses[]` (each `{ definition, example, exampleTranslation, id }`), `mnemonic`, `tags`, `sourceUrl`, `sourceContext`. `saveFromAiResponse` + `updateRecordFields` helpers; `searchRecords` widens to match definitions and display term.
 - `useAIStream` hook (`entrypoints/content/useAIStream.ts`) wrapping the Chrome `ai-stream` Port lifecycle.
-- **VocabList inline edit**: edit button on each expanded record row; shared `RecordEditForm` component reused by both VocabList and SelectionPopover.
+- **VocabList edit panel**: wordlist edit now switches the area below GitHub sync into a dedicated editor, reusing `RecordEditForm` without embedding the form inside a list row.
 - **Unified theme system** (`lib/theme.ts`): extension-wide `chrome.storage.local` key `vocabify-theme` with `light | dark | system` support, shared across options page and content script with storage-change sync.
 
 ### Changed
@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Selected phrase integrity**: AI lookup now treats the exact selected text as the vocabulary item, keeps streaming/final `term` aligned with the selection, and marks multi-word selections as `phrase` instead of letting providers replace them with a single context word.
 - **Phrase lookup simplification**: multi-word selections now store and display translation only, without phonetic, part-of-speech chip, examples, or mnemonic fields.
 - **Selection title expansion**: the selection popover now shows `Show all` only when the title actually overflows the two-line clamp, and expanded titles keep a visible `Show less` control.
+- **Familiarity meter display**: saved-word cards and the in-page wordlist now show familiarity as a compact 20-dot meter instead of textual tier labels.
+- **Silent familiarity actions**: Know / Fuzzy / Forget now update the score meter directly without showing a toast.
+- **Lower-contrast sense cards**: selection popover sense and translation cards now use softer hairline borders in dark mode.
+- **Wordlist delete confirmation**: sheet delete actions now sit inline with edit and require a shadcn/Radix AlertDialog confirmation before removing an entry.
+- **Wordlist edit overflow**: long edit forms now scroll inside the editor while Cancel / Save stay fixed in the editor footer.
 - **Custom highlight style application**: content highlights now read the persisted Options style and repaint when highlight settings change.
 - **Highlight style save noise**: changing highlight appearance now saves silently without showing repeated success toasts.
 - **Invert highlight text color**: the Options preview and real page highlights now both apply the inverted decoration color.

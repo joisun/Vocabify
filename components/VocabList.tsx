@@ -4,7 +4,18 @@ import { db, deleteRecordById, updateRecordFields, type VocabRecord } from '@/li
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  AlertCircle, BookOpen, CheckCircle2, Copy, Edit3, ExternalLink, Github,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
+  AlertCircle, ArrowLeft, BookOpen, CheckCircle2, Copy, Edit3, ExternalLink, Github,
   Loader2, LogOut, RefreshCw, Search, Trash2, Volume2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,8 +27,10 @@ import {
   type GitHubDeviceFlow,
 } from '@/lib/githubSync'
 import { githubAccessToken, githubLastSyncAt, githubSyncAccount, type GithubSyncAccount } from '@/utils/storage'
-import { FAMILIARITY_LEVELS, getLevel, levelClassSuffix } from '@/lib/familiarity'
+import { getLevel, levelClassSuffix } from '@/lib/familiarity'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
+
+const WORDLIST_EDIT_FORM_ID = 'vocabify-wordlist-edit-form'
 
 function useVocabularyCount() {
   const [count, setCount] = useState(0)
@@ -39,7 +52,7 @@ export function VocabList() {
   const [expanded, setExpanded] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
-  const listRef = useRef<HTMLDivElement | null>(null)
+  const editingRecord = editingId == null ? null : records.find((record) => record.id === editingId) ?? null
 
   useEffect(() => { loadRecords() }, [])
 
@@ -123,176 +136,262 @@ export function VocabList() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       <GitHubSyncControl recordCount={totalRecords} onSynced={loadRecords} />
 
-      <div className="relative shrink-0">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          placeholder="Search vocabulary"
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-          className="h-8 pl-8 text-[12px] focus-visible:ring-inset"
-          aria-label="Search vocabulary"
+      {editingRecord ? (
+        <WordlistEditPanel
+          key={editingRecord.id}
+          record={editingRecord}
+          saving={saving}
+          onBack={() => setEditingId(null)}
+          onCommit={(fields) => editingRecord.id && handleEditCommit(editingRecord.id, fields)}
+        />
+      ) : (
+        <>
+          <div className="relative shrink-0">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search vocabulary"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              className="h-8 pl-8 text-[12px] focus-visible:ring-inset"
+              aria-label="Search vocabulary"
+            />
+          </div>
+
+          <div
+            className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
+            data-testid="vocabify-wordlist-scroll"
+          >
+            {loading ? (
+              <ListSkeleton />
+            ) : records.length === 0 ? (
+              <EmptyState hasFilter={!!searchKeyword.trim()} />
+            ) : (
+              <ul className="space-y-1.5">
+                {records.map((record) => {
+                  const isExpanded = expanded === record.id
+                  const level = getLevel(record.score)
+                  const levelSuffix = levelClassSuffix(level)
+                  const isPhrase = record.pos === 'phrase'
+                  const phraseTranslation = record.senses?.[0]?.definition || ''
+                  return (
+                    <li
+                      key={record.id}
+                      className={cn(
+                        'rounded-[8px] border border-border bg-card transition-colors animate-fade-in',
+                        'hover:bg-secondary/40 dark:border-white/[0.04]',
+                        isExpanded && 'bg-secondary/40',
+                      )}
+                    >
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setExpanded(isExpanded ? null : record.id ?? null)}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter' && event.key !== ' ') return
+                          event.preventDefault()
+                          setExpanded(isExpanded ? null : record.id ?? null)
+                        }}
+                        className="flex w-full items-start gap-2 px-3 py-2 text-left"
+                        aria-expanded={isExpanded}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`vocabify-level-dot is-${levelSuffix} shrink-0`} aria-hidden />
+                            <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
+                              {record.term || record.wordOrPhrase}
+                            </h3>
+                            {record.pos && !isPhrase && (
+                              <span className="rounded-[3px] bg-secondary px-1 py-[1px] text-[9px] font-semibold uppercase tracking-wide text-foreground/80">
+                                {record.pos}
+                              </span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={(e) => { e.stopPropagation(); speak(record.term || record.wordOrPhrase) }}
+                              aria-label="Pronounce"
+                              title="Pronounce"
+                              className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
+                            >
+                              <Volume2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={(e) => { e.stopPropagation(); setEditingId(record.id ?? null) }}
+                              aria-label={`Edit ${record.wordOrPhrase}`}
+                              title="Edit"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={(e) => e.stopPropagation()}
+                                  aria-label={`Delete ${record.wordOrPhrase}`}
+                                  title="Delete"
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will remove “{record.term || record.wordOrPhrase}” from your wordlist. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => record.id && handleDelete(record.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                          {record.phonetic && !isPhrase && (
+                            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{record.phonetic}</p>
+                          )}
+                          {isExpanded ? (
+                            <div className="mt-1 space-y-2">
+                              {isPhrase ? (
+                                <div className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
+                                  <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">{phraseTranslation}</p>
+                                </div>
+                              ) : (
+                                record.senses.map((sense, i) => (
+                                  <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                                    <p className="text-[12px] leading-relaxed text-foreground">
+                                      <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
+                                      {sense.definition}
+                                    </p>
+                                    {sense.example && (
+                                      <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
+                                    )}
+                                    {sense.exampleTranslation && (
+                                      <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                              {record.mnemonic && !isPhrase && (
+                                <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{record.mnemonic}</p>
+                              )}
+                              {record.sourceUrl && (
+                                <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                                  源: {new URL(record.sourceUrl).hostname}
+                                </a>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
+                              {phraseTranslation}
+                            </p>
+                          )}
+                          <div className="mt-1.5 flex items-center justify-between gap-2">
+                            <p className="tabular text-[10px] text-muted-foreground/70">
+                              {new Date(record.updatedAt).toLocaleDateString()}
+                            </p>
+                            <FamiliarityMeter score={record.score} />
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function WordlistEditPanel({
+  record,
+  saving,
+  onBack,
+  onCommit,
+}: {
+  record: VocabRecord
+  saving: boolean
+  onBack: () => void
+  onCommit: (fields: EditableFields) => void
+}) {
+  return (
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[8px] border border-border/60 bg-card dark:border-white/[0.04]">
+      <div className="flex items-start gap-2 border-b border-border/50 px-3 py-2.5 dark:border-white/[0.04]">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onBack}
+          disabled={saving}
+          aria-label="Back to wordlist"
+          className="mt-0.5 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+        </Button>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Edit entry</p>
+          <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
+            {record.term || record.wordOrPhrase}
+          </h3>
+        </div>
+      </div>
+      <div
+        className="scrollbar-thin h-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3"
+        data-testid="vocabify-wordlist-edit-scroll"
+      >
+        <RecordEditForm
+          formId={WORDLIST_EDIT_FORM_ID}
+          hideActions
+          initial={{
+            term: record.term,
+            phonetic: record.phonetic,
+            pos: record.pos,
+            senses: record.senses,
+            mnemonic: record.mnemonic,
+          }}
+          saving={saving}
+          onCommit={onCommit}
+          onCancel={onBack}
         />
       </div>
-
-      <div
-        ref={listRef}
-        className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
-        data-testid="vocabify-wordlist-scroll"
-        onWheelCapture={(event) => {
-          const scrollNode = listRef.current
-          if (!scrollNode) return
-          if (scrollNode.scrollHeight <= scrollNode.clientHeight) return
-          event.preventDefault()
-          scrollNode.scrollTop += event.deltaY
-          event.stopPropagation()
-        }}
-      >
-        {loading ? (
-          <ListSkeleton />
-        ) : records.length === 0 ? (
-          <EmptyState hasFilter={!!searchKeyword.trim()} />
-        ) : (
-          <ul className="space-y-1.5">
-            {records.map((record) => {
-              const isExpanded = expanded === record.id
-              const level = getLevel(record.score)
-              const levelSuffix = levelClassSuffix(level)
-              const isPhrase = record.pos === 'phrase'
-              const phraseTranslation = record.senses?.[0]?.definition || ''
-              return (
-                <li
-                  key={record.id}
-                  className={cn(
-                    'rounded-[8px] border border-border bg-card transition-colors animate-fade-in',
-                    'hover:bg-secondary/40 dark:border-white/[0.04]',
-                    isExpanded && 'bg-secondary/40',
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(isExpanded ? null : record.id ?? null)}
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left"
-                    aria-expanded={isExpanded}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`vocabify-level-dot is-${levelSuffix} shrink-0`} aria-hidden />
-                        <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
-                          {record.term || record.wordOrPhrase}
-                        </h3>
-                        {record.pos && !isPhrase && (
-                          <span className="rounded-[3px] bg-secondary px-1 py-[1px] text-[9px] font-semibold uppercase tracking-wide text-foreground/80">
-                            {record.pos}
-                          </span>
-                        )}
-                        <span className="tabular shrink-0 text-[10px] text-muted-foreground">
-                          {FAMILIARITY_LEVELS[level].label} · {record.score}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={(e) => { e.stopPropagation(); speak(record.term || record.wordOrPhrase) }}
-                          aria-label="Pronounce"
-                          title="Pronounce"
-                          className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
-                        >
-                          <Volume2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      {record.phonetic && !isPhrase && (
-                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{record.phonetic}</p>
-                      )}
-                      {isExpanded ? (
-                        editingId === record.id ? (
-                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                            <RecordEditForm
-                              initial={{
-                                term: record.term,
-                                phonetic: record.phonetic,
-                                pos: record.pos,
-                                senses: record.senses,
-                                mnemonic: record.mnemonic,
-                              }}
-                              saving={saving}
-                              onCommit={(fields) => record.id && handleEditCommit(record.id, fields)}
-                              onCancel={() => setEditingId(null)}
-                            />
-                          </div>
-                        ) : (
-                          <div className="mt-1 space-y-2">
-                            {isPhrase ? (
-                              <div className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
-                                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
-                                <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">{phraseTranslation}</p>
-                              </div>
-                            ) : (
-                              record.senses.map((sense, i) => (
-                                <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
-                                  <p className="text-[12px] leading-relaxed text-foreground">
-                                    <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
-                                    {sense.definition}
-                                  </p>
-                                  {sense.example && (
-                                    <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
-                                  )}
-                                  {sense.exampleTranslation && (
-                                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
-                                  )}
-                                </div>
-                              ))
-                            )}
-                            {record.mnemonic && !isPhrase && (
-                              <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{record.mnemonic}</p>
-                            )}
-                            {record.sourceUrl && (
-                              <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
-                                源: {new URL(record.sourceUrl).hostname}
-                              </a>
-                            )}
-                          </div>
-                        )
-                      ) : (
-                        <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
-                          {phraseTranslation}
-                        </p>
-                      )}
-                      <p className="mt-1.5 tabular text-[10px] text-muted-foreground/70">
-                        {new Date(record.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col gap-0.5">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => { e.stopPropagation(); setEditingId(record.id ?? null); setExpanded(record.id ?? null) }}
-                        aria-label={`Edit ${record.wordOrPhrase}`}
-                        title="Edit"
-                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                      >
-                        <Edit3 className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => { e.stopPropagation(); if (record.id) handleDelete(record.id) }}
-                        aria-label={`Delete ${record.wordOrPhrase}`}
-                        title="Delete"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+      <div className="shrink-0 border-t border-border/50 bg-card px-3 py-2.5 dark:border-white/[0.04]">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            disabled={saving}
+            className="h-7 px-3 text-[12px]"
+          >
+            取消
+          </Button>
+          <Button
+            type="submit"
+            form={WORDLIST_EDIT_FORM_ID}
+            variant="default"
+            size="sm"
+            disabled={saving}
+            className="h-7 px-3 text-[12px]"
+          >
+            {saving ? '…' : '保存'}
+          </Button>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -493,6 +592,28 @@ function formatRelativeTime(value: string) {
   if (diff < hour) return `${Math.floor(diff / minute)}m ago`
   if (diff < day) return `${Math.floor(diff / hour)}h ago`
   return `${Math.floor(diff / day)}d ago`
+}
+
+function FamiliarityMeter({ score }: { score: number }) {
+  const level = getLevel(score)
+  const suffix = levelClassSuffix(level)
+  const filled = Math.ceil(Math.max(0, Math.min(100, score)) / 5)
+
+  return (
+    <span className="inline-flex shrink-0 items-center justify-end gap-[2px]" aria-label={`Familiarity score ${score}`}>
+      {Array.from({ length: 20 }).map((_, index) => (
+        <span
+          // eslint-disable-next-line react/no-array-index-key
+          key={index}
+          className={cn(
+            'h-1 w-1 rounded-full bg-muted-foreground/20',
+            index < filled && `vocabify-level-dot-fill is-${suffix}`,
+          )}
+          aria-hidden
+        />
+      ))}
+    </span>
+  )
 }
 
 const EmptyState = ({ hasFilter }: { hasFilter: boolean }) => (

@@ -22,7 +22,7 @@ import {
   type VocabRecord,
 } from '@/lib/vocabifyDb'
 import type { VocabResponse } from '@/lib/aiSchema'
-import { FAMILIARITY_LEVELS, getLevel, MARK_DELTA, type MarkAction } from '@/lib/familiarity'
+import type { MarkAction } from '@/lib/familiarity'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import { checkIsDisabled, copyHandler } from './utils'
 import { useAIStream } from './useAIStream'
@@ -286,8 +286,6 @@ export default defineContentScript({
         const next = await markRecord(savedRecord.id, action)
         if (!next) return
         setSavedRecord(next)
-        const level = getLevel(next.score)
-        showMarkToast(`${FAMILIARITY_LEVELS[level].label} · ${next.score}`, formatDelta(MARK_DELTA[action]))
         await highlightService.highlightVocabulary()
       }
 
@@ -296,8 +294,6 @@ export default defineContentScript({
         const next = await markRecord(hoverRecord.id, action)
         if (!next) return
         setHoverRecord(next)
-        const level = getLevel(next.score)
-        showMarkToast(`${FAMILIARITY_LEVELS[level].label} · ${next.score}`, formatDelta(MARK_DELTA[action]))
         await highlightService.highlightVocabulary()
       }
 
@@ -593,45 +589,4 @@ function isVocabifyUiEvent(event: Event) {
   return event.composedPath().some((node) =>
     node instanceof HTMLElement && node.classList.contains(NO_SELECTION_CONTAINER),
   )
-}
-
-function formatDelta(delta: number) {
-  if (delta > 0) return `+${delta}`
-  if (delta < 0) return `${delta}`
-  return '±0'
-}
-
-function showMarkToast(title: string, detail: string) {
-  const host = document.createElement('div')
-  host.className = NO_SELECTION_CONTAINER
-  Object.assign(host.style, {
-    position: 'fixed',
-    bottom: '24px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    zIndex: '2147483647',
-    padding: '8px 14px',
-    borderRadius: '999px',
-    backdropFilter: 'blur(20px)',
-    background: 'rgba(20, 20, 22, 0.78)',
-    color: 'white',
-    fontSize: '12px',
-    fontWeight: '500',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
-    transition: 'opacity 200ms ease, transform 200ms ease',
-    opacity: '0',
-    pointerEvents: 'none',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
-  } as Partial<CSSStyleDeclaration>)
-  host.textContent = `${title}  ${detail}`
-  document.body.appendChild(host)
-  requestAnimationFrame(() => {
-    host.style.opacity = '1'
-    host.style.transform = 'translate(-50%, -6px)'
-  })
-  setTimeout(() => {
-    host.style.opacity = '0'
-    host.style.transform = 'translateX(-50%)'
-    setTimeout(() => host.remove(), 220)
-  }, 1400)
 }

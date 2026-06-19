@@ -9,7 +9,7 @@ interface VocabifySheetProps {
 
 export function VocabifySheet({ open, onOpenChange, children }: VocabifySheetProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
         side="right"
         className="flex flex-col gap-0 p-0"
@@ -21,7 +21,7 @@ export function VocabifySheet({ open, onOpenChange, children }: VocabifySheetPro
           <SheetDescription>Your AI vocabulary library</SheetDescription>
         </div>
 
-        <div className="flex-1 overflow-hidden">{children}</div>
+        <div className="h-full min-h-0 flex-1 overflow-hidden">{children}</div>
       </SheetContent>
     </Sheet>
   )

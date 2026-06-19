@@ -23,10 +23,10 @@ Built for serious readers, not gamified learners. The interface stays out of the
 
 - **Selection-driven flow.** Highlight a word on any page; a compact action popover surfaces explain / save / mark options without breaking your reading position.
 - **Streamed AI explanations.** Powered by one active AI provider at a time: popular first-party providers plus OpenAI-compatible GLM / Kimi / custom endpoints.
-- **Familiarity scoring.** Every saved word carries a 0–100 score across four tiers — New, Learning, Familiar, Mastered — each with its own highlight color.
+- **Familiarity scoring.** Every saved word carries a 0–100 score visualized as a compact 20-dot meter, with color reflecting its current familiarity tier.
 - **Lazy spaced decay.** Scores decay over time, but only settle the moment a word is rendered or marked. No background timers, no battery cost.
 - **Unified reading overlays.** Select a new word → operation bar (查询 / 复制). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → a virtual-anchor popover renders the same saved-word card with familiarity marks + inline edit / delete.
-- **In-page wordlist.** A side panel for reviewing saved words, opened directly from the toolbar icon or the popover's settings menu.
+- **In-page wordlist.** A side panel for reviewing saved words, opened directly from the toolbar icon or the popover's settings menu. Editing a word switches the content area into a focused edit panel below GitHub sync.
 - **GitHub sync.** Device-Flow OAuth into a private `__Vocabify_Data_Center__` repo. Tombstones travel with the records, so deletions propagate too.
 - **Local-first storage.** Dexie-backed IndexedDB; nothing leaves the browser unless you sync it.
 
@@ -34,7 +34,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 
 ### Smart text selection
 - Select any text to bring up the action popover at the optimal placement (above or below the selection, depending on viewport space).
-- Saved words display the current familiarity tier and score directly on the popover with Know (+15) / Fuzzy (+5) / Forget (−10) quick marks.
+- Saved words display a compact familiarity dot meter on the popover with Know (+15) / Fuzzy (+5) / Forget (−10) quick marks.
 - Selections inside form fields, contenteditable regions, or extension UI are ignored.
 
 ### AI-powered explanations

@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
-  FAMILIARITY_LEVELS,
   levelClassSuffix,
   type FamiliarityLevel,
   type MarkAction,
@@ -417,14 +416,14 @@ function Card({
               </div>
             ) : isBuildingResult ? (
               <div className="py-1.5" data-testid="vocabify-stream-building">
-                <div className="inline-flex items-center gap-2 rounded border border-border/60 bg-card px-2 py-1 text-[11px] text-muted-foreground">
+              <div className="inline-flex items-center gap-2 rounded border border-border/40 bg-card px-2 py-1 text-[11px] text-muted-foreground dark:border-white/[0.04]">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-ai-pulse" />
                   Structuring definition
                 </div>
               </div>
             ) : null}
             {showMnemonic && (
-              <div className="mt-2 border-t border-border/60 pt-2">
+              <div className="mt-2 border-t border-border/40 pt-2 dark:border-white/[0.04]">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">联想记忆</p>
                 <p className="mt-1 text-[12px] leading-relaxed text-foreground/85" data-testid="vocabify-stream-mnemonic">
                   {mnemonic || (streaming ? <Skeleton width={200} /> : null)}
@@ -440,7 +439,7 @@ function Card({
         )}
       </div>
 
-      <div className="flex items-center gap-1 border-t border-border/60 px-2 py-1.5">
+      <div className="flex items-center gap-1 border-t border-border/40 px-2 py-1.5 dark:border-white/[0.04]">
         {savedRecord ? (
           <SavedFooter savedRecord={savedRecord} onMark={onMark} onEnterEdit={onEnterEdit} onDelete={onDelete} />
         ) : (
@@ -466,7 +465,7 @@ function SenseRow({
   const [revealed, setRevealed] = React.useState(false)
   const showTranslation = translationMode === 'always' || revealed
   return (
-    <div className="rounded border border-border/60 bg-card px-2.5 py-1.5 animate-fade-in">
+    <div className="rounded border border-border/40 bg-card px-2.5 py-1.5 animate-fade-in dark:border-white/[0.04]">
       <div className="flex items-baseline gap-1.5">
         <span className="text-[11px] font-medium text-primary">{num}</span>
         <p className="text-[12px] leading-relaxed text-foreground" data-testid="vocabify-stream-definition">{sense.definition || (streaming ? <Skeleton width={140} /> : null)}</p>
@@ -516,7 +515,7 @@ function PhraseTranslation({
 
   return (
     <div className="py-1" data-testid="vocabify-stream-senses">
-      <div className="rounded border border-border/60 bg-card px-2.5 py-2 animate-fade-in">
+      <div className="rounded border border-border/40 bg-card px-2.5 py-2 animate-fade-in dark:border-white/[0.04]">
         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
         <p className="mt-1 text-[13px] leading-relaxed text-foreground" data-testid="vocabify-stream-definition">
           {translation || <Skeleton width={180} />}
@@ -603,7 +602,7 @@ function getTermTitleSize(text: string) {
 
 function SenseSkeleton({ active = false }: { active?: boolean }) {
   return (
-    <div className="rounded border border-border/60 bg-card px-2.5 py-1.5">
+    <div className="rounded border border-border/40 bg-card px-2.5 py-1.5 dark:border-white/[0.04]">
       <div className="flex items-center gap-1.5">
         <div className="vocabify-skeleton-breathe h-3.5 w-4/5 rounded" />
         {active && <span className="h-3 w-px bg-primary/80 animate-ai-pulse" aria-hidden />}
@@ -636,38 +635,47 @@ function NewWordFooter({ canSave, onSave, onEnterEdit, streaming }: { canSave: b
 
 function SavedFooter({ savedRecord, onMark, onEnterEdit, onDelete }: { savedRecord: VocabRecord; onMark?: (action: MarkAction) => void; onEnterEdit?: () => void; onDelete?: () => void }) {
   return (
-    <>
-      <LevelChip score={savedRecord.score} />
-      <div className="flex-1" />
-      <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('KNOW')} data-testid="vocabify-mark-know">
-        <Check className="h-3 w-3" /> Know
-      </Button>
-      <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('FUZZY')} data-testid="vocabify-mark-fuzzy">
-        <Brain className="h-3 w-3" /> Fuzzy
-      </Button>
-      <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('FORGET')} data-testid="vocabify-mark-forget">
-        <HelpCircle className="h-3 w-3" /> Forget
-      </Button>
-      <span className="mx-0.5 h-4 w-px bg-secondary" />
-      <Button variant="ghost" size="icon-sm" onClick={onEnterEdit} aria-label="Edit" title="Edit" className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-foreground">
-        <Edit3 className="h-3 w-3" />
-      </Button>
-      <Button variant="ghost" size="icon-sm" onClick={onDelete} aria-label="Delete" title="Delete" className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-red-400">
-        <Trash2 className="h-3 w-3" />
-      </Button>
-    </>
+    <div className="flex w-full flex-col gap-1.5">
+      <div className="flex items-center justify-end gap-1">
+        <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('KNOW')} data-testid="vocabify-mark-know">
+          <Check className="h-3 w-3" /> Know
+        </Button>
+        <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('FUZZY')} data-testid="vocabify-mark-fuzzy">
+          <Brain className="h-3 w-3" /> Fuzzy
+        </Button>
+        <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('FORGET')} data-testid="vocabify-mark-forget">
+          <HelpCircle className="h-3 w-3" /> Forget
+        </Button>
+        <span className="mx-0.5 h-4 w-px bg-secondary" />
+        <Button variant="ghost" size="icon-sm" onClick={onEnterEdit} aria-label="Edit" title="Edit" className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-foreground">
+          <Edit3 className="h-3 w-3" />
+        </Button>
+        <Button variant="ghost" size="icon-sm" onClick={onDelete} aria-label="Delete" title="Delete" className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-red-400">
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+      <FamiliarityMeter score={savedRecord.score} />
+    </div>
   )
 }
 
-function LevelChip({ score }: { score: number }) {
+function FamiliarityMeter({ score }: { score: number }) {
   const level: FamiliarityLevel = score <= 0 ? 'NEW' : score <= 40 ? 'LEARNING' : score <= 70 ? 'FAMILIAR' : 'MASTERED'
-  const meta = FAMILIARITY_LEVELS[level]
   const suffix = levelClassSuffix(level)
+  const filled = Math.ceil(Math.max(0, Math.min(100, score)) / 5)
   return (
-    <div className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-      <span className={`vocabify-level-dot is-${suffix}`} aria-hidden />
-      <span className="text-muted-foreground">{meta.label}</span>
-      <span className="tabular text-foreground/85">{score}</span>
+    <div className="flex w-full items-center justify-center gap-[2px]" aria-label={`Familiarity score ${score}`}>
+      {Array.from({ length: 20 }).map((_, index) => (
+        <span
+          // eslint-disable-next-line react/no-array-index-key
+          key={index}
+          className={cn(
+            'h-1 w-1 rounded-full bg-muted-foreground/20',
+            index < filled && `vocabify-level-dot-fill is-${suffix}`,
+          )}
+          aria-hidden
+        />
+      ))}
     </div>
   )
 }

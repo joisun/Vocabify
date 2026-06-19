@@ -13,7 +13,7 @@ interface InPageUIProps {
 export function InPageUI({ open, onOpenChange }: InPageUIProps) {
   return (
     <VocabifySheet open={open} onOpenChange={onOpenChange}>
-      <div className="flex h-full flex-col">
+      <div className="flex h-full min-h-0 flex-col">
         <div
           data-vocabify-sheet-drag-handle
           className="flex shrink-0 items-center justify-between gap-2 border-b border-border/70 px-4 py-2.5 dark:border-white/[0.04]"
@@ -42,7 +42,7 @@ export function InPageUI({ open, onOpenChange }: InPageUIProps) {
             </Button>
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3">
+        <div className="flex min-h-0 w-full flex-1 overflow-hidden px-4 pb-4 pt-3">
           <VocabList />
         </div>
       </div>

@@ -16,11 +16,13 @@ export interface EditableFields {
 interface RecordEditFormProps {
   initial: Partial<EditableFields>
   saving?: boolean
+  formId?: string
+  hideActions?: boolean
   onCommit: (fields: EditableFields) => void
   onCancel: () => void
 }
 
-export function RecordEditForm({ initial, saving, onCommit, onCancel }: RecordEditFormProps) {
+export function RecordEditForm({ initial, saving, formId, hideActions = false, onCommit, onCancel }: RecordEditFormProps) {
   const [term, setTerm] = useState(initial.term || '')
   const [phonetic, setPhonetic] = useState(initial.phonetic || '')
   const [pos, setPos] = useState<PosType>(initial.pos || 'other')
@@ -44,9 +46,14 @@ export function RecordEditForm({ initial, saving, onCommit, onCancel }: RecordEd
     if (senses.length <= 1) return
     setSenses(senses.filter((_, i) => i !== idx))
   }
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (saving || !term.trim() || senses.length === 0) return
+    onCommit({ term, phonetic, pos, senses, mnemonic })
+  }
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-2.5">
       <div className="grid grid-cols-[1fr_100px_70px] gap-2">
         <Field label="Term">
           <Input value={term} onChange={(e) => setTerm(e.target.value)} className="h-8 text-[12px]" />
@@ -72,7 +79,7 @@ export function RecordEditForm({ initial, saving, onCommit, onCancel }: RecordEd
           <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Senses ({senses.length}/3)
           </span>
-          <Button variant="ghost" size="sm" onClick={addSense} disabled={senses.length >= 3} className="h-6 px-1.5 text-[11px]">
+          <Button type="button" variant="ghost" size="sm" onClick={addSense} disabled={senses.length >= 3} className="h-6 px-1.5 text-[11px]">
             <Plus className="h-3 w-3" /> Add
           </Button>
         </div>
@@ -82,7 +89,7 @@ export function RecordEditForm({ initial, saving, onCommit, onCancel }: RecordEd
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-primary">{`①②③`[i] || i + 1}</span>
               {senses.length > 1 && (
-                <Button variant="ghost" size="icon-sm" onClick={() => removeSense(i)} className="ml-auto h-5 w-5 text-muted-foreground hover:text-destructive">
+                <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeSense(i)} className="ml-auto h-5 w-5 text-muted-foreground hover:text-destructive">
                   <X className="h-3 w-3" />
                 </Button>
               )}
@@ -98,21 +105,23 @@ export function RecordEditForm({ initial, saving, onCommit, onCancel }: RecordEd
         <Textarea value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} rows={2} className="text-[12px]" />
       </Field>
 
-      <div className="flex items-center justify-end gap-1">
-        <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving} className="h-7 px-3 text-[12px]">
-          取消
-        </Button>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => onCommit({ term, phonetic, pos, senses, mnemonic })}
-          disabled={saving || !term.trim() || senses.length === 0}
-          className="h-7 px-3 text-[12px]"
-        >
-          {saving ? '…' : <><Save className="h-3.5 w-3.5" /> 保存</>}
-        </Button>
-      </div>
-    </div>
+      {!hideActions ? (
+        <div className="flex items-center justify-end gap-1">
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving} className="h-7 px-3 text-[12px]">
+            取消
+          </Button>
+          <Button
+            type="submit"
+            variant="default"
+            size="sm"
+            disabled={saving || !term.trim() || senses.length === 0}
+            className="h-7 px-3 text-[12px]"
+          >
+            {saving ? '…' : <><Save className="h-3.5 w-3.5" /> 保存</>}
+          </Button>
+        </div>
+      ) : null}
+    </form>
   )
 }
 
