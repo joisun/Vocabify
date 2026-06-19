@@ -7,15 +7,14 @@ import {
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
-  levelClassSuffix,
-  type FamiliarityLevel,
   type MarkAction,
 } from '@/lib/familiarity'
 import type { VocabResponse } from '@/lib/aiSchema'
-import type { VocabRecord } from '@/lib/vocabifyDb'
+import type { VocabRecord } from '@/lib/vocabTypes'
 import { cn } from '@/lib/utils'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 import { translationRevealMode, type TranslationRevealMode } from '@/utils/storage'
+import { FamiliarityMeter } from '@/components/FamiliarityMeter'
 
 export type { EditableFields } from '@/components/RecordEditForm'
 
@@ -654,28 +653,7 @@ function SavedFooter({ savedRecord, onMark, onEnterEdit, onDelete }: { savedReco
           <Trash2 className="h-3 w-3" />
         </Button>
       </div>
-      <FamiliarityMeter score={savedRecord.score} />
-    </div>
-  )
-}
-
-function FamiliarityMeter({ score }: { score: number }) {
-  const level: FamiliarityLevel = score <= 0 ? 'NEW' : score <= 40 ? 'LEARNING' : score <= 70 ? 'FAMILIAR' : 'MASTERED'
-  const suffix = levelClassSuffix(level)
-  const filled = Math.ceil(Math.max(0, Math.min(100, score)) / 5)
-  return (
-    <div className="flex w-full items-center justify-center gap-[2px]" aria-label={`Familiarity score ${score}`}>
-      {Array.from({ length: 20 }).map((_, index) => (
-        <span
-          // eslint-disable-next-line react/no-array-index-key
-          key={index}
-          className={cn(
-            'h-1 w-1 rounded-full bg-muted-foreground/20',
-            index < filled && `vocabify-level-dot-fill is-${suffix}`,
-          )}
-          aria-hidden
-        />
-      ))}
+      <FamiliarityMeter record={savedRecord} align="center" hideCurveTitle />
     </div>
   )
 }

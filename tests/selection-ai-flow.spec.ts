@@ -234,15 +234,16 @@ test.describe('Vocabify selection + AI flow', () => {
 
   async function setupPage(page: Page, baseUrl = mockBaseUrl, extraStorage: Record<string, unknown> = {}) {
     await page.goto(pageUrl)
-    await clearFixtureDatabase(page)
+    const extensionId = await getExtensionId(context)
+    await clearPageOriginDatabase(page)
+    await clearExtensionDatabase(context, extensionId)
     await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.locator('#target-paragraph')).toBeVisible()
     await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
-    const extensionId = await getExtensionId(context)
     return seedAiProvider(context, extensionId, baseUrl, extraStorage)
   }
 
-  async function clearFixtureDatabase(page: Page) {
+  async function clearPageOriginDatabase(page: Page) {
     await page.evaluate(() => new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase('VocabifyIndexDB')
       request.onsuccess = () => resolve()
@@ -252,46 +253,8 @@ test.describe('Vocabify selection + AI flow', () => {
   }
 
   async function seedSavedRecordBeforeReload(page: Page) {
-    await page.evaluate(() => new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open('VocabifyIndexDB')
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => {
-        const db = request.result
-        const tx = db.transaction('records', 'readwrite')
-        const store = tx.objectStore('records')
-        const now = new Date().toISOString()
-        store.put({
-          id: 1,
-          wordOrPhrase: 'nuanced phrase',
-          term: 'nuanced phrase',
-          phonetic: '/njuːˈɑːnst/',
-          pos: 'phrase',
-          senses: [{
-            id: 's1',
-            definition: 'A subtle expression conveying detailed meaning',
-            example: 'The diplomat used a nuanced phrase',
-            exampleTranslation: '外交官使用了微妙的措辞',
-          }],
-          mnemonic: 'nuance (subtle) + phrase',
-          tags: [],
-          sourceUrl: window.location.href,
-          sourceContext: 'Meticulous readers often pause at a nuanced phrase.',
-          createdAt: now,
-          updatedAt: now,
-          score: 0,
-          firstMarkedAt: null,
-          lastMarkedAt: null,
-        })
-        tx.oncomplete = () => {
-          db.close()
-          resolve()
-        }
-        tx.onerror = () => {
-          db.close()
-          reject(tx.error)
-        }
-      }
-    }))
+    const extensionId = await getExtensionId(context)
+    await seedExtensionRecord(context, extensionId, page.url())
   }
 
   async function clickQuery(page: Page) {
@@ -471,6 +434,118 @@ async function setExtensionStorage(context: BrowserContext, extensionId: string,
   try {
     await page.goto(`chrome-extension://${extensionId}/options.html`)
     await page.evaluate((nextValues) => chrome.storage.local.set(nextValues), values)
+  } finally {
+    await page.close().catch(() => undefined)
+  }
+}
+
+async function clearExtensionDatabase(context: BrowserContext, extensionId: string) {
+  const page = await context.newPage()
+  try {
+    await page.goto(`chrome-extension://${extensionId}/options.html`)
+    await page.evaluate(() => new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('VocabifyIndexDB', 6)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        const records = db.objectStoreNames.contains('records')
+          ? request.transaction!.objectStore('records')
+          : db.createObjectStore('records', { keyPath: 'id', autoIncrement: true })
+        for (const indexName of ['wordOrPhrase', 'createdAt', 'updatedAt', 'score']) {
+          if (!records.indexNames.contains(indexName)) records.createIndex(indexName, indexName)
+        }
+        const tombstones = db.objectStoreNames.contains('syncTombstones')
+          ? request.transaction!.objectStore('syncTombstones')
+          : db.createObjectStore('syncTombstones', { keyPath: 'wordOrPhrase' })
+        if (!tombstones.indexNames.contains('deletedAt')) tombstones.createIndex('deletedAt', 'deletedAt')
+      }
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        const db = request.result
+        const stores = Array.from(db.objectStoreNames).filter((name) => name === 'records' || name === 'syncTombstones')
+        if (stores.length === 0) {
+          db.close()
+          resolve()
+          return
+        }
+        const tx = db.transaction(stores, 'readwrite')
+        stores.forEach((storeName) => tx.objectStore(storeName).clear())
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => {
+          db.close()
+          reject(tx.error)
+        }
+      }
+    }))
+  } finally {
+    await page.close().catch(() => undefined)
+  }
+}
+
+async function seedExtensionRecord(context: BrowserContext, extensionId: string, sourceUrl: string) {
+  const page = await context.newPage()
+  try {
+    await page.goto(`chrome-extension://${extensionId}/options.html`)
+    await page.evaluate((url) => new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('VocabifyIndexDB', 6)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        const records = db.objectStoreNames.contains('records')
+          ? request.transaction!.objectStore('records')
+          : db.createObjectStore('records', { keyPath: 'id', autoIncrement: true })
+        for (const indexName of ['wordOrPhrase', 'createdAt', 'updatedAt', 'score']) {
+          if (!records.indexNames.contains(indexName)) records.createIndex(indexName, indexName)
+        }
+        const tombstones = db.objectStoreNames.contains('syncTombstones')
+          ? request.transaction!.objectStore('syncTombstones')
+          : db.createObjectStore('syncTombstones', { keyPath: 'wordOrPhrase' })
+        if (!tombstones.indexNames.contains('deletedAt')) tombstones.createIndex('deletedAt', 'deletedAt')
+      }
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        const db = request.result
+        const tx = db.transaction('records', 'readwrite')
+        const store = tx.objectStore('records')
+        const now = new Date().toISOString()
+        store.put({
+          id: 1,
+          wordOrPhrase: 'nuanced phrase',
+          term: 'nuanced phrase',
+          phonetic: '/njuːˈɑːnst/',
+          pos: 'phrase',
+          senses: [{
+            id: 's1',
+            definition: 'A subtle expression conveying detailed meaning',
+            example: 'The diplomat used a nuanced phrase',
+            exampleTranslation: '外交官使用了微妙的措辞',
+          }],
+          mnemonic: 'nuance (subtle) + phrase',
+          tags: [],
+          sourceUrl: url,
+          sourceContext: 'Meticulous readers often pause at a nuanced phrase.',
+          createdAt: now,
+          updatedAt: now,
+          score: 0,
+          firstMarkedAt: null,
+          lastMarkedAt: null,
+          lastDecayAt: null,
+          memoryAnchorScore: 0,
+          memoryAnchorAt: null,
+          memoryHorizonDays: 0,
+          memoryCurve: { x1: 0.18, y1: 0.04, x2: 0.82, y2: 1 },
+        })
+        tx.oncomplete = () => {
+          db.close()
+          resolve()
+        }
+        tx.onerror = () => {
+          db.close()
+          reject(tx.error)
+        }
+      }
+    }), sourceUrl)
   } finally {
     await page.close().catch(() => undefined)
   }

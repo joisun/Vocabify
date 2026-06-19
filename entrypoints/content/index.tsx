@@ -11,18 +11,19 @@ import {
 import { InPageUI } from '@/components/InPageUI'
 import { highlightService, type HoverEvent } from '@/lib/highlightService'
 import {
-  db,
   deleteRecordById,
+  getRecordById,
+  getRecordByWord,
+  importVocabularyPayload,
   markRecord,
-  normalizeWordOrPhrase,
   saveFromAiResponse,
   saveRecord,
-  settleAndPersistDecay,
   updateRecordFields,
-  type VocabRecord,
-} from '@/lib/vocabifyDb'
+} from '@/lib/vocabApi'
+import { normalizeWordOrPhrase, type VocabRecord, type VocabTombstone } from '@/lib/vocabTypes'
 import type { VocabResponse } from '@/lib/aiSchema'
 import type { MarkAction } from '@/lib/familiarity'
+import type { RuntimeMessage } from '@/lib/messaging'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import { checkIsDisabled, copyHandler } from './utils'
 import { useAIStream } from './useAIStream'
@@ -156,7 +157,11 @@ export default defineContentScript({
           if (areaName !== 'local') return
           if (changes.hightlightStyle) void refreshHighlights()
         }
+        const handleRuntimeMessage = (message: RuntimeMessage) => {
+          if (message.type === 'vocabChanged') void refreshHighlights()
+        }
         chrome.storage.onChanged.addListener(handleStorageChange)
+        chrome.runtime.onMessage.addListener(handleRuntimeMessage)
 
         return () => {
           cancelled = true
@@ -165,6 +170,7 @@ export default defineContentScript({
           clearHoverCloseTimer()
           highlightService.setHoverListener(null)
           chrome.storage.onChanged.removeListener(handleStorageChange)
+          chrome.runtime.onMessage.removeListener(handleRuntimeMessage)
         }
       }, [])
 
@@ -172,10 +178,9 @@ export default defineContentScript({
       useEffect(() => {
         let cancelled = false
         if (popoverState?.recordId != null) {
-          db.records.get(popoverState.recordId).then(async (r) => {
+          getRecordById(popoverState.recordId).then((r) => {
             if (cancelled || !r) return
-            const settled = await settleAndPersistDecay(r)
-            setSavedRecord(settled)
+            setSavedRecord(r)
           })
         } else {
           setSavedRecord(null)
@@ -189,10 +194,9 @@ export default defineContentScript({
         let cancelled = false
         if (hoverState?.recordId != null) {
           setHoverRecord(null)
-          db.records.get(hoverState.recordId).then(async (r) => {
+          getRecordById(hoverState.recordId).then((r) => {
             if (cancelled || !r) return
-            const settled = await settleAndPersistDecay(r)
-            setHoverRecord(settled)
+            setHoverRecord(r)
           })
         } else {
           setHoverRecord(null)
@@ -201,7 +205,7 @@ export default defineContentScript({
       }, [hoverState?.recordId])
 
       useEffect(() => {
-        const handler = (msg: any) => {
+        const handler = (msg: RuntimeMessage) => {
           if (msg.type === 'openVocabList') setOpen(true)
         }
         chrome.runtime.onMessage.addListener(handler)
@@ -468,6 +472,7 @@ export default defineContentScript({
     })
 
     ui.mount()
+    void migratePageOriginVocabulary()
 
     // ── DOM listeners ───────────────────────────────────────────────────────
     document.addEventListener('mousedown', function (event) {
@@ -527,8 +532,62 @@ export default defineContentScript({
 async function lookupSavedRecordId(rawText: string): Promise<number | null> {
   const key = normalizeWordOrPhrase(rawText)
   if (!key) return null
-  const record = await db.records.where('wordOrPhrase').equals(key).first()
+  const record = await getRecordByWord(key)
   return record?.id ?? null
+}
+
+async function migratePageOriginVocabulary() {
+  const migrationKey = `vocabify-page-db-migrated:${location.origin}`
+  const storage = await chrome.storage.local.get(migrationKey)
+  if (storage[migrationKey]) return
+  const payload = await readLegacyPageOriginDb()
+  if (!payload || (payload.records.length === 0 && payload.tombstones.length === 0)) {
+    await chrome.storage.local.set({ [migrationKey]: true })
+    return
+  }
+  await importVocabularyPayload(payload)
+  await chrome.storage.local.set({ [migrationKey]: true })
+  await highlightService.highlightVocabulary()
+}
+
+async function readLegacyPageOriginDb(): Promise<{
+  records: Array<Partial<VocabRecord>>
+  tombstones: Array<Partial<VocabTombstone>>
+} | null> {
+  const dbs = indexedDB.databases ? await indexedDB.databases().catch(() => []) : []
+  if (!dbs.some((dbInfo) => dbInfo.name === 'VocabifyIndexDB')) return null
+
+  return new Promise((resolve) => {
+    const request = indexedDB.open('VocabifyIndexDB')
+    request.onerror = () => resolve(null)
+    request.onsuccess = () => {
+      const legacyDb = request.result
+      const records = legacyDb.objectStoreNames.contains('records')
+        ? readStore<Partial<VocabRecord>>(legacyDb, 'records')
+        : Promise.resolve([])
+      const tombstones = legacyDb.objectStoreNames.contains('syncTombstones')
+        ? readStore<Partial<VocabTombstone>>(legacyDb, 'syncTombstones')
+        : Promise.resolve([])
+      Promise.all([records, tombstones])
+        .then(([nextRecords, nextTombstones]) => {
+          legacyDb.close()
+          resolve({ records: nextRecords, tombstones: nextTombstones })
+        })
+        .catch(() => {
+          legacyDb.close()
+          resolve(null)
+        })
+    }
+  })
+}
+
+function readStore<T>(database: IDBDatabase, storeName: string): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(storeName, 'readonly')
+    const request = tx.objectStore(storeName).getAll()
+    request.onsuccess = () => resolve((request.result || []) as T[])
+    request.onerror = () => reject(request.error)
+  })
 }
 
 function getSelectionRect(range: Range): SelectionRect | null {

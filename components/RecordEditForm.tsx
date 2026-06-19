@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, Save, X } from 'lucide-react'
-import type { PosType } from '@/lib/vocabifyDb'
+import type { PosType } from '@/lib/vocabTypes'
 
 export interface EditableFields {
   term: string

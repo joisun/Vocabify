@@ -23,18 +23,18 @@ Built for serious readers, not gamified learners. The interface stays out of the
 
 - **Selection-driven flow.** Highlight a word on any page; a compact action popover surfaces explain / save / mark options without breaking your reading position.
 - **Streamed AI explanations.** Powered by one active AI provider at a time: popular first-party providers plus OpenAI-compatible GLM / Kimi / custom endpoints.
-- **Familiarity scoring.** Every saved word carries a 0–100 score visualized as a compact 20-dot meter, with color reflecting its current familiarity tier.
-- **Lazy spaced decay.** Scores decay over time, but only settle the moment a word is rendered or marked. No background timers, no battery cost.
+- **Familiarity scoring.** Every saved word carries a 0–100 score visualized as a compact 20-dot meter; clicking the dots expands its memory curve.
+- **Bézier forgetting.** Scores decay from a mark-time anchor through a bounded cubic Bézier curve, materialized only when rendered or marked. No background timers, no battery cost.
 - **Unified reading overlays.** Select a new word → operation bar (查询 / 复制). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → a virtual-anchor popover renders the same saved-word card with familiarity marks + inline edit / delete.
 - **In-page wordlist.** A side panel for reviewing saved words, opened directly from the toolbar icon or the popover's settings menu. Editing a word switches the content area into a focused edit panel below GitHub sync.
 - **GitHub sync.** Device-Flow OAuth into a private `__Vocabify_Data_Center__` repo. Tombstones travel with the records, so deletions propagate too.
-- **Local-first storage.** Dexie-backed IndexedDB; nothing leaves the browser unless you sync it.
+- **Local-first storage.** Dexie-backed IndexedDB lives under the extension origin; nothing leaves the browser unless you sync it.
 
 ## Feature Detail
 
 ### Smart text selection
 - Select any text to bring up the action popover at the optimal placement (above or below the selection, depending on viewport space).
-- Saved words display a compact familiarity dot meter on the popover with Know (+15) / Fuzzy (+5) / Forget (−10) quick marks.
+- Saved words display a compact familiarity dot meter on the popover. Click the dots to inspect the word's Bézier memory curve.
 - Selections inside form fields, contenteditable regions, or extension UI are ignored.
 
 ### AI-powered explanations
@@ -52,10 +52,11 @@ Built for serious readers, not gamified learners. The interface stays out of the
 
 ### Familiarity scoring
 - Score range: 0–100, mapped to four tiers — New (0) / Learning (1–40) / Familiar (41–70) / Mastered (71–100).
-- Marks: Know +15, Fuzzy +5, Forget −10.
-- Decay: Learning −10 / 3d, Familiar −10 / 14d, Mastered −5 / 60d. New words never decay until first marked.
-- Decay is settled lazily right before each highlight pass and persisted back to IndexedDB.
-- Forget resets the decay timer so the next read does not double-deduct.
+- Marks apply bounded score changes: Know raises low / mid / high scores by +18 / +12 / +6; Fuzzy converges toward the 60–70 range; Forget applies −12 / −20 / −30.
+- Each mark creates a new memory anchor (`memoryAnchorScore`, `memoryAnchorAt`). Time-based forgetting is computed from that anchor with a CSS-style cubic Bézier curve.
+- The x-axis is normalized elapsed time, clamped to the active horizon: Learning 9 days, Familiar 42 days, Mastered 180 days.
+- Current score is materialized lazily right before rendering, marking, highlighting, or syncing, then persisted back to extension-origin IndexedDB.
+- The dot meter in popovers and sheet rows expands on click to show anchor score, current score, projected end score, and elapsed/horizon timing.
 
 ### Highlighting
 - Uses the CSS Custom Highlight API on modern Chromium / Safari and a `<mark>` fallback elsewhere.
@@ -67,7 +68,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 ### GitHub synchronization
 - OAuth Device Flow only — no client secret bundled in the extension.
 - Sync target: a private repo named `__Vocabify_Data_Center__`, file `syncdata.json`.
-- Payload schema includes records, tombstones, and familiarity fields, so cross-device merges preserve memory state.
+- Payload schema includes records, tombstones, and memory-anchor fields, so cross-device merges preserve memory state.
 - Legacy payloads without familiarity data are backfilled with safe defaults on import.
 
 ### Customization
@@ -96,8 +97,9 @@ lib/
   aiService.ts           # Vercel AI SDK provider switch + streaming
   aiSchema.ts            # Zod schema for structured AI output (VocabResponse)
   partialJson.ts         # Field-level streaming JSON parser + final repair path
-  familiarity.ts         # 0-100 score engine, decay rules, mark deltas
-  vocabifyDb.ts          # Dexie schema (v5, structured) + tombstone tracking
+  familiarity.ts         # 0-100 memory engine, Bézier curve materialization, mark deltas
+  vocabApi.ts            # content/options vocabulary API over extension messaging
+  vocabifyDb.ts          # extension-origin Dexie schema (v6) + tombstone tracking
   highlightService.ts    # Custom Highlight API + <mark> fallback
   githubSync.ts          # Device Flow + syncdata.json read/write
 typings/

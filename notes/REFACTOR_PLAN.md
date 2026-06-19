@@ -41,11 +41,11 @@
 
 **当前痛点**：`lib/db.ts` 直接封装原生 API，代码冗长、类型支持弱，难以响应式地驱动 UI 更新。
 
-**重构方案**：引入 **`dexie`** (及其 React Hooks)。这不仅能极大简化 DB 操作，还能让页内 UI (如单词列表弹窗) 通过 `useLiveQuery` 实时响应数据库变化，避免通过 message 满天飞地同步状态。
+**当前架构结论**：引入 **`dexie`** 简化 IndexedDB schema 和事务，但 DB 必须由 background / extension origin 统一持有。Content Script 运行在网页 origin，直接打开 IndexedDB 会把词库分散到每个站点，不能作为最终架构。
 
 **遗漏的细节**：
-- Dexie 在 Content Script 环境中可以直接使用，但需要注意 Content Script 和 Background 共享同一个 IndexedDB origin（`chrome-extension://`），可以直接在 Content Script 中读写，**无需再通过 Background 中转**
-- 这意味着 `background.ts` 中大量的 DB 消息处理器（`saveWordOrPhrase`、`findByPage`、`fuzzySearchByKeyword`、`deleteWordOrPhrase`、`getAllRecordsData`）可以全部删除，大幅简化消息协议
+- Content Script 不能直接作为词库 DB owner；所有词库 CRUD/search/mark/sync 走 background typed messaging。
+- Background 负责广播 `vocabChanged`，页内 UI 收到后重新拉取数据，替代 Dexie `liveQuery`。
 - 需要定义 Dexie schema 版本迁移策略，兼容现有用户的 IndexedDB 数据（当前 DB 名为 `VocabifyDB`，store 名为 `wordOrPhrases`）
 - 现有数据结构：`{ wordOrPhrase, meaning, id, createdAt, updatedAt }`，迁移时需保持字段兼容
 
@@ -154,8 +154,8 @@ Content Script 挂载点
 
 ### Phase 1：数据层（风险最低，收益最高）
 1. 引入 Dexie，定义 schema（兼容现有数据结构）
-2. 替换 `lib/db.ts`，删除 Background 中的 DB 消息处理器
-3. 验证：Content Script 可直接读写 IndexedDB
+2. 替换 `lib/db.ts`，将词库 DB service 收敛到 Background
+3. 验证：新写入只出现在 extension origin IndexedDB，页面 origin 不再新增词库数据
 
 ### Phase 2：AI 服务层
 1. 引入 Vercel AI SDK

@@ -1,6 +1,7 @@
-import { db, settleAndPersistDecay, type VocabRecord } from '@/lib/vocabifyDb'
+import type { VocabRecord } from '@/lib/vocabTypes'
 import { getLevel, levelClassSuffix, type FamiliarityLevel } from '@/lib/familiarity'
 import { hightlightStyle, type highlightStyleSettingsType } from '@/utils/storage'
+import { getAllRecords } from '@/lib/vocabApi'
 
 const LEVELS: FamiliarityLevel[] = ['NEW', 'LEARNING', 'FAMILIAR', 'MASTERED']
 
@@ -70,8 +71,7 @@ export class HighlightService {
 
   async highlightVocabulary() {
     await this.ensureStylesInjected()
-    const rawRecords = await db.records.toArray()
-    const records = await Promise.all(rawRecords.map((record) => settleAndPersistDecay(record)))
+    const records = await getAllRecords()
     this.records = records
     this.rangesByRecordId.clear()
 

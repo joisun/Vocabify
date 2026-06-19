@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { liveQuery } from 'dexie'
-import { db, deleteRecordById, updateRecordFields, type VocabRecord } from '@/lib/vocabifyDb'
+import type { VocabRecord } from '@/lib/vocabTypes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -29,17 +28,33 @@ import {
 import { githubAccessToken, githubLastSyncAt, githubSyncAccount, type GithubSyncAccount } from '@/utils/storage'
 import { getLevel, levelClassSuffix } from '@/lib/familiarity'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
+import { countRecords, deleteRecordById, getAllRecords, searchRecords, updateRecordFields } from '@/lib/vocabApi'
+import { FamiliarityMeter, MemoryCurvePanel } from '@/components/FamiliarityMeter'
+import type { RuntimeMessage } from '@/lib/messaging'
 
 const WORDLIST_EDIT_FORM_ID = 'vocabify-wordlist-edit-form'
 
 function useVocabularyCount() {
   const [count, setCount] = useState(0)
   useEffect(() => {
-    const subscription = liveQuery(() => db.records.count()).subscribe({
-      next: setCount,
-      error: (error) => console.error('Failed to watch vocabulary count:', error),
-    })
-    return () => subscription.unsubscribe()
+    let cancelled = false
+    const load = async () => {
+      try {
+        const next = await countRecords()
+        if (!cancelled) setCount(next)
+      } catch (error) {
+        console.error('Failed to load vocabulary count:', error)
+      }
+    }
+    void load()
+    const handler = (message: RuntimeMessage) => {
+      if (message.type === 'vocabChanged') void load()
+    }
+    chrome.runtime.onMessage.addListener(handler)
+    return () => {
+      cancelled = true
+      chrome.runtime.onMessage.removeListener(handler)
+    }
   }, [])
   return count
 }
@@ -50,6 +65,7 @@ export function VocabList() {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<number | null>(null)
+  const [expandedCurveId, setExpandedCurveId] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const editingRecord = editingId == null ? null : records.find((record) => record.id === editingId) ?? null
@@ -59,7 +75,7 @@ export function VocabList() {
   async function loadRecords() {
     setLoading(true)
     try {
-      const allRecords = await db.records.orderBy('updatedAt').reverse().toArray()
+      const allRecords = await getAllRecords()
       setRecords(allRecords)
     } catch (error) {
       console.error('Failed to load records:', error)
@@ -75,14 +91,7 @@ export function VocabList() {
     }
     setLoading(true)
     try {
-      const lowerKeyword = searchKeyword.toLowerCase()
-      const results = await db.records
-        .filter((r) =>
-          r.wordOrPhrase.toLowerCase().includes(lowerKeyword) ||
-          (r.term?.toLowerCase().includes(lowerKeyword) ?? false) ||
-          (r.senses?.some((s) => s.definition.toLowerCase().includes(lowerKeyword)) ?? false),
-        )
-        .toArray()
+      const results = await searchRecords(searchKeyword)
       setRecords(results)
     } catch (error) {
       console.error('Search failed:', error)
@@ -94,6 +103,16 @@ export function VocabList() {
   useEffect(() => {
     const t = setTimeout(handleSearch, 220)
     return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchKeyword])
+
+  useEffect(() => {
+    const handler = (message: RuntimeMessage) => {
+      if (message.type !== 'vocabChanged') return
+      void handleSearch()
+    }
+    chrome.runtime.onMessage.addListener(handler)
+    return () => chrome.runtime.onMessage.removeListener(handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchKeyword])
 
@@ -181,8 +200,8 @@ export function VocabList() {
                       key={record.id}
                       className={cn(
                         'rounded-[8px] border border-border bg-card transition-colors animate-fade-in',
-                        'hover:bg-secondary/40 dark:border-white/[0.04]',
-                        isExpanded && 'bg-secondary/40',
+                        'hover:border-primary/45 dark:border-white/[0.04] dark:hover:border-primary/30',
+                        isExpanded && 'border-primary/45 dark:border-primary/30',
                       )}
                     >
                       <div
@@ -301,8 +320,19 @@ export function VocabList() {
                             <p className="tabular text-[10px] text-muted-foreground/70">
                               {new Date(record.updatedAt).toLocaleDateString()}
                             </p>
-                            <FamiliarityMeter score={record.score} />
+                            <FamiliarityMeter
+                              record={record}
+                              align="right"
+                              expanded={expandedCurveId === record.id}
+                              onExpandedChange={(next) => setExpandedCurveId(next ? record.id ?? null : null)}
+                              renderCurve={false}
+                            />
                           </div>
+                          {expandedCurveId === record.id ? (
+                            <div className="mt-1.5 flex justify-end">
+                              <MemoryCurvePanel record={record} className="w-[280px]" hideTitle />
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </li>
@@ -592,28 +622,6 @@ function formatRelativeTime(value: string) {
   if (diff < hour) return `${Math.floor(diff / minute)}m ago`
   if (diff < day) return `${Math.floor(diff / hour)}h ago`
   return `${Math.floor(diff / day)}d ago`
-}
-
-function FamiliarityMeter({ score }: { score: number }) {
-  const level = getLevel(score)
-  const suffix = levelClassSuffix(level)
-  const filled = Math.ceil(Math.max(0, Math.min(100, score)) / 5)
-
-  return (
-    <span className="inline-flex shrink-0 items-center justify-end gap-[2px]" aria-label={`Familiarity score ${score}`}>
-      {Array.from({ length: 20 }).map((_, index) => (
-        <span
-          // eslint-disable-next-line react/no-array-index-key
-          key={index}
-          className={cn(
-            'h-1 w-1 rounded-full bg-muted-foreground/20',
-            index < filled && `vocabify-level-dot-fill is-${suffix}`,
-          )}
-          aria-hidden
-        />
-      ))}
-    </span>
-  )
 }
 
 const EmptyState = ({ hasFilter }: { hasFilter: boolean }) => (

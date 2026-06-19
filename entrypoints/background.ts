@@ -1,6 +1,21 @@
 import { onMessage } from '@/lib/messaging'
 import { hightlightStyle } from '@/utils/storage'
 import { aiService } from '@/lib/aiService'
+import {
+  countRecords,
+  deleteRecordById,
+  exportVocabularyPayload,
+  getAllRecords,
+  getRecordById,
+  getRecordByWord,
+  importVocabularyPayload,
+  markRecord,
+  replaceVocabularyPayload,
+  saveRecord,
+  searchRecords,
+  settleRecordById,
+  updateRecordFields,
+} from '@/lib/vocabifyDb'
 
 export default defineBackground(() => {
   console.log('Vocabify background started', { id: browser.runtime.id })
@@ -107,6 +122,70 @@ export default defineBackground(() => {
     return { sha: result.content?.sha }
   })
 
+  onMessage('vocabGetAll', async () => {
+    return getAllRecords()
+  })
+
+  onMessage('vocabCount', async () => {
+    return { count: await countRecords() }
+  })
+
+  onMessage('vocabSearch', async ({ data }) => {
+    return searchRecords(data.keyword)
+  })
+
+  onMessage('vocabGetById', async ({ data }) => {
+    return getRecordById(data.id)
+  })
+
+  onMessage('vocabGetByWord', async ({ data }) => {
+    return getRecordByWord(data.wordOrPhrase)
+  })
+
+  onMessage('vocabSave', async ({ data }) => {
+    const result = await saveRecord(data)
+    void broadcastVocabChanged()
+    return result
+  })
+
+  onMessage('vocabUpdate', async ({ data }) => {
+    const result = await updateRecordFields(data.id, data.patch)
+    void broadcastVocabChanged()
+    return result
+  })
+
+  onMessage('vocabDeleteById', async ({ data }) => {
+    await deleteRecordById(data.id)
+    void broadcastVocabChanged()
+    return { status: 'ok' as const }
+  })
+
+  onMessage('vocabMark', async ({ data }) => {
+    const result = await markRecord(data.id, data.action)
+    void broadcastVocabChanged()
+    return result
+  })
+
+  onMessage('vocabSettle', async ({ data }) => {
+    return settleRecordById(data.id, data.now)
+  })
+
+  onMessage('vocabExport', async () => {
+    return exportVocabularyPayload()
+  })
+
+  onMessage('vocabImport', async ({ data }) => {
+    const result = await importVocabularyPayload(data)
+    void broadcastVocabChanged()
+    return result
+  })
+
+  onMessage('vocabReplace', async ({ data }) => {
+    const result = await replaceVocabularyPayload(data)
+    void broadcastVocabChanged()
+    return result
+  })
+
   // Handle AI streaming via Port
   chrome.runtime.onConnect.addListener((port) => {
     if (port.name === 'ai-stream') {
@@ -161,6 +240,14 @@ export default defineBackground(() => {
     }
   })
 })
+
+async function broadcastVocabChanged() {
+  const tabs = await chrome.tabs.query({})
+  await Promise.all(tabs.map(async (tab) => {
+    if (!tab.id || !isInjectablePage(tab.url)) return
+    await chrome.tabs.sendMessage(tab.id, { type: 'vocabChanged' }).catch(() => undefined)
+  }))
+}
 
 async function openWordlistOnTab(tab: chrome.tabs.Tab) {
   if (!tab.id) return

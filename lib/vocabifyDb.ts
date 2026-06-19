@@ -4,50 +4,30 @@ import {
   createInitialFamiliarity,
   type FamiliarityFields,
   type MarkAction,
+  getMemoryHorizonDays,
+  normalizeMemoryCurve,
   settleDecay,
 } from '@/lib/familiarity'
-import type { VocabResponse, VocabSense as AiVocabSense } from '@/lib/aiSchema'
+import type { VocabResponse } from '@/lib/aiSchema'
+import {
+  normalizeWordOrPhrase,
+  responseToPayload,
+  type NewVocabPayload,
+  type PosType,
+  type VocabRecord,
+  type VocabSense,
+  type VocabTombstone,
+} from '@/lib/vocabTypes'
 
-export type PosType = 'n' | 'v' | 'adj' | 'adv' | 'phrase' | 'other'
-
-export interface VocabSense {
-  id: string
-  definition: string
-  example: string
-  exampleTranslation: string
-}
-
-export interface VocabRecord extends FamiliarityFields {
-  id?: number
-  wordOrPhrase: string         // normalized key (lowercased trimmed)
-  term: string                 // display form preserving casing
-  phonetic: string
-  pos: PosType
-  senses: VocabSense[]
-  mnemonic: string
-  tags: string[]
-  sourceUrl: string
-  sourceContext: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface VocabTombstone {
-  wordOrPhrase: string
-  deletedAt: string
-}
-
-/** New record payload — what saveRecord accepts from AI response + page metadata */
-export interface NewVocabPayload {
-  term: string
-  phonetic: string
-  pos: PosType
-  senses: AiVocabSense[]
-  mnemonic: string
-  tags?: string[]
-  sourceUrl: string
-  sourceContext: string
-}
+export {
+  normalizeWordOrPhrase,
+  responseToPayload,
+  type NewVocabPayload,
+  type PosType,
+  type VocabRecord,
+  type VocabSense,
+  type VocabTombstone,
+} from '@/lib/vocabTypes'
 
 class VocabifyDatabase extends Dexie {
   records!: EntityTable<VocabRecord, 'id'>
@@ -84,14 +64,32 @@ class VocabifyDatabase extends Dexie {
       // Wipe legacy records; new structured records will be created via saveRecord.
       await tx.table('records').clear()
     })
+
+    this.version(6).stores({
+      records: '++id, wordOrPhrase, createdAt, updatedAt, score',
+      syncTombstones: 'wordOrPhrase, deletedAt',
+    }).upgrade(async (tx) => {
+      const table = tx.table('records')
+      const records = await table.toArray()
+      await Promise.all(records.map((record) => {
+        const normalized = withFamiliarityDefaults(record as Partial<VocabRecord>)
+        if ((record as VocabRecord).id == null) return Promise.resolve()
+        return table.update((record as VocabRecord).id!, {
+          score: normalized.score,
+          firstMarkedAt: normalized.firstMarkedAt,
+          lastMarkedAt: normalized.lastMarkedAt,
+          lastDecayAt: normalized.lastDecayAt,
+          memoryAnchorScore: normalized.memoryAnchorScore,
+          memoryAnchorAt: normalized.memoryAnchorAt,
+          memoryHorizonDays: normalized.memoryHorizonDays,
+          memoryCurve: normalized.memoryCurve,
+        })
+      }))
+    })
   }
 }
 
 export const db = new VocabifyDatabase()
-
-export function normalizeWordOrPhrase(wordOrPhrase: string) {
-  return wordOrPhrase.trim().toLowerCase()
-}
 
 function nextSenseId(index: number): string {
   return `s${index + 1}`
@@ -173,16 +171,7 @@ export async function saveFromAiResponse(
   ai: VocabResponse,
   meta: { sourceUrl: string; sourceContext: string; tags?: string[] },
 ) {
-  return saveRecord({
-    term: ai.term,
-    phonetic: ai.phonetic,
-    pos: ai.pos,
-    senses: ai.senses,
-    mnemonic: ai.mnemonic,
-    tags: meta.tags,
-    sourceUrl: meta.sourceUrl,
-    sourceContext: meta.sourceContext,
-  })
+  return saveRecord(responseToPayload(ai, meta))
 }
 
 export async function deleteRecord(wordOrPhrase: string) {
@@ -201,18 +190,41 @@ export async function deleteRecordById(id: number) {
 }
 
 export async function getAllRecords() {
-  return db.records.orderBy('updatedAt').reverse().toArray()
+  const records = await db.records.orderBy('updatedAt').reverse().toArray()
+  return Promise.all(records.map((record) => settleAndPersistDecay(record)))
+}
+
+export async function countRecords() {
+  return db.records.count()
+}
+
+export async function getRecordById(id: number) {
+  const record = await db.records.get(id)
+  return record ? settleAndPersistDecay(record) : null
+}
+
+export async function settleRecordById(id: number, now: number = Date.now()) {
+  const record = await db.records.get(id)
+  return record ? settleAndPersistDecay(record, now) : null
+}
+
+export async function getRecordByWord(wordOrPhrase: string) {
+  const key = normalizeWordOrPhrase(wordOrPhrase)
+  if (!key) return null
+  const record = await db.records.where('wordOrPhrase').equals(key).first()
+  return record ? settleAndPersistDecay(record) : null
 }
 
 export async function searchRecords(keyword: string) {
   const lowerKeyword = keyword.toLowerCase()
-  return db.records
+  const records = await db.records
     .filter((r) =>
       r.wordOrPhrase.includes(lowerKeyword) ||
       r.term.toLowerCase().includes(lowerKeyword) ||
       r.senses.some((s) => s.definition.toLowerCase().includes(lowerKeyword)),
     )
     .toArray()
+  return Promise.all(records.map((record) => settleAndPersistDecay(record)))
 }
 
 export async function getRecordByPage(pageNum: number, pageSize: number) {
@@ -233,12 +245,21 @@ export async function getRecordByPage(pageNum: number, pageSize: number) {
 export function withFamiliarityDefaults<T extends Partial<FamiliarityFields>>(
   record: T,
 ): T & FamiliarityFields {
+  const score = typeof record.score === 'number' ? record.score : 0
+  const anchorAt = normalizeOptionalDate(record.memoryAnchorAt)
+    || normalizeOptionalDate(record.lastMarkedAt)
+    || normalizeOptionalDate(record.lastDecayAt)
+    || null
   return {
     ...record,
-    score: typeof record.score === 'number' ? record.score : 0,
+    score,
     firstMarkedAt: record.firstMarkedAt ?? null,
     lastMarkedAt: record.lastMarkedAt ?? null,
     lastDecayAt: record.lastDecayAt ?? null,
+    memoryAnchorScore: typeof record.memoryAnchorScore === 'number' ? record.memoryAnchorScore : score,
+    memoryAnchorAt: anchorAt,
+    memoryHorizonDays: typeof record.memoryHorizonDays === 'number' ? record.memoryHorizonDays : getMemoryHorizonDays(score),
+    memoryCurve: normalizeMemoryCurve(record.memoryCurve),
   }
 }
 
@@ -251,6 +272,10 @@ export async function settleAndPersistDecay(
   await db.records.update(record.id, {
     score: result.next.score,
     lastDecayAt: result.next.lastDecayAt,
+    memoryAnchorScore: result.next.memoryAnchorScore,
+    memoryAnchorAt: result.next.memoryAnchorAt,
+    memoryHorizonDays: result.next.memoryHorizonDays,
+    memoryCurve: result.next.memoryCurve,
   })
   return result.next
 }
@@ -268,7 +293,155 @@ export async function markRecord(
     firstMarkedAt: next.firstMarkedAt,
     lastMarkedAt: next.lastMarkedAt,
     lastDecayAt: next.lastDecayAt,
+    memoryAnchorScore: next.memoryAnchorScore,
+    memoryAnchorAt: next.memoryAnchorAt,
+    memoryHorizonDays: next.memoryHorizonDays,
+    memoryCurve: next.memoryCurve,
     updatedAt: new Date(now).toISOString(),
   })
   return { ...record, ...next, updatedAt: new Date(now).toISOString() }
+}
+
+export async function exportVocabularyPayload() {
+  const records = await db.records.toArray()
+  const tombstones = await db.syncTombstones.toArray()
+  return {
+    records: records.map((record) => stripRecordId(withFamiliarityDefaults(record))),
+    tombstones,
+  }
+}
+
+export async function importVocabularyPayload(payload: {
+  records?: Array<Partial<VocabRecord>>
+  tombstones?: Array<Partial<VocabTombstone>>
+}) {
+  const records = normalizeImportRecords(payload.records || [])
+  const tombstones = normalizeImportTombstones(payload.tombstones || [])
+  const existing = await db.records.toArray()
+  const existingByKey = new Map(existing.map((record) => [normalizeWordOrPhrase(record.wordOrPhrase), record]))
+
+  await db.transaction('rw', db.records, db.syncTombstones, async () => {
+    for (const record of records) {
+      const existingRecord = existingByKey.get(record.wordOrPhrase)
+      if (existingRecord?.id) {
+        await db.records.update(existingRecord.id, record)
+      } else {
+        await db.records.add(record)
+      }
+      await db.syncTombstones.delete(record.wordOrPhrase)
+    }
+
+    for (const tombstone of tombstones) {
+      await db.syncTombstones.put(tombstone)
+    }
+  })
+
+  return {
+    recordCount: records.length,
+    tombstoneCount: tombstones.length,
+  }
+}
+
+export async function replaceVocabularyPayload(payload: {
+  records?: Array<Partial<VocabRecord>>
+  tombstones?: Array<Partial<VocabTombstone>>
+}) {
+  const records = normalizeImportRecords(payload.records || [])
+  const tombstones = normalizeImportTombstones(payload.tombstones || [])
+
+  await db.transaction('rw', db.records, db.syncTombstones, async () => {
+    await db.records.clear()
+    if (records.length > 0) await db.records.bulkAdd(records as VocabRecord[])
+    await db.syncTombstones.clear()
+    if (tombstones.length > 0) await db.syncTombstones.bulkPut(tombstones)
+  })
+
+  return {
+    recordCount: records.length,
+    tombstoneCount: tombstones.length,
+  }
+}
+
+function stripRecordId(record: VocabRecord): Omit<VocabRecord, 'id'> {
+  const { id: _id, ...withoutId } = record
+  return withoutId
+}
+
+function normalizeImportRecords(records: Array<Partial<VocabRecord>>): Array<Omit<VocabRecord, 'id'>> {
+  return records
+    .map((record): Omit<VocabRecord, 'id'> | null => {
+      const wordOrPhrase = normalizeWordOrPhrase(String(record.wordOrPhrase || record.term || ''))
+      const term = String(record.term || record.wordOrPhrase || '').trim()
+      if (!wordOrPhrase || !term) return null
+      const senses = Array.isArray(record.senses) ? record.senses
+        .map((sense, index): VocabSense | null => {
+          if (!sense) return null
+          const definition = String(sense.definition || '').trim()
+          if (!definition) return null
+          return {
+            id: typeof sense.id === 'string' ? sense.id : `s${index + 1}`,
+            definition,
+            example: String(sense.example || '').trim(),
+            exampleTranslation: String(sense.exampleTranslation || '').trim(),
+          }
+        })
+        .filter((sense): sense is VocabSense => sense !== null)
+        .slice(0, 3) : []
+      if (senses.length === 0) return null
+
+      const now = new Date().toISOString()
+      const createdAt = normalizeDate(record.createdAt, record.updatedAt || now)
+      const updatedAt = normalizeDate(record.updatedAt, createdAt)
+      const { id: _id, ...familiarity } = withFamiliarityDefaults(record)
+      return {
+        ...familiarity,
+        wordOrPhrase,
+        term,
+        phonetic: String(record.phonetic || '').trim(),
+        pos: isPosType(record.pos) ? record.pos : 'other',
+        senses,
+        mnemonic: String(record.mnemonic || '').trim(),
+        tags: Array.isArray(record.tags) ? record.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+        sourceUrl: String(record.sourceUrl || '').trim(),
+        sourceContext: String(record.sourceContext || '').trim(),
+        createdAt,
+        updatedAt,
+      }
+    })
+    .filter((record): record is Omit<VocabRecord, 'id'> => record !== null)
+}
+
+function normalizeImportTombstones(tombstones: Array<Partial<VocabTombstone>>): VocabTombstone[] {
+  return tombstones
+    .map((tombstone) => {
+      const wordOrPhrase = normalizeWordOrPhrase(String(tombstone.wordOrPhrase || ''))
+      if (!wordOrPhrase) return null
+      return {
+        wordOrPhrase,
+        deletedAt: normalizeDate(tombstone.deletedAt),
+      }
+    })
+    .filter((tombstone): tombstone is VocabTombstone => tombstone !== null)
+}
+
+function isPosType(value: unknown): value is PosType {
+  return value === 'n'
+    || value === 'v'
+    || value === 'adj'
+    || value === 'adv'
+    || value === 'phrase'
+    || value === 'other'
+}
+
+function normalizeDate(primary?: string | null, fallback?: string | null) {
+  const value = primary || fallback
+  if (value && !Number.isNaN(new Date(value).getTime())) return new Date(value).toISOString()
+  return new Date().toISOString()
+}
+
+function normalizeOptionalDate(value: unknown): string | null {
+  if (typeof value !== 'string' || !value) return null
+  const time = new Date(value).getTime()
+  if (Number.isNaN(time)) return null
+  return new Date(time).toISOString()
 }

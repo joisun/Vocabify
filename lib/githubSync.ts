@@ -1,14 +1,13 @@
 import { sendMessage } from '@/lib/messaging'
 import {
-  db,
   normalizeWordOrPhrase,
-  withFamiliarityDefaults,
   type PosType,
   type VocabRecord,
   type VocabSense,
   type VocabTombstone,
-} from '@/lib/vocabifyDb'
-import { clampScore } from '@/lib/familiarity'
+} from '@/lib/vocabTypes'
+import { clampScore, getMemoryHorizonDays, normalizeMemoryCurve, type FamiliarityFields } from '@/lib/familiarity'
+import { exportVocabularyPayload, replaceVocabularyPayload } from '@/lib/vocabApi'
 import {
   githubAccessToken,
   githubLastSyncAt,
@@ -167,8 +166,7 @@ function createEmptyPayload(): SyncPayload {
 }
 
 async function createLocalPayload(): Promise<SyncPayload> {
-  const records = await db.records.toArray()
-  const tombstones = await db.syncTombstones.toArray()
+  const { records, tombstones } = await exportVocabularyPayload()
 
   return {
     schemaVersion: 2,
@@ -236,30 +234,9 @@ function mergePayloads(local: SyncPayload, remote: SyncPayload): SyncPayload {
 }
 
 async function applyPayloadToLocal(payload: SyncPayload) {
-  const existing = await db.records.toArray()
-  const existingByKey = new Map(existing.map((record) => [normalizeWordOrPhrase(record.wordOrPhrase), record]))
-  const nextKeys = new Set(payload.records.map((record) => record.wordOrPhrase))
-
-  await db.transaction('rw', db.records, db.syncTombstones, async () => {
-    for (const record of payload.records) {
-      const existingRecord = existingByKey.get(record.wordOrPhrase)
-      if (existingRecord?.id) {
-        await db.records.update(existingRecord.id, record)
-      } else {
-        await db.records.add(record)
-      }
-    }
-
-    for (const record of existing) {
-      if (record.id && !nextKeys.has(normalizeWordOrPhrase(record.wordOrPhrase))) {
-        await db.records.delete(record.id)
-      }
-    }
-
-    await db.syncTombstones.clear()
-    if (payload.tombstones.length > 0) {
-      await db.syncTombstones.bulkPut(payload.tombstones)
-    }
+  await replaceVocabularyPayload({
+    records: payload.records,
+    tombstones: payload.tombstones,
   })
 }
 
@@ -283,8 +260,10 @@ function normalizeRecords(records: Array<Partial<VocabRecord>>) {
 
       const createdAt = normalizeDate(record.createdAt, record.updatedAt)
       const updatedAt = normalizeDate(record.updatedAt, record.createdAt)
+      const { id: _id, ...familiarity } = withSyncFamiliarityDefaults(record)
 
-      return withFamiliarityDefaults({
+      return {
+        ...familiarity,
         wordOrPhrase,
         term,
         phonetic,
@@ -296,13 +275,33 @@ function normalizeRecords(records: Array<Partial<VocabRecord>>) {
         sourceContext,
         createdAt,
         updatedAt,
-        score: typeof record.score === 'number' ? clampScore(record.score) : 0,
-        firstMarkedAt: normalizeOptionalDate(record.firstMarkedAt),
-        lastMarkedAt: normalizeOptionalDate(record.lastMarkedAt),
-        lastDecayAt: normalizeOptionalDate(record.lastDecayAt),
-      })
+      }
     })
     .filter((r): r is Omit<VocabRecord, 'id'> => r !== null)
+}
+
+function withSyncFamiliarityDefaults<T extends Partial<FamiliarityFields>>(record: T): T & FamiliarityFields {
+  const score = typeof record.score === 'number' ? clampScore(record.score) : 0
+  const memoryAnchorAt = normalizeOptionalDate(record.memoryAnchorAt)
+    || normalizeOptionalDate(record.lastMarkedAt)
+    || normalizeOptionalDate(record.lastDecayAt)
+    || null
+  const memoryAnchorScore = typeof record.memoryAnchorScore === 'number'
+    ? clampScore(record.memoryAnchorScore)
+    : score
+  return {
+    ...record,
+    score,
+    firstMarkedAt: normalizeOptionalDate(record.firstMarkedAt),
+    lastMarkedAt: normalizeOptionalDate(record.lastMarkedAt),
+    lastDecayAt: normalizeOptionalDate(record.lastDecayAt),
+    memoryAnchorScore,
+    memoryAnchorAt,
+    memoryHorizonDays: typeof record.memoryHorizonDays === 'number'
+      ? record.memoryHorizonDays
+      : getMemoryHorizonDays(memoryAnchorScore),
+    memoryCurve: normalizeMemoryCurve(record.memoryCurve),
+  }
 }
 
 function normalizeSenses(senses: unknown): VocabSense[] {

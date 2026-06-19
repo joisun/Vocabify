@@ -1,4 +1,6 @@
 import { defineExtensionMessaging, GetDataType } from '@webext-core/messaging';
+import type { MarkAction } from '@/lib/familiarity'
+import type { NewVocabPayload, VocabRecord, VocabTombstone } from '@/lib/vocabTypes'
 
 // Define all message types and their payloads/return types
 export interface ProtocolMap {
@@ -43,7 +45,49 @@ export interface ProtocolMap {
     content: string
     sha?: string
   }): { sha?: string }
+
+  vocabGetAll(data: undefined): VocabRecord[]
+
+  vocabCount(data: undefined): { count: number }
+
+  vocabSearch(data: { keyword: string }): VocabRecord[]
+
+  vocabGetById(data: { id: number }): VocabRecord | null
+
+  vocabGetByWord(data: { wordOrPhrase: string }): VocabRecord | null
+
+  vocabSave(data: NewVocabPayload): { record: VocabRecord; created: boolean }
+
+  vocabUpdate(data: {
+    id: number
+    patch: Partial<Omit<VocabRecord, 'id' | 'wordOrPhrase' | 'createdAt'>>
+  }): VocabRecord | null
+
+  vocabDeleteById(data: { id: number }): { status: 'ok' }
+
+  vocabMark(data: { id: number; action: MarkAction }): VocabRecord | null
+
+  vocabSettle(data: { id: number; now?: number }): VocabRecord | null
+
+  vocabExport(data: undefined): {
+    records: Array<Omit<VocabRecord, 'id'>>
+    tombstones: VocabTombstone[]
+  }
+
+  vocabImport(data: {
+    records: Array<Partial<VocabRecord>>
+    tombstones: Array<Partial<VocabTombstone>>
+  }): { recordCount: number; tombstoneCount: number }
+
+  vocabReplace(data: {
+    records: Array<Partial<VocabRecord>>
+    tombstones: Array<Partial<VocabTombstone>>
+  }): { recordCount: number; tombstoneCount: number }
 }
+
+export type RuntimeMessage =
+  | { type: 'openVocabList' }
+  | { type: 'vocabChanged' }
 
 // Create and export the messaging functions
 export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>();

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `useAIStream` hook (`entrypoints/content/useAIStream.ts`) wrapping the Chrome `ai-stream` Port lifecycle.
 - **VocabList edit panel**: wordlist edit now switches the area below GitHub sync into a dedicated editor, reusing `RecordEditForm` without embedding the form inside a list row.
 - **Unified theme system** (`lib/theme.ts`): extension-wide `chrome.storage.local` key `vocabify-theme` with `light | dark | system` support, shared across options page and content script with storage-change sync.
+- **Bézier memory curve**: saved-word dots can now be clicked in the popover or sheet rows to expand a compact memory-curve visualization with anchor/current/projected scores.
 
 ### Changed
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
@@ -29,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toolbar icon click now opens the in-page wordlist directly; the browser-action popup entrypoint has been removed.
 - `VocabList` rows render the new structured fields: term, phonetic, pos chip, first sense's definition, with expansion revealing all senses, mnemonic, and source link.
 - GitHub sync payload bumped to `schemaVersion: 2`. `normalizeRecords` validates the new structured shape and drops legacy `meaning`-only records on import.
-- Dexie schema bumped to v5; the upgrade hook **clears legacy records** (per user direction — small dataset, no migration value).
+- Dexie schema bumped to v6. Vocabulary data is now owned by the extension origin via background messaging; content scripts opportunistically import old page-origin `VocabifyIndexDB` data without deleting it.
+- Familiarity scoring now uses mark-time memory anchors plus a bounded cubic Bézier forgetting curve instead of fixed interval step decay.
 - AI prompting now keeps product behavior, target-language guidance, and the strict JSON output contract in internal system messages, while the user-configured prompt with required `{SELECTION}` / `{LANGUAGE}` placeholders and optional `{SOURCE_CONTEXT}` is sent as the user message.
 - Theme provider now uses the extension-wide `vocabify-theme` storage key (previously `vite-ui-theme` in options, separate page-local state in content script).
 
@@ -73,9 +75,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integrated Google TTS API for word pronunciation.
 - Implemented automatic synchronization logic.
 - Familiarity scoring system: each saved word now carries a 0–100 score with 4 tiers (New / Learning / Familiar / Mastered), each painted with its own highlight color.
-- Selection popover for saved words now exposes Know (+15) / Fuzzy (+5) / Forget (−10) quick marks, with a level chip showing the current score.
-- Lazy passive decay (Learning −10 / 3d, Familiar −10 / 14d, Mastered −5 / 60d) settled right before each highlight pass — no background timers required.
-- GitHub sync payload now carries `score`, `firstMarkedAt`, `lastMarkedAt`, and `lastDecayAt` so familiarity state survives cross-device syncing; legacy payloads are backfilled with safe defaults.
+- Selection popover for saved words exposes Know / Fuzzy / Forget quick marks with score-band deltas instead of fixed +15 / +5 / −10 changes.
+- Lazy passive decay now materializes from `memoryAnchorScore` / `memoryAnchorAt` through a bounded Bézier curve — no background timers required.
+- GitHub sync payload now carries score, mark timestamps, and memory-anchor fields so familiarity state survives cross-device syncing; legacy payloads are backfilled with safe defaults.
 - Monica-style hover detection on saved highlights: hover any saved word to reveal its mark popover (Know / Fuzzy / Forget) with a 220 ms bridge delay so cursor travel between word and popover never tears the popover down. DOM `<mark>` path uses delegated `mouseover`; CSS Custom Highlight path uses `caretPositionFromPoint` coordinate hit-testing.
 - Light / dark / system theme toggle in the options page header. Saved under `vocabify-theme`; the in-page Sheet and options page both subscribe and re-paint on change. Content script also reacts to `prefers-color-scheme` updates.
 
@@ -83,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved the expand/collapse animation for records.
 - Updated the `NewRecord` and `Editor` components to use the loading state for TTS.
 - Highlight rendering groups records by familiarity level so the CSS Custom Highlight API and the `<mark>` fallback share the same 4-color visual language.
-- Dexie schema bumped to v4 with an automatic upgrade that backfills familiarity defaults on existing rows.
+- Dexie schema migrations backfill familiarity defaults and memory-anchor fields on existing rows.
 - Visual rewrite per CLAUDE.md design system. Replaced the Apple-glass / liquid-glass aesthetic with a Raycast / Linear / Obsidian–style flat surface language: 1 px hairline borders instead of layered shadows, single indigo accent (`#5b5bf8`) reserved for state, dense 8 pt grid spacing, typography-driven hierarchy. Affects `global.css` tokens, all `components/ui/*` primitives (button / input / textarea / select / card / tabs / sheet / sonner / tooltip), the in-page Sheet shell, `TooltipBtn`, `InPageUI`, `VocabList`, `AIExplanation`, and the options page (now a sticky-sidebar settings layout).
 
 ### Removed
