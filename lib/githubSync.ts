@@ -6,7 +6,7 @@ import {
   type VocabSense,
   type VocabTombstone,
 } from '@/lib/vocabTypes'
-import { clampScore, getMemoryHorizonDays, normalizeMemoryCurve, type FamiliarityFields } from '@/lib/familiarity'
+import { clampScore, getMemoryHorizonDays, normalizeMemoryCurve, type FamiliarityFields, type MarkAction } from '@/lib/familiarity'
 import { exportVocabularyPayload, replaceVocabularyPayload } from '@/lib/vocabApi'
 import {
   githubAccessToken,
@@ -115,8 +115,6 @@ export async function syncVocabularyWithGitHub(token: string): Promise<SyncResul
     : createEmptyPayload()
   const mergedPayload = mergePayloads(localPayload, remotePayload)
 
-  await applyPayloadToLocal(mergedPayload)
-
   const syncedAt = new Date().toISOString()
   const payloadToWrite: SyncPayload = {
     ...mergedPayload,
@@ -132,6 +130,8 @@ export async function syncVocabularyWithGitHub(token: string): Promise<SyncResul
     content: encodeBase64(JSON.stringify(payloadToWrite, null, 2)),
     sha: remoteFile.sha,
   })
+
+  await applyPayloadToLocal(payloadToWrite)
 
   const account = {
     login: user.login,
@@ -301,6 +301,11 @@ function withSyncFamiliarityDefaults<T extends Partial<FamiliarityFields>>(recor
       ? record.memoryHorizonDays
       : getMemoryHorizonDays(memoryAnchorScore),
     memoryCurve: normalizeMemoryCurve(record.memoryCurve),
+    lastReviewDate: normalizeReviewDate(record.lastReviewDate),
+    lastReviewAction: isMarkAction(record.lastReviewAction) ? record.lastReviewAction : null,
+    dailyReviewBaseScore: typeof record.dailyReviewBaseScore === 'number'
+      ? clampScore(record.dailyReviewBaseScore)
+      : null,
   }
 }
 
@@ -386,6 +391,15 @@ function normalizeOptionalDate(value: unknown): string | null {
   const time = new Date(value).getTime()
   if (Number.isNaN(time)) return null
   return new Date(time).toISOString()
+}
+
+function normalizeReviewDate(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  return value
+}
+
+function isMarkAction(value: unknown): value is MarkAction {
+  return value === 'KNOW' || value === 'FUZZY' || value === 'FORGET'
 }
 
 function encodeBase64(value: string) {

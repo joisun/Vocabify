@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **VocabList edit panel**: wordlist edit now switches the area below GitHub sync into a dedicated editor, reusing `RecordEditForm` without embedding the form inside a list row.
 - **Unified theme system** (`lib/theme.ts`): extension-wide `chrome.storage.local` key `vocabify-theme` with `light | dark | system` support, shared across options page and content script with storage-change sync.
 - **Bézier memory curve**: saved-word dots can now be clicked in the popover or sheet rows to expand a compact memory-curve visualization with anchor/current/projected scores.
+- **Daily review settlement**: each word records the local review date, selected action, and daily baseline so repeated Know / Fuzzy / Forget clicks on the same day do not stack score changes.
 
 ### Changed
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
@@ -30,8 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toolbar icon click now opens the in-page wordlist directly; the browser-action popup entrypoint has been removed.
 - `VocabList` rows render the new structured fields: term, phonetic, pos chip, first sense's definition, with expansion revealing all senses, mnemonic, and source link.
 - GitHub sync payload bumped to `schemaVersion: 2`. `normalizeRecords` validates the new structured shape and drops legacy `meaning`-only records on import.
-- Dexie schema bumped to v6. Vocabulary data is now owned by the extension origin via background messaging; content scripts opportunistically import old page-origin `VocabifyIndexDB` data without deleting it.
+- Dexie schema bumped to v7. Vocabulary data is now owned by the extension origin via background messaging; content scripts opportunistically import old page-origin `VocabifyIndexDB` data without deleting it, and records now carry daily-review metadata.
 - Familiarity scoring now uses mark-time memory anchors plus a bounded cubic Bézier forgetting curve instead of fixed interval step decay.
+- Familiarity marks are now settled once per local day: repeating the same action is a no-op, while switching action on the same day rewrites that day's result from the original daily baseline instead of stacking another delta.
 - AI prompting now keeps product behavior, target-language guidance, and the strict JSON output contract in internal system messages, while the user-configured prompt with required `{SELECTION}` / `{LANGUAGE}` placeholders and optional `{SOURCE_CONTEXT}` is sent as the user message.
 - Theme provider now uses the extension-wide `vocabify-theme` storage key (previously `vite-ui-theme` in options, separate page-local state in content script).
 
@@ -62,6 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Selection popover dismissed on query click**: added `isVocabifyUiEvent` guard to the `mouseup` listener.
 - **Saved-word hover flicker**: saved-word hover no longer triggers the text-selection operation popover at the viewport origin, and preview content remains open while the pointer moves from the highlighted word onto the card.
 - **AI stream timeout with reasoning models**: increased `chunkMs` from 8s to 30s to accommodate providers that emit `reasoning_content` before `content`.
+- **Highlight isolation**: Vocabify now deletes only its own Custom Highlight registry keys, escapes saved terms before regex matching, clears stale fallback `<mark>` nodes before repainting, and skips interactive/code/hidden/extension UI text nodes.
+- **Vocabulary import tombstones**: importing data now applies newer tombstones to delete matching local records and prevents older records from reviving entries that were deleted locally.
+- **GitHub sync local consistency**: local vocabulary replacement now happens only after `syncdata.json` is successfully written to GitHub, avoiding local mutation when the remote write fails.
+- **Popover delete confirmation**: saved-word popover delete actions now use the same shadcn/Radix AlertDialog confirmation pattern as the wordlist sheet.
+- **Read-time decay writes**: wordlist/search/highlight reads now materialize Bézier decay without persisting every record, reducing IndexedDB write pressure on large vocabularies.
 
 ### Removed
 - Multi-provider failover, provider drag-and-drop ordering, and unused provider SDK dependencies for xAI, Groq, Mistral, Cohere, Fireworks, Together.ai, Cerebras, Perplexity, and DeepInfra.

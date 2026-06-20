@@ -53,9 +53,9 @@ Built for serious readers, not gamified learners. The interface stays out of the
 ### Familiarity scoring
 - Score range: 0–100, mapped to four tiers — New (0) / Learning (1–40) / Familiar (41–70) / Mastered (71–100).
 - Marks apply bounded score changes: Know raises low / mid / high scores by +18 / +12 / +6; Fuzzy converges toward the 60–70 range; Forget applies −12 / −20 / −30.
-- Each mark creates a new memory anchor (`memoryAnchorScore`, `memoryAnchorAt`). Time-based forgetting is computed from that anchor with a CSS-style cubic Bézier curve.
+- The first Know / Fuzzy / Forget action each local day creates a memory anchor (`memoryAnchorScore`, `memoryAnchorAt`). Repeating the same action that day does not stack score changes; switching action rewrites that day's result from the original daily baseline.
 - The x-axis is normalized elapsed time, clamped to the active horizon: Learning 9 days, Familiar 42 days, Mastered 180 days.
-- Current score is materialized lazily right before rendering, marking, highlighting, or syncing, then persisted back to extension-origin IndexedDB.
+- Current score is materialized lazily right before rendering, highlighting, or syncing. Individual record lookups and review actions persist the settled score back to extension-origin IndexedDB.
 - The dot meter in popovers and sheet rows expands on click to show anchor score, current score, projected end score, and elapsed/horizon timing.
 
 ### Highlighting
@@ -99,7 +99,7 @@ lib/
   partialJson.ts         # Field-level streaming JSON parser + final repair path
   familiarity.ts         # 0-100 memory engine, Bézier curve materialization, mark deltas
   vocabApi.ts            # content/options vocabulary API over extension messaging
-  vocabifyDb.ts          # extension-origin Dexie schema (v6) + tombstone tracking
+  vocabifyDb.ts          # extension-origin Dexie schema (v7) + tombstone/daily-review tracking
   highlightService.ts    # Custom Highlight API + <mark> fallback
   githubSync.ts          # Device Flow + syncdata.json read/write
 typings/

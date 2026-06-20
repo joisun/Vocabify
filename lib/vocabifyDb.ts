@@ -4,6 +4,7 @@ import {
   createInitialFamiliarity,
   type FamiliarityFields,
   type MarkAction,
+  getLocalReviewDate,
   getMemoryHorizonDays,
   normalizeMemoryCurve,
   settleDecay,
@@ -83,6 +84,23 @@ class VocabifyDatabase extends Dexie {
           memoryAnchorAt: normalized.memoryAnchorAt,
           memoryHorizonDays: normalized.memoryHorizonDays,
           memoryCurve: normalized.memoryCurve,
+        })
+      }))
+    })
+
+    this.version(7).stores({
+      records: '++id, wordOrPhrase, createdAt, updatedAt, score',
+      syncTombstones: 'wordOrPhrase, deletedAt',
+    }).upgrade(async (tx) => {
+      const table = tx.table('records')
+      const records = await table.toArray()
+      await Promise.all(records.map((record) => {
+        const normalized = withFamiliarityDefaults(record as Partial<VocabRecord>)
+        if ((record as VocabRecord).id == null) return Promise.resolve()
+        return table.update((record as VocabRecord).id!, {
+          lastReviewDate: normalized.lastReviewDate,
+          lastReviewAction: normalized.lastReviewAction,
+          dailyReviewBaseScore: normalized.dailyReviewBaseScore,
         })
       }))
     })
@@ -191,7 +209,7 @@ export async function deleteRecordById(id: number) {
 
 export async function getAllRecords() {
   const records = await db.records.orderBy('updatedAt').reverse().toArray()
-  return Promise.all(records.map((record) => settleAndPersistDecay(record)))
+  return records.map((record) => settleDecay(record).next)
 }
 
 export async function countRecords() {
@@ -224,7 +242,7 @@ export async function searchRecords(keyword: string) {
       r.senses.some((s) => s.definition.toLowerCase().includes(lowerKeyword)),
     )
     .toArray()
-  return Promise.all(records.map((record) => settleAndPersistDecay(record)))
+  return records.map((record) => settleDecay(record).next)
 }
 
 export async function getRecordByPage(pageNum: number, pageSize: number) {
@@ -237,7 +255,7 @@ export async function getRecordByPage(pageNum: number, pageSize: number) {
     .toArray()
 
   return {
-    records,
+    records: records.map((record) => settleDecay(record).next),
     total: Math.ceil(total / pageSize),
   }
 }
@@ -260,6 +278,11 @@ export function withFamiliarityDefaults<T extends Partial<FamiliarityFields>>(
     memoryAnchorAt: anchorAt,
     memoryHorizonDays: typeof record.memoryHorizonDays === 'number' ? record.memoryHorizonDays : getMemoryHorizonDays(score),
     memoryCurve: normalizeMemoryCurve(record.memoryCurve),
+    lastReviewDate: normalizeReviewDate(record.lastReviewDate),
+    lastReviewAction: isMarkAction(record.lastReviewAction) ? record.lastReviewAction : null,
+    dailyReviewBaseScore: typeof record.dailyReviewBaseScore === 'number'
+      ? Math.max(0, Math.min(100, Math.round(record.dailyReviewBaseScore)))
+      : null,
   }
 }
 
@@ -287,7 +310,13 @@ export async function markRecord(
 ): Promise<VocabRecord | null> {
   const record = await db.records.get(id)
   if (!record) return null
-  const next = applyMark(record, action, now)
+  const normalized = withFamiliarityDefaults(record)
+  const reviewDate = getLocalReviewDate(now)
+  if (normalized.lastReviewDate === reviewDate && normalized.lastReviewAction === action) {
+    return settleDecay(normalized as VocabRecord, now).next
+  }
+
+  const next = applyMark(normalized, action, now)
   await db.records.update(id, {
     score: next.score,
     firstMarkedAt: next.firstMarkedAt,
@@ -297,6 +326,9 @@ export async function markRecord(
     memoryAnchorAt: next.memoryAnchorAt,
     memoryHorizonDays: next.memoryHorizonDays,
     memoryCurve: next.memoryCurve,
+    lastReviewDate: next.lastReviewDate,
+    lastReviewAction: next.lastReviewAction,
+    dailyReviewBaseScore: next.dailyReviewBaseScore,
     updatedAt: new Date(now).toISOString(),
   })
   return { ...record, ...next, updatedAt: new Date(now).toISOString() }
@@ -306,7 +338,7 @@ export async function exportVocabularyPayload() {
   const records = await db.records.toArray()
   const tombstones = await db.syncTombstones.toArray()
   return {
-    records: records.map((record) => stripRecordId(withFamiliarityDefaults(record))),
+    records: records.map((record) => stripRecordId(settleDecay(withFamiliarityDefaults(record)).next)),
     tombstones,
   }
 }
@@ -322,17 +354,37 @@ export async function importVocabularyPayload(payload: {
 
   await db.transaction('rw', db.records, db.syncTombstones, async () => {
     for (const record of records) {
+      const existingTombstone = await db.syncTombstones.get(record.wordOrPhrase)
+      if (existingTombstone && existingTombstone.deletedAt >= record.updatedAt) {
+        continue
+      }
+
       const existingRecord = existingByKey.get(record.wordOrPhrase)
       if (existingRecord?.id) {
-        await db.records.update(existingRecord.id, record)
+        if (record.updatedAt >= existingRecord.updatedAt) {
+          await db.records.update(existingRecord.id, record)
+          existingByKey.set(record.wordOrPhrase, { ...existingRecord, ...record })
+        }
       } else {
-        await db.records.add(record)
+        const id = await db.records.add(record)
+        existingByKey.set(record.wordOrPhrase, { ...record, id })
       }
       await db.syncTombstones.delete(record.wordOrPhrase)
     }
 
     for (const tombstone of tombstones) {
-      await db.syncTombstones.put(tombstone)
+      const currentRecord = await db.records.where('wordOrPhrase').equals(tombstone.wordOrPhrase).first()
+      if (currentRecord && tombstone.deletedAt < currentRecord.updatedAt) {
+        continue
+      }
+      if (currentRecord?.id && tombstone.deletedAt >= currentRecord.updatedAt) {
+        await db.records.delete(currentRecord.id)
+        existingByKey.delete(tombstone.wordOrPhrase)
+      }
+      const existingTombstone = await db.syncTombstones.get(tombstone.wordOrPhrase)
+      if (!existingTombstone || tombstone.deletedAt >= existingTombstone.deletedAt) {
+        await db.syncTombstones.put(tombstone)
+      }
     }
   })
 
@@ -444,4 +496,13 @@ function normalizeOptionalDate(value: unknown): string | null {
   const time = new Date(value).getTime()
   if (Number.isNaN(time)) return null
   return new Date(time).toISOString()
+}
+
+function normalizeReviewDate(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  return value
+}
+
+function isMarkAction(value: unknown): value is MarkAction {
+  return value === 'KNOW' || value === 'FUZZY' || value === 'FORGET'
 }

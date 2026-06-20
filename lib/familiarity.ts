@@ -35,6 +35,9 @@ export interface FamiliarityFields {
   memoryAnchorAt?: string | null
   memoryHorizonDays?: number
   memoryCurve?: MemoryCurve
+  lastReviewDate?: string | null
+  lastReviewAction?: MarkAction | null
+  dailyReviewBaseScore?: number | null
 }
 
 export interface SettleResult<T extends FamiliarityFields> {
@@ -181,19 +184,30 @@ export function applyMark<T extends FamiliarityFields>(
 ): T {
   const settled = materializeMemory(record, now).record
   const nowIso = new Date(now).toISOString()
-  const newScore = clampScore(settled.score + getMarkDelta(settled.score, action))
+  const reviewDate = getLocalReviewDate(now)
+  const reviewedToday = record.lastReviewDate === reviewDate
+  const baseScore = reviewedToday && typeof record.dailyReviewBaseScore === 'number'
+    ? clampScore(record.dailyReviewBaseScore)
+    : settled.score
+  const newScore = clampScore(baseScore + getMarkDelta(baseScore, action))
   const horizonDays = getMemoryHorizonDays(newScore)
+  const anchorAt = reviewedToday
+    ? normalizeOptionalDate(record.memoryAnchorAt) || normalizeOptionalDate(record.lastMarkedAt) || nowIso
+    : nowIso
 
   return {
     ...settled,
     score: newScore,
     firstMarkedAt: settled.firstMarkedAt ?? nowIso,
     lastMarkedAt: nowIso,
-    lastDecayAt: nowIso,
+    lastDecayAt: anchorAt,
     memoryAnchorScore: newScore,
-    memoryAnchorAt: nowIso,
+    memoryAnchorAt: anchorAt,
     memoryHorizonDays: horizonDays,
     memoryCurve: normalizeMemoryCurve(settled.memoryCurve),
+    lastReviewDate: reviewDate,
+    lastReviewAction: action,
+    dailyReviewBaseScore: baseScore,
   }
 }
 
@@ -224,7 +238,18 @@ export function createInitialFamiliarity(): FamiliarityFields {
     memoryAnchorAt: null,
     memoryHorizonDays: NEW_HORIZON_DAYS,
     memoryCurve: DEFAULT_CURVE,
+    lastReviewDate: null,
+    lastReviewAction: null,
+    dailyReviewBaseScore: null,
   }
+}
+
+export function getLocalReviewDate(now: number | Date = Date.now()) {
+  const date = typeof now === 'number' ? new Date(now) : now
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export function getMemoryCurvePoints(

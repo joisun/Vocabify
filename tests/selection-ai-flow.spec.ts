@@ -180,7 +180,7 @@ test.describe('Vocabify selection + AI flow', () => {
       await expect.poll(() => getShadowField(page, 'portalClass'), { timeout: 3_000 }).toContain('dark')
 
       await selectText(page, 'nuanced phrase')
-      await expect.poll(() => getShadowField(page, 'popoverBackground'), { timeout: 3_000 }).toBe('rgb(43, 43, 45)')
+      await expect.poll(() => getShadowField(page, 'popoverBackground'), { timeout: 3_000 }).toBe('rgb(42, 42, 45)')
 
       // Switch to light through the same extension-wide storage key.
       await setExtensionStorage(context, extensionId, { 'vocabify-theme': 'light' })
@@ -224,6 +224,38 @@ test.describe('Vocabify selection + AI flow', () => {
 
       await expect.poll(() => getShadowField(page, 'errorText'), { timeout: 20_000 }).toContain('rate limit exceeded')
       await expect.poll(() => getShadowField(page, 'errorText'), { timeout: 1_000 }).toContain('retried 1 time')
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
+  test('familiarity marks settle once per local day and allow same-day correction', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page)
+      await seedSavedRecordBeforeReload(page)
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
+      await expect.poll(() => getSavedHighlightRect(page), { timeout: 10_000 }).not.toBeNull()
+
+      const rect = await getSavedHighlightRect(page)
+      expect(rect).not.toBeNull()
+      await page.mouse.move(rect!.left + rect!.width / 2, rect!.top + rect!.height / 2)
+      await expect.poll(() => getShadowField(page, 'savedHoverVisible'), { timeout: 5_000 }).toBe(true)
+
+      await clickInShadow(page, '[data-testid="vocabify-mark-know"]')
+      await expect.poll(() => getShadowField(page, 'familiarityScore'), { timeout: 5_000 }).toBe(18)
+      await expect.poll(() => getShadowField(page, 'knowPressed'), { timeout: 5_000 }).toBe(true)
+
+      await clickInShadow(page, '[data-testid="vocabify-mark-know"]')
+      await expect.poll(() => getShadowField(page, 'familiarityScore'), { timeout: 5_000 }).toBe(18)
+      await expect.poll(() => getShadowField(page, 'knowPressed'), { timeout: 5_000 }).toBe(true)
+
+      await clickInShadow(page, '[data-testid="vocabify-mark-forget"]')
+      await expect.poll(() => getShadowField(page, 'familiarityScore'), { timeout: 5_000 }).toBe(0)
+      await expect.poll(() => getShadowField(page, 'forgetPressed'), { timeout: 5_000 }).toBe(true)
     } finally {
       await restoreStorage()
       await page.close().catch(() => undefined)
@@ -310,6 +342,14 @@ test.describe('Vocabify selection + AI flow', () => {
       if (f === 'operationBarVisible') return !!shadow.querySelector('[data-testid="vocabify-operation-query"]')
       if (f === 'retryingVisible') return !!shadow.querySelector('[data-testid="vocabify-stream-retrying"]')
       if (f === 'errorText') return shadow.querySelector('[data-testid="vocabify-stream-error"]')?.textContent?.trim() || null
+      if (f === 'familiarityScore') {
+        const label = shadow.querySelector('[aria-label^="Familiarity score"]')?.getAttribute('aria-label') || ''
+        const match = label.match(/Familiarity score (\d+)/)
+        return match ? Number(match[1]) : null
+      }
+      if (f === 'knowPressed') return shadow.querySelector('[data-testid="vocabify-mark-know"]')?.getAttribute('aria-pressed') === 'true'
+      if (f === 'fuzzyPressed') return shadow.querySelector('[data-testid="vocabify-mark-fuzzy"]')?.getAttribute('aria-pressed') === 'true'
+      if (f === 'forgetPressed') return shadow.querySelector('[data-testid="vocabify-mark-forget"]')?.getAttribute('aria-pressed') === 'true'
       if (f === 'portalClass') return shadow.querySelector('#vocabify-portal-root')?.className || null
       if (f === 'popoverBackground') {
         const popover = shadow.querySelector('[data-radix-popper-content-wrapper] [data-side]') as HTMLElement | null
@@ -444,7 +484,7 @@ async function clearExtensionDatabase(context: BrowserContext, extensionId: stri
   try {
     await page.goto(`chrome-extension://${extensionId}/options.html`)
     await page.evaluate(() => new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open('VocabifyIndexDB', 6)
+      const request = indexedDB.open('VocabifyIndexDB', 70)
       request.onupgradeneeded = () => {
         const db = request.result
         const records = db.objectStoreNames.contains('records')
@@ -489,7 +529,7 @@ async function seedExtensionRecord(context: BrowserContext, extensionId: string,
   try {
     await page.goto(`chrome-extension://${extensionId}/options.html`)
     await page.evaluate((url) => new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open('VocabifyIndexDB', 6)
+      const request = indexedDB.open('VocabifyIndexDB', 70)
       request.onupgradeneeded = () => {
         const db = request.result
         const records = db.objectStoreNames.contains('records')
@@ -535,6 +575,9 @@ async function seedExtensionRecord(context: BrowserContext, extensionId: string,
           memoryAnchorAt: null,
           memoryHorizonDays: 0,
           memoryCurve: { x1: 0.18, y1: 0.04, x2: 0.82, y2: 1 },
+          lastReviewDate: null,
+          lastReviewAction: null,
+          dailyReviewBaseScore: null,
         })
         tx.oncomplete = () => {
           db.close()

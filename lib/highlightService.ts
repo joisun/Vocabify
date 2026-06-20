@@ -2,10 +2,28 @@ import type { VocabRecord } from '@/lib/vocabTypes'
 import { getLevel, levelClassSuffix, type FamiliarityLevel } from '@/lib/familiarity'
 import { hightlightStyle, type highlightStyleSettingsType } from '@/utils/storage'
 import { getAllRecords } from '@/lib/vocabApi'
+import { NO_SELECTION_CONTAINER } from '@/const'
 
 const LEVELS: FamiliarityLevel[] = ['NEW', 'LEARNING', 'FAMILIAR', 'MASTERED']
 
 const VOCABIFY_HIGHLIGHT_STYLE_ID = 'vocabify-highlight-styles'
+const VOCABIFY_HIGHLIGHT_PREFIX = 'vocabify-'
+const FALLBACK_HIGHLIGHT_SELECTOR = '.vocabify-highlight'
+const SKIP_TEXT_TAGS = new Set([
+  'SCRIPT',
+  'STYLE',
+  'NOSCRIPT',
+  'TEMPLATE',
+  'INPUT',
+  'TEXTAREA',
+  'SELECT',
+  'OPTION',
+  'BUTTON',
+  'CODE',
+  'PRE',
+  'KBD',
+  'SAMP',
+])
 
 /**
  * Stylesheet appended to the host document. Mirrors the rules in
@@ -42,7 +60,7 @@ export type HoverListener = (event: HoverEvent | null) => void
  * Paints saved vocabulary on the page, colored by familiarity level.
  *
  * Two render strategies share one semantic:
- *   - CSS Custom Highlight API (modern Chromium / Safari)  →  ::highlight(vocab-<level>)
+ *   - CSS Custom Highlight API (modern Chromium / Safari)  →  ::highlight(vocabify-<level>)
  *   - <mark class="vocabify-highlight vocabify-level-<level>"> (everything else)
  *
  * Both feed the saved-word hover detector. DOM marks bind delegated mouseover;
@@ -116,7 +134,7 @@ export class HighlightService {
   }
 
   private highlightWithCustomAPI(records: VocabRecord[]) {
-    CSS.highlights.clear()
+    this.clearCustomHighlights()
     this.highlights.clear()
 
     const textNodes = this.getAllTextNodes(document.body)
@@ -136,20 +154,19 @@ export class HighlightService {
     rangesByLevel.forEach((ranges, level) => {
       if (ranges.length === 0) return
       const highlight = new Highlight(...ranges)
-      const name = `vocab-${levelClassSuffix(level)}`
+      const name = getCustomHighlightName(level)
       CSS.highlights.set(name, highlight)
       this.highlights.set(name, highlight)
     })
   }
 
   private highlightWithFallback(records: VocabRecord[]) {
+    this.clearFallbackHighlights()
     const textNodes = this.getAllTextNodes(document.body)
 
     records.forEach((record) => {
       const wordOrPhrase = record.wordOrPhrase
-      const isWholeWord = /^[a-zA-Z]+$/.test(wordOrPhrase)
-      const pattern = isWholeWord ? `\\b${wordOrPhrase}\\b` : wordOrPhrase
-      const regex = new RegExp(pattern, 'gi')
+      const regex = createTermRegex(wordOrPhrase)
       const levelSuffix = levelClassSuffix(getLevel(record.score))
       const levelClass = `vocabify-level-${levelSuffix}`
 
@@ -182,10 +199,7 @@ export class HighlightService {
         acceptNode: (node) => {
           const parent = node.parentElement
           if (!parent) return NodeFilter.FILTER_REJECT
-          if (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE') {
-            return NodeFilter.FILTER_REJECT
-          }
-          if (parent.classList.contains('vocabify-highlight')) {
+          if (shouldSkipTextParent(parent)) {
             return NodeFilter.FILTER_REJECT
           }
           if (!node.textContent?.trim()) {
@@ -206,19 +220,32 @@ export class HighlightService {
 
   clearHighlights() {
     if (this.supportsCustomHighlight) {
-      CSS.highlights.clear()
+      this.clearCustomHighlights()
       this.highlights.clear()
     } else {
-      document.querySelectorAll('.vocabify-highlight').forEach(el => {
-        const parent = el.parentNode
-        if (parent) {
-          parent.replaceChild(document.createTextNode(el.textContent || ''), el)
-        }
-      })
+      this.clearFallbackHighlights()
     }
     this.rangesByRecordId.clear()
     this.records = []
     this.dispatchHoverEnd()
+  }
+
+  private clearCustomHighlights() {
+    this.highlights.forEach((_highlight, name) => {
+      CSS.highlights.delete(name)
+    })
+    LEVELS.forEach((level) => {
+      CSS.highlights.delete(getCustomHighlightName(level))
+    })
+  }
+
+  private clearFallbackHighlights() {
+    document.querySelectorAll(FALLBACK_HIGHLIGHT_SELECTOR).forEach((el) => {
+      const parent = el.parentNode
+      if (!parent) return
+      parent.replaceChild(document.createTextNode(el.textContent || ''), el)
+      parent.normalize()
+    })
   }
 
   observeChanges(callback: () => void) {
@@ -351,9 +378,7 @@ export class HighlightService {
 
 function collectRanges(textNodes: Text[], wordOrPhrase: string): Range[] {
   const ranges: Range[] = []
-  const isWholeWord = /^[a-zA-Z]+$/.test(wordOrPhrase)
-  const pattern = isWholeWord ? `\\b${wordOrPhrase}\\b` : wordOrPhrase
-  const regex = new RegExp(pattern, 'gi')
+  const regex = createTermRegex(wordOrPhrase)
 
   textNodes.forEach((node) => {
     const text = node.textContent || ''
@@ -367,6 +392,36 @@ function collectRanges(textNodes: Text[], wordOrPhrase: string): Range[] {
   })
 
   return ranges
+}
+
+function getCustomHighlightName(level: FamiliarityLevel) {
+  return `${VOCABIFY_HIGHLIGHT_PREFIX}${levelClassSuffix(level)}`
+}
+
+function createTermRegex(term: string) {
+  const escaped = escapeRegExp(term)
+  const pattern = /^[a-zA-Z]+$/.test(term) ? `\\b${escaped}\\b` : escaped
+  return new RegExp(pattern, 'gi')
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function shouldSkipTextParent(parent: HTMLElement) {
+  if (SKIP_TEXT_TAGS.has(parent.tagName)) return true
+  if (parent.isContentEditable) return true
+  if (parent.closest(FALLBACK_HIGHLIGHT_SELECTOR)) return true
+  if (parent.closest(`.${NO_SELECTION_CONTAINER}`)) return true
+  if (parent.closest('#vocabify-root')) return true
+  if (parent.closest('[contenteditable="true"]')) return true
+  if (parent.closest('[aria-hidden="true"]')) return true
+  if (parent.closest('[hidden]')) return true
+
+  const style = window.getComputedStyle(parent)
+  return style.display === 'none'
+    || style.visibility === 'hidden'
+    || style.opacity === '0'
 }
 
 /**
@@ -420,7 +475,7 @@ function buildHighlightStyles(settings: highlightStyleSettingsType) {
       normalized.hasUnderline ? `text-underline-offset: ${normalized.offset}px` : '',
     ].filter(Boolean).join(';\n  ')
 
-    return `::highlight(vocab-${suffix}),
+    return `::highlight(${getCustomHighlightName(level)}),
 .vocabify-highlight.vocabify-level-${suffix} {
   ${declarations};
 }

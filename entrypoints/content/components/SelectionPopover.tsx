@@ -2,12 +2,24 @@ import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   AlertCircle, Brain, Check, Copy, Edit3, Eye, HelpCircle,
   Plus, Search, Trash2, Volume2, X,
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
   type MarkAction,
+  getLocalReviewDate,
 } from '@/lib/familiarity'
 import type { VocabResponse } from '@/lib/aiSchema'
 import type { VocabRecord } from '@/lib/vocabTypes'
@@ -113,6 +125,7 @@ export function SelectionPopover(props: SelectionPopoverProps) {
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => {
+          if (isInsideVocabifyUi(e.target)) return
           e.preventDefault()
           onDismiss()
         }}
@@ -209,6 +222,7 @@ export function SavedWordPopover({
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => {
+          if (isInsideVocabifyUi(e.target)) return
           e.preventDefault()
           onDismiss()
         }}
@@ -599,6 +613,10 @@ function getTermTitleSize(text: string) {
   return 'text-[17px] leading-[1.2]'
 }
 
+function isInsideVocabifyUi(target: EventTarget | null) {
+  return target instanceof HTMLElement && !!target.closest(`.${NO_SELECTION_CONTAINER}`)
+}
+
 function SenseSkeleton({ active = false }: { active?: boolean }) {
   return (
     <div className="rounded border border-border/40 bg-card px-2.5 py-1.5 dark:border-white/[0.04]">
@@ -633,25 +651,66 @@ function NewWordFooter({ canSave, onSave, onEnterEdit, streaming }: { canSave: b
 }
 
 function SavedFooter({ savedRecord, onMark, onEnterEdit, onDelete }: { savedRecord: VocabRecord; onMark?: (action: MarkAction) => void; onEnterEdit?: () => void; onDelete?: () => void }) {
+  const reviewedToday = savedRecord.lastReviewDate === getLocalReviewDate()
+  const action = reviewedToday ? savedRecord.lastReviewAction : null
+
   return (
     <div className="flex w-full flex-col gap-1.5">
-      <div className="flex items-center justify-end gap-1">
-        <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('KNOW')} data-testid="vocabify-mark-know">
+      <div className="flex items-center gap-1">
+        <span className="mr-auto" />
+        <Button
+          variant={action === 'KNOW' ? 'secondary' : 'ghost'}
+          size="sm"
+          aria-pressed={action === 'KNOW'}
+          className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground"
+          onClick={() => onMark?.('KNOW')}
+          data-testid="vocabify-mark-know"
+        >
           <Check className="h-3 w-3" /> Know
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('FUZZY')} data-testid="vocabify-mark-fuzzy">
+        <Button
+          variant={action === 'FUZZY' ? 'secondary' : 'ghost'}
+          size="sm"
+          aria-pressed={action === 'FUZZY'}
+          className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground"
+          onClick={() => onMark?.('FUZZY')}
+          data-testid="vocabify-mark-fuzzy"
+        >
           <Brain className="h-3 w-3" /> Fuzzy
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground" onClick={() => onMark?.('FORGET')} data-testid="vocabify-mark-forget">
+        <Button
+          variant={action === 'FORGET' ? 'secondary' : 'ghost'}
+          size="sm"
+          aria-pressed={action === 'FORGET'}
+          className="h-7 rounded-md px-2 text-[11px] text-foreground/85 hover:bg-secondary hover:text-foreground"
+          onClick={() => onMark?.('FORGET')}
+          data-testid="vocabify-mark-forget"
+        >
           <HelpCircle className="h-3 w-3" /> Forget
         </Button>
         <span className="mx-0.5 h-4 w-px bg-secondary" />
         <Button variant="ghost" size="icon-sm" onClick={onEnterEdit} aria-label="Edit" title="Edit" className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-foreground">
           <Edit3 className="h-3 w-3" />
         </Button>
-        <Button variant="ghost" size="icon-sm" onClick={onDelete} aria-label="Delete" title="Delete" className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-red-400">
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Delete" title="Delete" className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-red-400">
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className={NO_SELECTION_CONTAINER} onClick={(event) => event.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove “{savedRecord.term || savedRecord.wordOrPhrase}” from your wordlist. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
       <FamiliarityMeter record={savedRecord} align="center" hideCurveTitle />
     </div>

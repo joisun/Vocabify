@@ -138,22 +138,22 @@
 
 /* ───────────────────────────── Highlight (in-page words) ─────────────────────────── */
 
-::highlight(vocab-new),
+::highlight(vocabify-new),
 .vocabify-highlight.vocabify-level-new {
   background-color: hsl(142 60% 45% / 0.18);
   color: inherit;
 }
-::highlight(vocab-learning),
+::highlight(vocabify-learning),
 .vocabify-highlight.vocabify-level-learning {
   background-color: hsl(28 100% 50% / 0.20);
   color: inherit;
 }
-::highlight(vocab-familiar),
+::highlight(vocabify-familiar),
 .vocabify-highlight.vocabify-level-familiar {
   background-color: hsl(240 89% 66% / 0.18);
   color: inherit;
 }
-::highlight(vocab-mastered),
+::highlight(vocabify-mastered),
 .vocabify-highlight.vocabify-level-mastered {
   background-color: hsl(270 50% 60% / 0.10);
   color: inherit;
