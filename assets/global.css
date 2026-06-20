@@ -37,12 +37,12 @@
     --muted: 240 5% 96%;
     --muted-foreground: 240 5% 42%;
 
-    /* Single accent — indigo/blue-violet (#5b5bf8) */
-    --primary: 240 89% 66%;
+    /* Single accent — leaf green (#27AE60) */
+    --primary: 145 63% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --accent: 240 89% 96%;
-    --accent-foreground: 240 89% 38%;
+    --accent: 145 63% 94%;
+    --accent-foreground: 145 71% 29%;
 
     /* Status (used sparingly) */
     --destructive: 4 75% 50%;
@@ -53,7 +53,7 @@
     /* Hairline borders */
     --border: 240 6% 88%;
     --input: 240 6% 88%;
-    --ring: 240 89% 66%;
+    --ring: 145 63% 42%;
 
     --radius: 0.625rem;                /* 10px — engineered, not playful */
   }
@@ -79,11 +79,11 @@
     --muted: 240 4% 20%;
     --muted-foreground: 240 5% 64%;
 
-    --primary: 240 89% 70%;
+    --primary: 145 63% 48%;
     --primary-foreground: 0 0% 100%;
 
-    --accent: 240 35% 22%;
-    --accent-foreground: 240 89% 80%;
+    --accent: 143 72% 18%;
+    --accent-foreground: 145 63% 72%;
 
     --destructive: 4 70% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -92,7 +92,7 @@
 
     --border: 0 0% 100%;               /* used at 0.08 alpha via rgba */
     --input: 240 4% 22%;
-    --ring: 240 89% 70%;
+    --ring: 145 63% 48%;
   }
 }
 
@@ -150,7 +150,7 @@
 }
 ::highlight(vocabify-familiar),
 .vocabify-highlight.vocabify-level-familiar {
-  background-color: hsl(240 89% 66% / 0.18);
+  background-color: hsl(145 63% 42% / 0.18);
   color: inherit;
 }
 ::highlight(vocabify-mastered),
@@ -174,12 +174,12 @@
 }
 .vocabify-level-dot.is-new      { background-color: hsl(142 60% 45%); }
 .vocabify-level-dot.is-learning { background-color: hsl(28 100% 50%); }
-.vocabify-level-dot.is-familiar { background-color: hsl(240 89% 66%); }
+.vocabify-level-dot.is-familiar { background-color: hsl(145 63% 42%); }
 .vocabify-level-dot.is-mastered { background-color: hsl(270 50% 60%); }
 
 .vocabify-level-dot-fill.is-new      { background-color: hsl(142 60% 45%); }
 .vocabify-level-dot-fill.is-learning { background-color: hsl(28 100% 50%); }
-.vocabify-level-dot-fill.is-familiar { background-color: hsl(240 89% 66%); }
+.vocabify-level-dot-fill.is-familiar { background-color: hsl(145 63% 42%); }
 .vocabify-level-dot-fill.is-mastered { background-color: hsl(270 50% 60%); }
 
 /* ───────────────────────────── Scrollbars (subtle, hidden by default) ─────────────────────────── */

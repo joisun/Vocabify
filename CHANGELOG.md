@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Streaming status character**: redefine headers now use a lightweight rotating refresh icon, while popover and wordlist streaming status blocks show the black / white theme-aware Three.js bun character beside the state label.
 
 ### Changed
+- Brand accent and app icon now use the leaf-green palette (`#2ECC71`, `#27AE60`, `#15803D`) across theme tokens, generated toolbar icons, and the shared SVG icon component.
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
 - In-page wordlist sheet now opens taller, giving saved vocabulary more vertical reading space.
 - In-page wordlist sheet now uses the same theme-aware floating surface tokens as tooltips and selection popovers, with lower-contrast hairline borders.

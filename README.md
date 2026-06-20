@@ -76,7 +76,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - Example translations can be always visible or hidden until hovering the eye reveal control.
 - Target language for explanations.
 - Single active AI provider, API key, base URL when needed, and model.
-- Light / dark theme, including a Chrome toolbar icon that follows the system color scheme at runtime.
+- Light / dark theme with a leaf-green brand accent and matching Chrome toolbar icon.
 
 ### Pronunciation
 - Word pronunciation via Google TTS, surfaced from the editor and record viewer.

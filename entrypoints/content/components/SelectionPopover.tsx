@@ -503,7 +503,7 @@ function Card({
             )}
             {savedRecord?.sourceUrl && (
               <p className="mt-2 truncate text-[10px] text-muted-foreground">
-                源: <a href={savedRecord.sourceUrl} target="_blank" rel="noreferrer" className="text-[#5b5bf8] hover:underline">{new URL(savedRecord.sourceUrl).hostname}</a>
+                源: <a href={savedRecord.sourceUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">{new URL(savedRecord.sourceUrl).hostname}</a>
               </p>
             )}
           </>
