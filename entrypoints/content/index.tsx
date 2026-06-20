@@ -9,7 +9,7 @@ import {
   type SelectionRect,
 } from './components/SelectionPopover'
 import { InPageUI } from '@/components/InPageUI'
-import { highlightService, type HoverEvent } from '@/lib/highlightService'
+import { highlightService, shouldSkipVocabifyTextParent, type HoverEvent } from '@/lib/highlightService'
 import {
   deleteRecordById,
   getRecordById,
@@ -475,7 +475,7 @@ export default defineContentScript({
     void migratePageOriginVocabulary()
 
     // ── DOM listeners ───────────────────────────────────────────────────────
-    document.addEventListener('mousedown', function (event) {
+    ctx.addEventListener(document, 'mousedown', function (event) {
       if (isVocabifyUiEvent(event)) return
       const target = event.target as HTMLElement | null
       if (target?.closest?.(`.${NO_SELECTION_CONTAINER}`)) return
@@ -483,14 +483,14 @@ export default defineContentScript({
       closeSavedHoverFn?.()
     })
 
-    document.addEventListener('keydown', function (event) {
+    ctx.addEventListener(document, 'keydown', function (event) {
       if (event.key === 'Escape') {
         setPopoverStateFn?.(null)
         closeSavedHoverFn?.()
       }
     })
 
-    document.addEventListener('mouseup', async function (event) {
+    ctx.addEventListener(document, 'mouseup', async function (event) {
       if (isVocabifyUiEvent(event)) return
       const target = event.target
       if (checkIsDisabled(target)) return
@@ -509,6 +509,7 @@ export default defineContentScript({
 
       const range = selection.getRangeAt(0).cloneRange()
       if (range.collapsed) return
+      if (shouldSkipSelectionRange(range, selection, target)) return
 
       const rect = getSelectionRect(range)
       if (!rect) return
@@ -609,6 +610,56 @@ function eventPointIntersectsSelection(event: MouseEvent, range: Range): boolean
     && y >= rect.top
     && y <= rect.bottom,
   )
+}
+
+function shouldSkipSelectionRange(range: Range, selection: Selection, target: HTMLElement): boolean {
+  return shouldSkipNodeForVocabifyLookup(target)
+    || shouldSkipNodeForVocabifyLookup(selection.anchorNode)
+    || shouldSkipNodeForVocabifyLookup(selection.focusNode)
+    || shouldSkipNodeForVocabifyLookup(range.commonAncestorContainer)
+    || selectionContainsSkippedText(range)
+}
+
+function shouldSkipNodeForVocabifyLookup(node: Node | null): boolean {
+  const element = getLookupElement(node)
+  return element ? shouldSkipVocabifyTextParent(element) : false
+}
+
+function selectionContainsSkippedText(range: Range): boolean {
+  const root = range.commonAncestorContainer
+  if (root.nodeType === Node.TEXT_NODE) {
+    return shouldSkipNodeForVocabifyLookup(root)
+  }
+
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) => {
+        if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT
+        try {
+          return range.intersectsNode(node)
+            ? NodeFilter.FILTER_ACCEPT
+            : NodeFilter.FILTER_REJECT
+        } catch {
+          return NodeFilter.FILTER_REJECT
+        }
+      }
+    }
+  )
+
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    if (shouldSkipNodeForVocabifyLookup(node)) return true
+  }
+
+  return false
+}
+
+function getLookupElement(node: Node | null): HTMLElement | null {
+  if (!node) return null
+  if (node instanceof HTMLElement) return node
+  return node.parentElement
 }
 
 function isPointInHoverSafeArea(

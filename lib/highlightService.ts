@@ -24,6 +24,7 @@ const SKIP_TEXT_TAGS = new Set([
   'KBD',
   'SAMP',
 ])
+const SKIP_TEXT_SELECTOR = Array.from(SKIP_TEXT_TAGS).join(',')
 
 /**
  * Stylesheet appended to the host document. Mirrors the rules in
@@ -199,7 +200,7 @@ export class HighlightService {
         acceptNode: (node) => {
           const parent = node.parentElement
           if (!parent) return NodeFilter.FILTER_REJECT
-          if (shouldSkipTextParent(parent)) {
+          if (shouldSkipVocabifyTextParent(parent)) {
             return NodeFilter.FILTER_REJECT
           }
           if (!node.textContent?.trim()) {
@@ -408,8 +409,8 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function shouldSkipTextParent(parent: HTMLElement) {
-  if (SKIP_TEXT_TAGS.has(parent.tagName)) return true
+export function shouldSkipVocabifyTextParent(parent: HTMLElement) {
+  if (parent.closest(SKIP_TEXT_SELECTOR)) return true
   if (parent.isContentEditable) return true
   if (parent.closest(FALLBACK_HIGHLIGHT_SELECTOR)) return true
   if (parent.closest(`.${NO_SELECTION_CONTAINER}`)) return true

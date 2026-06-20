@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Saved-word hover flicker**: saved-word hover no longer triggers the text-selection operation popover at the viewport origin, and preview content remains open while the pointer moves from the highlighted word onto the card.
 - **AI stream timeout with reasoning models**: increased `chunkMs` from 8s to 30s to accommodate providers that emit `reasoning_content` before `content`.
 - **Highlight isolation**: Vocabify now deletes only its own Custom Highlight registry keys, escapes saved terms before regex matching, clears stale fallback `<mark>` nodes before repainting, and skips interactive/code/hidden/extension UI text nodes.
+- **Code-block selection isolation**: selecting text inside nested `pre` / `code` syntax-highlight spans no longer opens the Vocabify lookup operation bar.
 - **Vocabulary import tombstones**: importing data now applies newer tombstones to delete matching local records and prevents older records from reviving entries that were deleted locally.
 - **GitHub sync local consistency**: local vocabulary replacement now happens only after `syncdata.json` is successfully written to GitHub, avoiding local mutation when the remote write fails.
 - **Popover delete confirmation**: saved-word popover delete actions now use the same shadcn/Radix AlertDialog confirmation pattern as the wordlist sheet.

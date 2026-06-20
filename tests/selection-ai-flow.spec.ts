@@ -159,6 +159,22 @@ test.describe('Vocabify selection + AI flow', () => {
     }
   })
 
+  test('code block text does not trigger selection lookup', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page)
+
+      await selectTextInElement(page, 'pre > code > span:nth-child(9) > span', 'component')
+
+      await page.waitForTimeout(300)
+      await expect.poll(() => getShadowField(page, 'operationBarVisible'), { timeout: 1_000 }).toBe(false)
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
   test('theme syncs from options to content script', async () => {
     const extensionId = await getExtensionId(context)
     const page = await context.newPage()
@@ -691,6 +707,30 @@ async function selectText(page: Page, text: string) {
     }
     throw new Error(`Text "${t}" not found`)
   }, text)
+}
+
+async function selectTextInElement(page: Page, selector: string, text: string) {
+  await page.evaluate(({ selector: sel, text: t }) => {
+    const el = document.querySelector(sel)
+    if (!el) throw new Error(`No ${sel}`)
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    let node = walker.nextNode()
+    while (node) {
+      const idx = (node.textContent || '').indexOf(t)
+      if (idx >= 0) {
+        const range = document.createRange()
+        range.setStart(node, idx)
+        range.setEnd(node, idx + t.length)
+        window.getSelection()?.removeAllRanges()
+        window.getSelection()?.addRange(range)
+        const rect = range.getBoundingClientRect()
+        node.parentElement!.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }))
+        return
+      }
+      node = walker.nextNode()
+    }
+    throw new Error(`Text "${t}" not found in ${sel}`)
+  }, { selector, text })
 }
 
 function chunk(content: string) {

@@ -71,6 +71,7 @@ Provider configuration follows the single-active-provider settings model:
 - The popover width remains stable while streamed fields arrive.
 - The save action remains disabled until a complete structured result is available.
 - Saved-word hover uses `[data-testid="vocabify-saved-hover-card"]` rather than the selection operation popover, remains open when the pointer moves from the highlighted word onto the card, and covers records that exist before the content UI initializes.
+- Selecting text inside nested `pre > code` syntax-highlight spans does not open the selection lookup operation bar.
 - Failed AI lookup shows `[data-testid="vocabify-stream-error"]` with the provider error after configured automatic retries are exhausted.
 - Popover edit mode inputs remain focusable and editable inside ShadowRoot.
 - Theme changes through `chrome.storage.local["vocabify-theme"]` propagate from Options to the content script container.
