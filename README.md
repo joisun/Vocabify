@@ -1,181 +1,35 @@
 # Vocabify
 
 <p align="center">
-  <img src="./README.assets/wxt.svg" alt="Vocabify" width="160"/>
+  <img src="./README.assets/banner.png" alt="Vocabify banner" width="960" />
 </p>
+Vocabify is a local-first browser extension for learning vocabulary while you read. Select a word or phrase on any webpage, get a streamed AI explanation, save it to your wordlist, and review it later with a lightweight memory score.
 
-A reading-first vocabulary workspace for the browser. Select any word, get a streamed AI explanation, save it, and watch your familiarity score evolve as you re-encounter it across the web.
+### Usage
 
-Built for serious readers, not gamified learners. The interface stays out of the way; the data stays on your machine.
+https://chromewebstore.google.com/detail/vocabify/jfdeidnhmcefnjohapiemmilcglgpikl
 
-<div style="overflow: hidden;width: 1280px;height: 800px;">
-   <div style="height: 100%;display: flex; gap: 1em; overflow-x: scroll;">
-     <img style="height: 100%;" src="./README.assets/1.jpg" alt="" />
-     <img style="height: 100%;" src="./README.assets/2.jpg" alt="" />
-     <img style="height: 100%;" src="./README.assets/3.jpg" alt="" />
-     <img style="height: 100%;" src="./README.assets/4.jpg" alt="" />
-     <img style="height: 100%;" src="./README.assets/5.jpg" alt="" />
-     <img style="height: 100%;" src="./README.assets/6.jpg" alt="" />
-   </div>
- </div>
+## Features
 
-## Highlights
+- **Instant lookup while reading**: select text and open a compact popover without leaving the page.
+- **AI-powered explanations**: use OpenAI, Gemini, Anthropic, DeepSeek, GLM, Kimi, or any OpenAI-compatible provider.
+- **Streaming vocabulary cards**: definitions, examples, translations, phonetics, and mnemonics render progressively.
+- **Saved wordlist**: search, edit, redefine, pronounce, and delete saved entries from the in-page sheet.
+- **Memory tracking**: each saved word has a 0-100 familiarity score and a Bézier forgetting forecast.
+- **Smart highlights**: saved words are highlighted across webpages with customizable underline/background styles.
+- **Local-first storage**: vocabulary lives in extension-origin IndexedDB; GitHub sync is optional.
+- **Private sync**: sync to your own private `__Vocabify_Data_Center__` repository through GitHub Device Flow.
 
-- **Selection-driven flow.** Highlight a word on any page; a compact action popover surfaces explain / save / mark options without breaking your reading position.
-- **Streamed AI explanations.** Powered by one active AI provider at a time: popular first-party providers plus OpenAI-compatible GLM / Kimi / custom endpoints.
-- **Familiarity scoring.** Every saved word carries a 0–100 score visualized as a compact 20-dot meter; clicking the dots expands its memory curve.
-- **Bézier forgetting.** Scores decay from a mark-time anchor through a bounded cubic Bézier curve, materialized only when rendered or marked. No background timers, no battery cost.
-- **Unified reading overlays.** Select a new word → operation bar (查询 / 复制). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → a virtual-anchor popover renders the same saved-word card with familiarity marks + inline edit / delete.
-- **In-page wordlist.** A side panel for reviewing saved words, opened directly from the toolbar icon or the popover's settings menu. Editing a word switches the content area into a focused edit panel below GitHub sync, and saved entries can be redefined with the current AI provider.
-- **GitHub sync.** Device-Flow OAuth into a private `__Vocabify_Data_Center__` repo. Tombstones travel with the records, so deletions propagate too.
-- **Local-first storage.** Dexie-backed IndexedDB lives under the extension origin; nothing leaves the browser unless you sync it.
 
-## Feature Detail
-
-### Smart text selection
-- Select any text to bring up the action popover at the optimal placement (above or below the selection, depending on viewport space).
-- Saved words display a compact familiarity dot meter on the popover. Click the dots to inspect the word's Bézier memory curve.
-- Selections inside form fields, contenteditable regions, or extension UI are ignored.
-
-### AI-powered explanations
-- First-party providers via Vercel AI SDK: OpenAI, Anthropic, Gemini, and DeepSeek.
-- OpenAI-compatible presets and custom providers use provider base URLs. Vercel AI SDK handles the standard `/chat/completions` request path.
-- One active provider is used for AI lookup. There is no fallback chain or provider priority ordering.
-- Model suggestions load when the provider exposes `/models`; the model can always be typed manually.
-- Customizable prompt template and target language. The user prompt must include `{SELECTION}` and `{LANGUAGE}` (`{SOURCE_CONTEXT}` is optional); Vocabify sends product behavior plus target-language guidance and the strict block-stream output contract as internal system messages, then sends the resolved prompt as the user message.
-- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`), abort support, and configurable automatic retry. A whitelist block-stream parser feeds the popover field-by-field as data arrives, with partial-JSON parsing retained as a compatibility fallback while raw protocol text and provider reasoning text stay hidden from the user-facing card. If a reasoning model emits AI SDK reasoning deltas, Vocabify shows a temporary single-line Thinking status without saving reasoning content to the vocabulary record. Redefine actions use a lightweight rotating refresh icon, while streaming status blocks can show the theme-aware Three.js bun character beside the state label.
-
-### Vocabulary management
-- In-page side sheet — Wordlist only (AI lookup lives in the selection popover now).
-- Search, edit, redefine, expand, and paginate saved entries without leaving the page.
-- Records are normalized (trim + lowercase) so duplicates collapse cleanly.
-
-### Familiarity scoring
-- Score range: 0–100, mapped to four tiers — New (0) / Learning (1–40) / Familiar (41–70) / Mastered (71–100).
-- Marks apply bounded score changes: Know raises low / mid / high scores by +18 / +12 / +6; Fuzzy converges toward the 60–70 range; Forget applies −12 / −20 / −30.
-- The first Know / Fuzzy / Forget action each local day creates a memory anchor (`memoryAnchorScore`, `memoryAnchorAt`). Repeating the same action that day does not stack score changes; switching action rewrites that day's result from the original daily baseline.
-- The x-axis is normalized elapsed time, clamped to the active horizon: Learning 9 days, Familiar 42 days, Mastered 180 days.
-- Current score is materialized lazily right before rendering, highlighting, or syncing. Individual record lookups and review actions persist the settled score back to extension-origin IndexedDB.
-- The dot meter in popovers and sheet rows expands on click to show anchor score, current score, projected end score, and elapsed/horizon timing.
-
-### Highlighting
-- Uses the CSS Custom Highlight API on modern Chromium / Safari and a `<mark>` fallback elsewhere.
-- Records are bucketed by tier so the same four-color visual language applies to both rendering paths.
-- Saved-word hover uses coordinate hit-testing for CSS Custom Highlight ranges because those highlights do not create DOM trigger elements.
-- Custom highlight decoration supports underline, background, or both, with 1–4 px underline thickness and configurable background opacity.
-- A debounced `MutationObserver` re-paints after SPA navigations.
-
-### GitHub synchronization
-- OAuth Device Flow only — no client secret bundled in the extension.
-- Sync target: a private repo named `__Vocabify_Data_Center__`, file `syncdata.json`.
-- Payload schema includes records, tombstones, and memory-anchor fields, so cross-device merges preserve memory state.
-- Legacy payloads without familiarity data are backfilled with safe defaults on import.
-
-### Customization
-- Highlight color, underline type (wavy / straight / dashed), thickness, offset, and inversion behavior.
-- Example translations can be always visible or hidden until hovering the eye reveal control.
-- Target language for explanations.
-- Single active AI provider, API key, base URL when needed, and model.
-- Light / dark theme with a leaf-green brand accent and matching Chrome toolbar icon.
-
-### Pronunciation
-- Word pronunciation via Google TTS, surfaced from the editor and record viewer.
-
-## Tech Stack
-
-WXT, React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Vercel AI SDK, Dexie, Radix UI, Sonner, Lucide, Framer Motion, Paper Shaders.
-
-## Project Structure
-
-```
-entrypoints/
-  background.ts          # GitHub Device Flow proxy + message routing
-  content/               # Selection popover, saved-word hover card, in-page sheet
-  options/               # Provider, prompt, highlight, sync settings
-components/              # Sheet (Wordlist-only), VocabList, shadcn/ui primitives
-lib/
-  aiService.ts           # Vercel AI SDK provider switch + streaming
-  aiSchema.ts            # Zod schema for structured AI output (VocabResponse)
-  partialJson.ts         # Compatibility fallback for field-level JSON streaming
-  streamBlocks.ts        # Whitelist block-stream parser for faster visible fields
-  familiarity.ts         # 0-100 memory engine, Bézier curve materialization, mark deltas
-  vocabApi.ts            # content/options vocabulary API over extension messaging
-  vocabifyDb.ts          # extension-origin Dexie schema (v7) + tombstone/daily-review tracking
-  highlightService.ts    # Custom Highlight API + <mark> fallback
-  githubSync.ts          # Device Flow + syncdata.json read/write
-typings/
-  aiModelAdaptor.ts      # Provider templates + agent normalization
-utils/storage.ts         # WXT storage definitions
-```
-
-## Installation
-
-```bash
-git clone https://github.com/joisun/Vocabify.git
-cd Vocabify
-pnpm install
-```
-
-## Development
-
-```bash
-pnpm dev              # Chrome
-pnpm dev:firefox      # Firefox
-```
-
-The dev server runs on port `45678` with a persistent Chrome profile under `.wxt/chrome-data` so logins and storage survive reloads.
-
-## Build
-
-```bash
-pnpm build            # Chrome
-pnpm build:firefox    # Firefox
-pnpm zip              # Pack for distribution
-pnpm zip:firefox
-```
-
-## Other Scripts
-
-- `pnpm compile` — TypeScript type-check, no emit
-- `pnpm test:e2e` — Playwright end-to-end tests
-- `pnpm postinstall` — `wxt prepare` (runs automatically after install)
-
-## Permissions
-
-Declared in `wxt.config.ts`:
-
-- `storage` — local settings, agents, and sync metadata
-- `identity` — used only as part of the GitHub Device Flow proxy
-- `host_permissions: ["*://*/*"]` — required so the content script can highlight saved words on any page
 
 ## Privacy
 
-All vocabulary data lives in IndexedDB on your device. AI requests go directly from the extension to whichever provider you configured. GitHub sync is opt-in and writes to a private repository under your own account. See [`privacy-policy.md`](./privacy-policy.md) for the full statement.
+Vocabulary data stays on your device by default. AI requests are sent only to the provider you configure. GitHub sync is opt-in and writes to a private repository under your account. See [privacy-policy.md](./privacy-policy.md).
 
-## Contributing
+## Support
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit using Conventional Commits (`feat:`, `fix:`, `chore:` ...)
-4. Push and open a Pull Request
+If Vocabify helps your reading workflow, you can support the project here:
 
-See [`CHANGELOG.md`](./CHANGELOG.md) for the running history.
-
-## License
-
-MIT — see [`LICENSE`](./LICENSE).
-
-## Acknowledgments
-
-- [WXT](https://wxt.dev/) — browser extension framework
-- [Vercel AI SDK](https://sdk.vercel.ai/) — provider abstraction and streaming
-- [shadcn/ui](https://ui.shadcn.com/) — component primitives
-- [Tailwind CSS](https://tailwindcss.com/) — styling
-- [Dexie](https://dexie.org/) — IndexedDB wrapper
-- [Lucide](https://lucide.dev/) — icons
-
-## Contact
-
-- Repository: [github.com/joisun/Vocabify](https://github.com/joisun/Vocabify)
-- Author: joisun
-- Email: joi-sun@outlook.com
+<p align="center">
+  <img src="./README.assets/buymecoffee.jpg" alt="Buy me a coffee" width="320" />
+</p>
