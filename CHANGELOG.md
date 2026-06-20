@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Saved-entry redefinition**: saved vocabulary cards in the popover and wordlist sheet now expose a reload action that reruns the configured AI provider and overwrites the stored explanation.
 - **Block-stream AI output**: AI responses now prefer a whitelist XML-like block stream (`<term>`, `<definition>`, `<example>`, etc.) so fields can render as soon as their tag text arrives. JSON parsing remains as a compatibility fallback.
 - **Reasoning stream visibility**: reasoning-capable providers now surface AI SDK `reasoning-delta` output as a compact single-line Thinking status while the final vocabulary fields are still streaming.
+- **Product character redefine control**: popover headers now place a shader bun character inline with the title as the redefine action for fresh and saved results, while Loading / Thinking status rows stay text-only with animated dots.
 
 ### Changed
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.

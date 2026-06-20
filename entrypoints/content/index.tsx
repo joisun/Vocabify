@@ -310,6 +310,15 @@ export default defineContentScript({
         aiStream.start(text, record.sourceContext)
       }
 
+      function handleSelectionRedefine() {
+        if (savedRecord?.id) {
+          handleRedefine('selection', savedRecord)
+          return
+        }
+
+        handleQuery()
+      }
+
       function speakText(text: string) {
         try {
           const u = new SpeechSynthesisUtterance(text)
@@ -459,7 +468,7 @@ export default defineContentScript({
             onEnterEdit={handleEnterEdit}
             onDelete={handleDelete}
             onRetry={aiStream.retry}
-            onRedefine={savedRecord?.id ? () => handleRedefine('selection', savedRecord) : undefined}
+            onRedefine={savedRecord?.id || popoverState?.selectionText ? handleSelectionRedefine : undefined}
             redefining={!!isSelectionRedefining}
             onSpeak={handleSpeak}
             onEditCommit={handleEditCommit}

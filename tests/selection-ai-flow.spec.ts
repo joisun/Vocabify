@@ -47,7 +47,7 @@ test.describe('Vocabify selection + AI flow', () => {
       await expect.poll(() => getPopoverField(page, 'width'), { timeout: 10_000 }).toBeGreaterThan(330)
       const initialWidth = await getPopoverField(page, 'width')
 
-      await expect.poll(() => getPopoverField(page, 'thinking'), { timeout: 10_000 }).toContain('Thinking')
+      await expect.poll(() => getPopoverField(page, 'thinking'), { timeout: 10_000 }).toMatch(/Loading|Thinking/)
       await expect.poll(() => getPopoverField(page, 'term'), { timeout: 10_000 }).toBe('nuanced phrase')
       await expect.poll(() => getPopoverField(page, 'thinking'), { timeout: 10_000 }).toBeNull()
       await expect.poll(() => getPopoverField(page, 'rawJsonVisible'), { timeout: 5_000 }).toBe(false)

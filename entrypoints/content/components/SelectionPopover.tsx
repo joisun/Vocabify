@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, Brain, Check, Copy, Edit3, Eye, HelpCircle,
-  Plus, RefreshCw, Search, Trash2, Volume2, X,
+  Plus, Search, Trash2, Volume2, X,
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 import { translationRevealMode, type TranslationRevealMode } from '@/utils/storage'
 import { FamiliarityMeter } from '@/components/FamiliarityMeter'
-import { AIThinkingBlock } from '@/components/AIThinkingBlock'
+import { AIThinkingBlock, BunCharacter } from '@/components/AIThinkingBlock'
 
 export type { EditableFields } from '@/components/RecordEditForm'
 
@@ -402,30 +402,36 @@ function Card({
 
   return (
     <div className="flex flex-col" data-testid="vocabify-selection-popover">
-      <div className="flex items-start justify-between gap-2 px-3 pt-2.5 pb-1.5">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
+      <div className="px-3 pt-2.5 pb-1.5">
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="min-w-0 flex-1">
             <TermTitle text={title || '—'} />
+          </div>
+          <div className="flex h-6 shrink-0 items-center gap-2">
             {onRedefine && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
+              <button
+                type="button"
                 onClick={onRedefine}
                 disabled={streaming || redefining}
-                className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-transparent p-0 transition-transform duration-150 hover:scale-105 disabled:pointer-events-none disabled:opacity-55"
                 aria-label="Redefine"
                 title="Redefine"
                 data-testid="vocabify-redefine-action"
               >
-                <RefreshCw className={cn('h-3 w-3', (streaming || redefining) && 'animate-spin')} />
-              </Button>
+                <BunCharacter size={24} />
+              </button>
             )}
             {onSpeak && (
-              <Button variant="ghost" size="icon-sm" onClick={onSpeak} className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Pronounce" title="Pronounce">
-                <Volume2 className="h-3 w-3" />
-              </Button>
+              <button type="button" onClick={onSpeak} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" aria-label="Pronounce" title="Pronounce">
+                <Volume2 className="h-3.5 w-3.5" />
+              </button>
             )}
+            <button type="button" onClick={onDismiss} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" aria-label="Dismiss">
+              <X className="h-3 w-3" />
+            </button>
           </div>
+        </div>
+        <div className="min-w-0">
           {!isPhrase && (
             <div className="mt-0.5 flex items-center gap-1.5">
               <span className="font-mono text-[11px] text-muted-foreground" data-testid="vocabify-stream-phonetic">
@@ -437,9 +443,6 @@ function Card({
             </div>
           )}
         </div>
-        <button type="button" onClick={onDismiss} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" aria-label="Dismiss">
-          <X className="h-3 w-3" />
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto vocabify-fade-scroll px-3 py-1 max-h-[380px]">
@@ -468,7 +471,7 @@ function Card({
             )}
             {isWaitingForModel && (
               <div className="py-1.5" data-testid="vocabify-stream-waiting">
-                <AIThinkingBlock label={streamStatusLabel} />
+                <AIThinkingBlock label={streamStatusLabel} showCharacter={false} />
               </div>
             )}
             {isPhrase ? (
@@ -481,7 +484,7 @@ function Card({
               </div>
             ) : isBuildingResult ? (
               <div className="py-1.5" data-testid="vocabify-stream-building">
-                <AIThinkingBlock label="Building" />
+                <AIThinkingBlock label="Building" showCharacter={false} />
               </div>
             ) : null}
             {showMnemonic && (
