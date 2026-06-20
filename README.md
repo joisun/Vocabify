@@ -43,7 +43,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - One active provider is used for AI lookup. There is no fallback chain or provider priority ordering.
 - Model suggestions load when the provider exposes `/models`; the model can always be typed manually.
 - Customizable prompt template and target language. The user prompt must include `{SELECTION}` and `{LANGUAGE}` (`{SOURCE_CONTEXT}` is optional); Vocabify sends product behavior plus target-language guidance and the strict block-stream output contract as internal system messages, then sends the resolved prompt as the user message.
-- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`), abort support, and configurable automatic retry. A whitelist block-stream parser feeds the popover field-by-field as data arrives, with partial-JSON parsing retained as a compatibility fallback while raw protocol text and provider reasoning text stay hidden from the user-facing card. If a reasoning model emits AI SDK reasoning deltas, Vocabify shows a temporary single-line Thinking status without saving reasoning content to the vocabulary record. A bun character sits beside pronunciation as the redefine control for both fresh lookups and saved entries.
+- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`), abort support, and configurable automatic retry. A whitelist block-stream parser feeds the popover field-by-field as data arrives, with partial-JSON parsing retained as a compatibility fallback while raw protocol text and provider reasoning text stay hidden from the user-facing card. If a reasoning model emits AI SDK reasoning deltas, Vocabify shows a temporary single-line Thinking status without saving reasoning content to the vocabulary record. Redefine actions use a lightweight rotating refresh icon, while streaming status blocks can show the theme-aware Three.js bun character beside the state label.
 
 ### Vocabulary management
 - In-page side sheet — Wordlist only (AI lookup lives in the selection popover now).
@@ -76,7 +76,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - Example translations can be always visible or hidden until hovering the eye reveal control.
 - Target language for explanations.
 - Single active AI provider, API key, base URL when needed, and model.
-- Light / dark theme.
+- Light / dark theme, including a Chrome toolbar icon that follows the system color scheme at runtime.
 
 ### Pronunciation
 - Word pronunciation via Google TTS, surfaced from the editor and record viewer.

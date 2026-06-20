@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, ArrowLeft, BookOpen, CheckCircle2, Copy, Edit3, ExternalLink, Github,
-  Loader2, LogOut, RefreshCw, Search, Trash2, Volume2,
+  Loader2, LogOut, RefreshCw, RotateCw, Search, Trash2, Volume2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -31,7 +31,7 @@ import { getLevel, levelClassSuffix } from '@/lib/familiarity'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 import { countRecords, deleteRecordById, getAllRecords, searchRecords, updateRecordFields } from '@/lib/vocabApi'
 import { FamiliarityMeter, MemoryCurvePanel } from '@/components/FamiliarityMeter'
-import { AIThinkingBlock } from '@/components/AIThinkingBlock'
+import { AIThinkingBlock, getStreamCharacterState } from '@/components/AIThinkingBlock'
 import type { RuntimeMessage } from '@/lib/messaging'
 import { useAIStream } from '@/lib/aiStreamClient'
 import { responseToRecordPatch } from '@/lib/vocabTypes'
@@ -254,6 +254,12 @@ export function VocabList() {
                   const isPhrase = displayRecord.pos === 'phrase'
                   const phraseTranslation = displayRecord.senses?.[0]?.definition || ''
                   const hasSenses = !!displayRecord.senses?.length
+                  const itemCharacterState = getStreamCharacterState({
+                    streaming: itemIsStreaming,
+                    hasReceivedChunk: aiStream.hasReceivedChunk,
+                    hasReceivedReasoning: aiStream.hasReceivedReasoning,
+                    hasSenses,
+                  })
                   return (
                     <li
                       key={record.id}
@@ -296,7 +302,7 @@ export function VocabList() {
                               className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
                               data-testid="vocabify-wordlist-redefine"
                             >
-                              <RefreshCw className={cn('h-3 w-3', itemIsStreaming && 'animate-spin')} />
+                              <RotateCw className={cn('h-3 w-3', itemIsStreaming && 'animate-spin')} />
                             </Button>
                             <Button
                               variant="ghost"
@@ -358,7 +364,7 @@ export function VocabList() {
                                 </div>
                               ) : itemIsStreaming && !hasSenses ? (
                                 <div className="py-1">
-                                  <AIThinkingBlock label={redefiningStatusLabel} compact />
+                                  <AIThinkingBlock label={redefiningStatusLabel} state={itemCharacterState} compact />
                                 </div>
                               ) : isPhrase ? (
                                 <div className="rounded-[5px] bg-secondary/40 px-2 py-1.5">

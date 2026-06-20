@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, Brain, Check, Copy, Edit3, Eye, HelpCircle,
-  Plus, Search, Trash2, Volume2, X,
+  Plus, RotateCw, Search, Trash2, Volume2, X,
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 import { translationRevealMode, type TranslationRevealMode } from '@/utils/storage'
 import { FamiliarityMeter } from '@/components/FamiliarityMeter'
-import { AIThinkingBlock, BunCharacter } from '@/components/AIThinkingBlock'
+import { AIThinkingBlock, getStreamCharacterState } from '@/components/AIThinkingBlock'
 
 export type { EditableFields } from '@/components/RecordEditForm'
 
@@ -385,6 +385,12 @@ function Card({
   const isWaitingForModel = !!streaming && !hasReceivedChunk && !hasSenses
   const isBuildingResult = !!streaming && hasReceivedChunk && !hasSenses
   const streamStatusLabel = hasReceivedReasoning ? 'Thinking' : 'Loading'
+  const characterState = getStreamCharacterState({
+    streaming: !!streaming,
+    hasReceivedChunk: !!hasReceivedChunk,
+    hasReceivedReasoning: !!hasReceivedReasoning,
+    hasSenses,
+  })
   const showMnemonic = !!mnemonic && !isPhrase
   const [translationMode, setTranslationMode] = React.useState<TranslationRevealMode>('hover')
 
@@ -418,7 +424,7 @@ function Card({
                 title="Redefine"
                 data-testid="vocabify-redefine-action"
               >
-                <BunCharacter size={24} />
+                <RotateCw className={cn('h-3.5 w-3.5', (streaming || redefining) && 'animate-spin')} />
               </button>
             )}
             {onSpeak && (
@@ -471,7 +477,7 @@ function Card({
             )}
             {isWaitingForModel && (
               <div className="py-1.5" data-testid="vocabify-stream-waiting">
-                <AIThinkingBlock label={streamStatusLabel} showCharacter={false} />
+                <AIThinkingBlock label={streamStatusLabel} state={characterState} />
               </div>
             )}
             {isPhrase ? (
@@ -484,7 +490,7 @@ function Card({
               </div>
             ) : isBuildingResult ? (
               <div className="py-1.5" data-testid="vocabify-stream-building">
-                <AIThinkingBlock label="Building" showCharacter={false} />
+                <AIThinkingBlock label="Building" state={characterState} />
               </div>
             ) : null}
             {showMnemonic && (

@@ -16,13 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Structured `VocabRecord` schema**: `term`, `phonetic`, `pos`, `senses[]` (each `{ definition, example, exampleTranslation, id }`), `mnemonic`, `tags`, `sourceUrl`, `sourceContext`. `saveFromAiResponse` + `updateRecordFields` helpers; `searchRecords` widens to match definitions and display term.
 - `useAIStream` hook (`entrypoints/content/useAIStream.ts`) wrapping the Chrome `ai-stream` Port lifecycle.
 - **VocabList edit panel**: wordlist edit now switches the area below GitHub sync into a dedicated editor, reusing `RecordEditForm` without embedding the form inside a list row.
-- **Unified theme system** (`lib/theme.ts`): extension-wide `chrome.storage.local` key `vocabify-theme` with `light | dark | system` support, shared across options page and content script with storage-change sync.
+- **Unified theme system** (`lib/theme.ts`): extension-wide `chrome.storage.local` key `vocabify-theme` with `light | dark | system` support, shared across options page and content script with storage-change sync. The Chrome toolbar icon now uses an offscreen document to follow the system color scheme at runtime.
 - **Bézier memory curve**: saved-word dots can now be clicked in the popover or sheet rows to expand a compact memory-curve visualization with anchor/current/projected scores.
 - **Daily review settlement**: each word records the local review date, selected action, and daily baseline so repeated Know / Fuzzy / Forget clicks on the same day do not stack score changes.
 - **Saved-entry redefinition**: saved vocabulary cards in the popover and wordlist sheet now expose a reload action that reruns the configured AI provider and overwrites the stored explanation.
 - **Block-stream AI output**: AI responses now prefer a whitelist XML-like block stream (`<term>`, `<definition>`, `<example>`, etc.) so fields can render as soon as their tag text arrives. JSON parsing remains as a compatibility fallback.
 - **Reasoning stream visibility**: reasoning-capable providers now surface AI SDK `reasoning-delta` output as a compact single-line Thinking status while the final vocabulary fields are still streaming.
-- **Product character redefine control**: popover headers now place a shader bun character inline with the title as the redefine action for fresh and saved results, while Loading / Thinking status rows stay text-only with animated dots.
+- **Streaming status character**: redefine headers now use a lightweight rotating refresh icon, while popover and wordlist streaming status blocks show the black / white theme-aware Three.js bun character beside the state label.
 
 ### Changed
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
