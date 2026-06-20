@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import type { VocabResponse } from '@/lib/aiSchema'
 import type { VocabRecord } from '@/lib/vocabTypes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,7 +31,10 @@ import { getLevel, levelClassSuffix } from '@/lib/familiarity'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 import { countRecords, deleteRecordById, getAllRecords, searchRecords, updateRecordFields } from '@/lib/vocabApi'
 import { FamiliarityMeter, MemoryCurvePanel } from '@/components/FamiliarityMeter'
+import { AIThinkingBlock } from '@/components/AIThinkingBlock'
 import type { RuntimeMessage } from '@/lib/messaging'
+import { useAIStream } from '@/lib/aiStreamClient'
+import { responseToRecordPatch } from '@/lib/vocabTypes'
 
 const WORDLIST_EDIT_FORM_ID = 'vocabify-wordlist-edit-form'
 
@@ -67,8 +71,12 @@ export function VocabList() {
   const [expanded, setExpanded] = useState<number | null>(null)
   const [expandedCurveId, setExpandedCurveId] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [redefiningId, setRedefiningId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const aiStream = useAIStream()
   const editingRecord = editingId == null ? null : records.find((record) => record.id === editingId) ?? null
+  const isRedefining = aiStream.status === 'loading' || aiStream.status === 'streaming'
+  const redefiningStatusLabel = aiStream.hasReceivedReasoning ? 'Thinking' : 'Loading'
 
   useEffect(() => { loadRecords() }, [])
 
@@ -154,6 +162,52 @@ export function VocabList() {
     }
   }
 
+  function handleRedefine(record: VocabRecord) {
+    if (!record.id || isRedefining) return
+    setRedefiningId(record.id)
+    setExpanded(record.id)
+    aiStream.start(record.term || record.wordOrPhrase, record.sourceContext)
+  }
+
+  useEffect(() => {
+    if (!redefiningId || !aiStream.final) return
+
+    let cancelled = false
+    async function persistRedefinition() {
+      await updateRecordFields(redefiningId!, responseToRecordPatch(aiStream.final!))
+      if (cancelled) return
+      await handleSearch()
+      if (!cancelled) setRedefiningId(null)
+    }
+
+    void persistRedefinition().catch((error) => {
+      if (cancelled) return
+      console.error('Redefine failed:', error)
+      setRedefiningId(null)
+    })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redefiningId, aiStream.final])
+
+  useEffect(() => {
+    return () => aiStream.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function getDisplayRecord(record: VocabRecord): VocabRecord | Partial<VocabResponse> {
+    if (record.id !== redefiningId || aiStream.status === 'error') return record
+    return {
+      term: aiStream.partial.term || record.term,
+      phonetic: aiStream.partial.phonetic || '',
+      pos: aiStream.partial.pos || record.pos,
+      senses: aiStream.partial.senses || [],
+      mnemonic: aiStream.partial.mnemonic || '',
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       <GitHubSyncControl recordCount={totalRecords} onSynced={loadRecords} />
@@ -190,11 +244,16 @@ export function VocabList() {
             ) : (
               <ul className="space-y-1.5">
                 {records.map((record) => {
+                  const displayRecord = getDisplayRecord(record)
                   const isExpanded = expanded === record.id
                   const level = getLevel(record.score)
                   const levelSuffix = levelClassSuffix(level)
-                  const isPhrase = record.pos === 'phrase'
-                  const phraseTranslation = record.senses?.[0]?.definition || ''
+                  const itemIsRedefining = redefiningId === record.id
+                  const itemIsStreaming = itemIsRedefining && isRedefining
+                  const itemError = itemIsRedefining && aiStream.status === 'error' ? aiStream.error : null
+                  const isPhrase = displayRecord.pos === 'phrase'
+                  const phraseTranslation = displayRecord.senses?.[0]?.definition || ''
+                  const hasSenses = !!displayRecord.senses?.length
                   return (
                     <li
                       key={record.id}
@@ -230,10 +289,22 @@ export function VocabList() {
                             <Button
                               variant="ghost"
                               size="icon-sm"
+                              onClick={(e) => { e.stopPropagation(); handleRedefine(record) }}
+                              disabled={isRedefining}
+                              aria-label={`Redefine ${record.wordOrPhrase}`}
+                              title="Redefine"
+                              className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
+                              data-testid="vocabify-wordlist-redefine"
+                            >
+                              <RefreshCw className={cn('h-3 w-3', itemIsStreaming && 'animate-spin')} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
                               onClick={(e) => { e.stopPropagation(); speak(record.term || record.wordOrPhrase) }}
                               aria-label="Pronounce"
                               title="Pronounce"
-                              className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
                             >
                               <Volume2 className="h-3 w-3" />
                             </Button>
@@ -276,19 +347,27 @@ export function VocabList() {
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
-                          {record.phonetic && !isPhrase && (
-                            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{record.phonetic}</p>
+                          {displayRecord.phonetic && !isPhrase && (
+                            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{displayRecord.phonetic}</p>
                           )}
                           {isExpanded ? (
                             <div className="mt-1 space-y-2">
-                              {isPhrase ? (
+                              {itemError ? (
+                                <div className="rounded-[5px] bg-destructive/10 px-2 py-1.5 text-[11px] leading-relaxed text-destructive">
+                                  {itemError}
+                                </div>
+                              ) : itemIsStreaming && !hasSenses ? (
+                                <div className="py-1">
+                                  <AIThinkingBlock label={redefiningStatusLabel} compact />
+                                </div>
+                              ) : isPhrase ? (
                                 <div className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
                                   <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
                                   <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">{phraseTranslation}</p>
                                 </div>
                               ) : (
-                                record.senses.map((sense, i) => (
-                                  <div key={sense.id} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                                (displayRecord.senses || []).map((sense, i) => (
+                                  <div key={(sense as { id?: string }).id || i} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
                                     <p className="text-[12px] leading-relaxed text-foreground">
                                       <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
                                       {sense.definition}
@@ -302,8 +381,8 @@ export function VocabList() {
                                   </div>
                                 ))
                               )}
-                              {record.mnemonic && !isPhrase && (
-                                <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{record.mnemonic}</p>
+                              {displayRecord.mnemonic && !isPhrase && (
+                                <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{displayRecord.mnemonic}</p>
                               )}
                               {record.sourceUrl && (
                                 <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>

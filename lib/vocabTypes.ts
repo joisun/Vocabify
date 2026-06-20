@@ -60,3 +60,20 @@ export function responseToPayload(
     sourceContext: meta.sourceContext,
   }
 }
+
+export function responseToRecordPatch(
+  ai: VocabResponse,
+): Pick<VocabRecord, 'term' | 'phonetic' | 'pos' | 'senses' | 'mnemonic'> {
+  return {
+    term: ai.term,
+    phonetic: ai.phonetic,
+    pos: ai.pos,
+    senses: ai.senses.map((sense, index) => ({
+      id: `s${index + 1}`,
+      definition: sense.definition,
+      example: sense.example,
+      exampleTranslation: sense.exampleTranslation,
+    })),
+    mnemonic: ai.mnemonic,
+  }
+}

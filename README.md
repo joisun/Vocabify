@@ -26,7 +26,7 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - **Familiarity scoring.** Every saved word carries a 0–100 score visualized as a compact 20-dot meter; clicking the dots expands its memory curve.
 - **Bézier forgetting.** Scores decay from a mark-time anchor through a bounded cubic Bézier curve, materialized only when rendered or marked. No background timers, no battery cost.
 - **Unified reading overlays.** Select a new word → operation bar (查询 / 复制). Click 查询 and the popover expands inline with a streaming structured card (phonetic, pos, multiple senses, mnemonic), no side panel detour. Hover a saved word → a virtual-anchor popover renders the same saved-word card with familiarity marks + inline edit / delete.
-- **In-page wordlist.** A side panel for reviewing saved words, opened directly from the toolbar icon or the popover's settings menu. Editing a word switches the content area into a focused edit panel below GitHub sync.
+- **In-page wordlist.** A side panel for reviewing saved words, opened directly from the toolbar icon or the popover's settings menu. Editing a word switches the content area into a focused edit panel below GitHub sync, and saved entries can be redefined with the current AI provider.
 - **GitHub sync.** Device-Flow OAuth into a private `__Vocabify_Data_Center__` repo. Tombstones travel with the records, so deletions propagate too.
 - **Local-first storage.** Dexie-backed IndexedDB lives under the extension origin; nothing leaves the browser unless you sync it.
 
@@ -42,12 +42,12 @@ Built for serious readers, not gamified learners. The interface stays out of the
 - OpenAI-compatible presets and custom providers use provider base URLs. Vercel AI SDK handles the standard `/chat/completions` request path.
 - One active provider is used for AI lookup. There is no fallback chain or provider priority ordering.
 - Model suggestions load when the provider exposes `/models`; the model can always be typed manually.
-- Customizable prompt template and target language. The user prompt must include `{SELECTION}` and `{LANGUAGE}` (`{SOURCE_CONTEXT}` is optional); Vocabify sends product behavior plus target-language guidance and the strict JSON schema contract (`term`, `phonetic`, `pos`, `senses[]`, `mnemonic`) as internal system messages, then sends the resolved prompt as the user message.
-- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`), abort support, and configurable automatic retry. A tolerant partial-JSON parser feeds the popover field-by-field as data arrives, while raw JSON and provider reasoning stay hidden from the user-facing card.
+- Customizable prompt template and target language. The user prompt must include `{SELECTION}` and `{LANGUAGE}` (`{SOURCE_CONTEXT}` is optional); Vocabify sends product behavior plus target-language guidance and the strict block-stream output contract as internal system messages, then sends the resolved prompt as the user message.
+- Streaming output with timeouts (`totalMs: 60s`, `chunkMs: 30s`), abort support, and configurable automatic retry. A whitelist block-stream parser feeds the popover field-by-field as data arrives, with partial-JSON parsing retained as a compatibility fallback while raw protocol text and provider reasoning text stay hidden from the user-facing card. If a reasoning model emits AI SDK reasoning deltas, Vocabify shows a temporary single-line Thinking status without saving reasoning content to the vocabulary record.
 
 ### Vocabulary management
 - In-page side sheet — Wordlist only (AI lookup lives in the selection popover now).
-- Search, edit, expand, and paginate saved entries without leaving the page.
+- Search, edit, redefine, expand, and paginate saved entries without leaving the page.
 - Records are normalized (trim + lowercase) so duplicates collapse cleanly.
 
 ### Familiarity scoring
@@ -96,7 +96,8 @@ components/              # Sheet (Wordlist-only), VocabList, shadcn/ui primitive
 lib/
   aiService.ts           # Vercel AI SDK provider switch + streaming
   aiSchema.ts            # Zod schema for structured AI output (VocabResponse)
-  partialJson.ts         # Field-level streaming JSON parser + final repair path
+  partialJson.ts         # Compatibility fallback for field-level JSON streaming
+  streamBlocks.ts        # Whitelist block-stream parser for faster visible fields
   familiarity.ts         # 0-100 memory engine, Bézier curve materialization, mark deltas
   vocabApi.ts            # content/options vocabulary API over extension messaging
   vocabifyDb.ts          # extension-origin Dexie schema (v7) + tombstone/daily-review tracking

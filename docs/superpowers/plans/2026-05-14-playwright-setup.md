@@ -75,7 +75,7 @@ const browser = await chromium.connectOverCDP(webSocketDebuggerUrl)
 - Assert the compact toolbar appears.
 - Click Query.
 - Assert the inline selection popover appears inside ShadowRoot.
-- Assert streamed structured JSON fields appear from chunked SSE without exposing raw JSON.
+- Assert streamed structured fields appear from chunked SSE block-stream output without exposing raw protocol text.
 - Assert Save becomes enabled after the complete structured result arrives.
 
 Current runtime contract:

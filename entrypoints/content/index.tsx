@@ -20,7 +20,7 @@ import {
   saveRecord,
   updateRecordFields,
 } from '@/lib/vocabApi'
-import { normalizeWordOrPhrase, type VocabRecord, type VocabTombstone } from '@/lib/vocabTypes'
+import { normalizeWordOrPhrase, responseToRecordPatch, type VocabRecord, type VocabTombstone } from '@/lib/vocabTypes'
 import type { VocabResponse } from '@/lib/aiSchema'
 import type { MarkAction } from '@/lib/familiarity'
 import type { RuntimeMessage } from '@/lib/messaging'
@@ -53,6 +53,13 @@ type HoverState = {
   recordId: number
 }
 
+type RedefineTarget = {
+  kind: 'selection' | 'hover'
+  recordId: number
+  text: string
+  sourceContext?: string
+}
+
 // Mirrors HoverCard closeDelay behavior for virtual anchors; without a real
 // trigger/content pair, this grace window lets the pointer cross the gap.
 const HOVER_CLOSE_DELAY_MS = 300
@@ -74,6 +81,7 @@ export default defineContentScript({
       const [savedRecord, setSavedRecord] = useState<VocabRecord | null>(null)
       const [hoverRecord, setHoverRecord] = useState<VocabRecord | null>(null)
       const [saving, setSaving] = useState(false)
+      const [redefineTarget, setRedefineTarget] = useState<RedefineTarget | null>(null)
       const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
       const hoverContentLockedRef = useRef(false)
       const hoverContentRectRef = useRef<SelectionRect | null>(null)
@@ -221,21 +229,53 @@ export default defineContentScript({
       }, [])
 
       const cardRecord: Partial<VocabResponse> | VocabRecord | undefined = useMemo(() => {
+        if (redefineTarget?.kind === 'selection' && popoverState?.recordId === redefineTarget.recordId) {
+          return buildRedefinitionDisplayRecord(savedRecord, redefineTarget.text, aiStream.partial)
+        }
         if (popoverState?.recordId != null && savedRecord) return savedRecord
         return aiStream.partial
-      }, [popoverState?.recordId, savedRecord, aiStream.partial])
+      }, [popoverState?.recordId, redefineTarget, savedRecord, aiStream.partial])
+
+      const hoverCardRecord: Partial<VocabResponse> | VocabRecord | undefined = useMemo(() => {
+        if (!hoverRecord) return undefined
+        if (redefineTarget?.kind === 'hover' && hoverState?.recordId === redefineTarget.recordId) {
+          return buildRedefinitionDisplayRecord(hoverRecord, redefineTarget.text, aiStream.partial)
+        }
+        return hoverRecord
+      }, [hoverRecord, hoverState?.recordId, redefineTarget, aiStream.partial])
+
+      const isAiStreaming = aiStream.status === 'loading' || aiStream.status === 'streaming'
+      const isSelectionRedefining = redefineTarget?.kind === 'selection'
+        && popoverState?.recordId === redefineTarget.recordId
+      const isHoverRedefining = redefineTarget?.kind === 'hover'
+        && hoverState?.recordId === redefineTarget.recordId
+      const isSelectionStreamActive = !redefineTarget || isSelectionRedefining
+      const isHoverStreamActive = isHoverRedefining
 
       function dismiss() {
         setPopoverState(null)
         closeHoverPopover()
       }
 
-      function dismissSelection() { setPopoverState(null) }
+      function dismissSelection() {
+        if (redefineTarget?.kind === 'selection') {
+          aiStream.abort()
+          setRedefineTarget(null)
+        }
+        setPopoverState(null)
+      }
 
-      function dismissSavedHover() { closeHoverPopover() }
+      function dismissSavedHover() {
+        if (redefineTarget?.kind === 'hover') {
+          aiStream.abort()
+          setRedefineTarget(null)
+        }
+        closeHoverPopover()
+      }
 
       function handleQuery() {
         if (!popoverState?.selectionText) return
+        setRedefineTarget(null)
         setPopoverState((s) => (s ? { ...s, mode: 'card' } : s))
         aiStream.start(popoverState.selectionText, popoverState.sourceContext)
       }
@@ -255,6 +295,19 @@ export default defineContentScript({
       function handleHoverSpeak() {
         if (!hoverRecord?.term) return
         speakText(hoverRecord.term)
+      }
+
+      function handleRedefine(kind: RedefineTarget['kind'], record: VocabRecord | null) {
+        if (!record?.id) return
+        const text = record.term || record.wordOrPhrase
+        const nextTarget: RedefineTarget = {
+          kind,
+          recordId: record.id,
+          text,
+          sourceContext: record.sourceContext,
+        }
+        setRedefineTarget(nextTarget)
+        aiStream.start(text, record.sourceContext)
       }
 
       function speakText(text: string) {
@@ -350,6 +403,40 @@ export default defineContentScript({
         }
       }
 
+      useEffect(() => {
+        if (!redefineTarget || !aiStream.final) return
+
+        let cancelled = false
+        const target = redefineTarget
+
+        async function persistRedefinition() {
+          const updated = await updateRecordFields(target.recordId, responseToRecordPatch(aiStream.final!))
+          if (cancelled) return
+
+          if (updated) {
+            setSavedRecord((current) => (current?.id === target.recordId ? updated : current))
+            setHoverRecord((current) => (current?.id === target.recordId ? updated : current))
+            await highlightService.highlightVocabulary()
+          }
+
+          setRedefineTarget((current) => (
+            current?.recordId === target.recordId && current.kind === target.kind ? null : current
+          ))
+        }
+
+        void persistRedefinition().catch((error) => {
+          if (cancelled) return
+          console.error('Redefine failed:', error)
+          setRedefineTarget((current) => (
+            current?.recordId === target.recordId && current.kind === target.kind ? null : current
+          ))
+        })
+
+        return () => {
+          cancelled = true
+        }
+      }, [redefineTarget, aiStream.final])
+
       return (
         <>
           <InPageUI open={open} onOpenChange={setOpen} />
@@ -363,27 +450,35 @@ export default defineContentScript({
             onQuery={handleQuery}
             onCopy={handleCopy}
             record={cardRecord}
-            streaming={aiStream.status === 'loading' || aiStream.status === 'streaming'}
-            errorMessage={aiStream.status === 'error' ? aiStream.error : null}
-            retryInfo={aiStream.retryInfo}
+            streaming={isSelectionStreamActive && isAiStreaming}
+            errorMessage={isSelectionStreamActive && aiStream.status === 'error' ? aiStream.error : null}
+            retryInfo={isSelectionStreamActive ? aiStream.retryInfo : null}
             savedRecord={savedRecord}
             onSave={handleSave}
             onMark={handleMark}
             onEnterEdit={handleEnterEdit}
             onDelete={handleDelete}
             onRetry={aiStream.retry}
+            onRedefine={savedRecord?.id ? () => handleRedefine('selection', savedRecord) : undefined}
+            redefining={!!isSelectionRedefining}
             onSpeak={handleSpeak}
             onEditCommit={handleEditCommit}
             onEditCancel={() => setPopoverState((s) => (s ? { ...s, mode: 'card' } : s))}
             saving={saving}
-            hasReceivedChunk={aiStream.hasReceivedChunk}
+            hasReceivedChunk={isSelectionStreamActive && aiStream.hasReceivedChunk}
+            hasReceivedReasoning={isSelectionStreamActive && isAiStreaming && aiStream.hasReceivedReasoning}
           />
           {hoverState && hoverRecord && (
             <SavedWordPopover
               open
               rect={hoverState.rect}
               portalContainer={portalContainer}
-              record={hoverRecord}
+              record={hoverCardRecord}
+              streaming={isHoverStreamActive && isAiStreaming}
+              errorMessage={isHoverStreamActive && aiStream.status === 'error' ? aiStream.error : null}
+              retryInfo={isHoverStreamActive ? aiStream.retryInfo : null}
+              hasReceivedChunk={isHoverStreamActive && aiStream.hasReceivedChunk}
+              hasReceivedReasoning={isHoverStreamActive && isAiStreaming && aiStream.hasReceivedReasoning}
               savedRecord={hoverRecord}
               onPointerEnter={() => {
                 hoverContentLockedRef.current = true
@@ -403,6 +498,9 @@ export default defineContentScript({
                 closeHoverPopover()
               }}
               onDelete={handleHoverDelete}
+              onRetry={aiStream.retry}
+              onRedefine={() => handleRedefine('hover', hoverRecord)}
+              redefining={isHoverStreamActive && isAiStreaming}
               onSpeak={handleHoverSpeak}
               onDismiss={dismissSavedHover}
             />
@@ -501,7 +599,7 @@ export default defineContentScript({
 
       const selection = window.getSelection()
       if (!selection || !selection.rangeCount) return
-      const selectedText = selection.toString().trim()
+      const selectedText = normalizeSelectedLookupText(selection.toString())
       if (!selectedText) {
         setPopoverStateFn?.(null)
         return
@@ -589,6 +687,28 @@ function readStore<T>(database: IDBDatabase, storeName: string): Promise<T[]> {
     request.onsuccess = () => resolve((request.result || []) as T[])
     request.onerror = () => reject(request.error)
   })
+}
+
+function normalizeSelectedLookupText(text: string): string {
+  return text
+    .trim()
+    .replace(/^[\s"'“”‘’`´«»‹›「『《（(\[{【]+/u, '')
+    .replace(/[\s"'“”‘’`´«»‹›」』》）)\]}】.,!?;:，。！？；：、…]+$/u, '')
+    .trim()
+}
+
+function buildRedefinitionDisplayRecord(
+  baseRecord: VocabRecord | null,
+  text: string,
+  partial: Partial<VocabResponse>,
+): Partial<VocabResponse> {
+  return {
+    term: partial.term || baseRecord?.term || text,
+    phonetic: partial.phonetic || '',
+    pos: partial.pos || baseRecord?.pos || (text.trim().split(/\s+/).length > 1 ? 'phrase' : 'other'),
+    senses: partial.senses || [],
+    mnemonic: partial.mnemonic || '',
+  }
 }
 
 function getSelectionRect(range: Range): SelectionRect | null {

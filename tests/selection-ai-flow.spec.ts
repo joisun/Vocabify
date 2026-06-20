@@ -47,7 +47,9 @@ test.describe('Vocabify selection + AI flow', () => {
       await expect.poll(() => getPopoverField(page, 'width'), { timeout: 10_000 }).toBeGreaterThan(330)
       const initialWidth = await getPopoverField(page, 'width')
 
+      await expect.poll(() => getPopoverField(page, 'thinking'), { timeout: 10_000 }).toContain('Thinking')
       await expect.poll(() => getPopoverField(page, 'term'), { timeout: 10_000 }).toBe('nuanced phrase')
+      await expect.poll(() => getPopoverField(page, 'thinking'), { timeout: 10_000 }).toBeNull()
       await expect.poll(() => getPopoverField(page, 'rawJsonVisible'), { timeout: 5_000 }).toBe(false)
       await expect.poll(() => getPopoverField(page, 'definition'), { timeout: 15_000 }).toContain('subtle expression')
       await expect.poll(() => getPopoverField(page, 'example'), { timeout: 5_000 }).toBeNull()
@@ -169,6 +171,23 @@ test.describe('Vocabify selection + AI flow', () => {
 
       await page.waitForTimeout(300)
       await expect.poll(() => getShadowField(page, 'operationBarVisible'), { timeout: 1_000 }).toBe(false)
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
+  test('selection lookup trims surrounding punctuation', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page)
+
+      await selectText(page, '“anchovy,”', '#punctuation-paragraph')
+
+      await expect.poll(() => getShadowField(page, 'operationBarVisible'), { timeout: 3_000 }).toBe(true)
+      await clickQuery(page)
+      await expect.poll(() => getPopoverField(page, 'term'), { timeout: 10_000 }).toBe('anchovy')
     } finally {
       await restoreStorage()
       await page.close().catch(() => undefined)
@@ -334,6 +353,7 @@ test.describe('Vocabify selection + AI flow', () => {
       const popover = shadow?.querySelector('[data-testid="vocabify-selection-popover"]')
       if (!popover) return null
       if (f === 'term') return popover.querySelector('[data-testid="vocabify-stream-term"]')?.textContent?.trim() || null
+      if (f === 'thinking') return popover.querySelector('[data-testid="vocabify-stream-thinking"]')?.textContent?.trim() || null
       if (f === 'definition') return popover.querySelector('[data-testid="vocabify-stream-definition"]')?.textContent?.trim() || null
       if (f === 'example') return popover.querySelector('[data-testid="vocabify-stream-example"]')?.textContent?.trim() || null
       if (f === 'rawJsonVisible') {
@@ -430,14 +450,13 @@ test.describe('Vocabify selection + AI flow', () => {
         })
 
         const chunks = [
-          chunk('```json\n{\n  "term": "nuanced'),
-          chunk(' phrase",\n  "phonetic": "/njuːˈɑːnst/",\n'),
-          chunk('  "pos": "phrase",\n  "senses": [\n    {\n      "definition": "A subtle'),
-          chunk(' expression conveying detailed meaning",\n'),
-          chunk('      "example": "The diplomat used'),
-          chunk(' a nuanced phrase",\n'),
-          chunk('      "exampleTranslation": "外交官使用了微妙的措辞"\n    }\n  ],\n'),
-          chunk('  "mnemonic": "nuance (subtle) + phrase"\n}\n'),
+          reasoningChunk('Inspecting the selected phrase.\n'),
+          reasoningChunk('Choosing the contextual phrase translation.\n'),
+          chunk('<vocabify><term>nuanced'),
+          chunk(' phrase</term><pos>phrase</pos>'),
+          chunk('<phonetic></phonetic><definition index="0">A subtle'),
+          chunk(' expression conveying detailed meaning</definition>'),
+          chunk('<mnemonic></mnemonic></vocabify>'),
           '{"id":"x","object":"chat.completion.chunk","created":0,"model":"m","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n',
         ]
 
@@ -685,10 +704,10 @@ async function canOpenOptionsPage(context: BrowserContext, extensionId: string) 
   }
 }
 
-async function selectText(page: Page, text: string) {
-  await page.evaluate((t) => {
-    const el = document.querySelector('#target-paragraph')
-    if (!el) throw new Error('No #target-paragraph')
+async function selectText(page: Page, text: string, containerSelector = '#target-paragraph') {
+  await page.evaluate(({ text: t, containerSelector: selector }) => {
+    const el = document.querySelector(selector)
+    if (!el) throw new Error(`No ${selector}`)
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
     let node = walker.nextNode()
     while (node) {
@@ -706,7 +725,7 @@ async function selectText(page: Page, text: string) {
       node = walker.nextNode()
     }
     throw new Error(`Text "${t}" not found`)
-  }, text)
+  }, { text, containerSelector })
 }
 
 async function selectTextInElement(page: Page, selector: string, text: string) {
@@ -735,6 +754,16 @@ async function selectTextInElement(page: Page, selector: string, text: string) {
 
 function chunk(content: string) {
   return { id: 'x', object: 'chat.completion.chunk', created: 0, model: 'm', choices: [{ index: 0, delta: { content }, finish_reason: null }] }
+}
+
+function reasoningChunk(reasoningContent: string) {
+  return {
+    id: 'x',
+    object: 'chat.completion.chunk',
+    created: 0,
+    model: 'm',
+    choices: [{ index: 0, delta: { reasoning_content: reasoningContent, content: '' }, finish_reason: null }],
+  }
 }
 
 function delay(ms: number) {

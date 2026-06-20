@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, Brain, Check, Copy, Edit3, Eye, HelpCircle,
-  Plus, Search, Trash2, Volume2, X,
+  Plus, RefreshCw, Search, Trash2, Volume2, X,
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 import { translationRevealMode, type TranslationRevealMode } from '@/utils/storage'
 import { FamiliarityMeter } from '@/components/FamiliarityMeter'
+import { AIThinkingBlock } from '@/components/AIThinkingBlock'
 
 export type { EditableFields } from '@/components/RecordEditForm'
 
@@ -60,6 +61,8 @@ export interface SelectionPopoverProps {
   errorMessage?: string | null
   retryInfo?: { attempt: number; maxRetries: number; error: string } | null
   hasReceivedChunk?: boolean
+  hasReceivedReasoning?: boolean
+  redefining?: boolean
 
   savedRecord?: VocabRecord | null
   onSave?: () => void
@@ -67,6 +70,7 @@ export interface SelectionPopoverProps {
   onEnterEdit?: () => void
   onDelete?: () => void
   onRetry?: () => void
+  onRedefine?: () => void
   onSpeak?: () => void
 
   onEditCommit?: (next: EditableFields) => void
@@ -79,6 +83,11 @@ export interface SavedWordPopoverProps {
   rect: SelectionRect | null
   portalContainer?: HTMLElement | null
   record?: Partial<VocabResponse> | VocabRecord
+  streaming?: boolean
+  errorMessage?: string | null
+  retryInfo?: { attempt: number; maxRetries: number; error: string } | null
+  hasReceivedChunk?: boolean
+  hasReceivedReasoning?: boolean
   savedRecord?: VocabRecord | null
   onDismiss: () => void
   onPointerEnter?: () => void
@@ -87,6 +96,9 @@ export interface SavedWordPopoverProps {
   onMark?: (action: MarkAction) => void
   onEnterEdit?: () => void
   onDelete?: () => void
+  onRetry?: () => void
+  onRedefine?: () => void
+  redefining?: boolean
   onSpeak?: () => void
 }
 
@@ -158,9 +170,12 @@ export function SelectionPopover(props: SelectionPopoverProps) {
             onEnterEdit={props.onEnterEdit}
             onDelete={props.onDelete}
             onRetry={props.onRetry}
+            onRedefine={props.onRedefine}
+            redefining={props.redefining}
             onSpeak={props.onSpeak}
             onDismiss={onDismiss}
             hasReceivedChunk={props.hasReceivedChunk}
+            hasReceivedReasoning={props.hasReceivedReasoning}
           />
         )}
         {mode === 'edit' && props.record && (
@@ -181,6 +196,11 @@ export function SavedWordPopover({
   rect,
   portalContainer,
   record,
+  streaming,
+  errorMessage,
+  retryInfo,
+  hasReceivedChunk,
+  hasReceivedReasoning,
   savedRecord,
   onDismiss,
   onPointerEnter,
@@ -189,6 +209,9 @@ export function SavedWordPopover({
   onMark,
   onEnterEdit,
   onDelete,
+  onRetry,
+  onRedefine,
+  redefining,
   onSpeak,
 }: SavedWordPopoverProps) {
   return (
@@ -237,12 +260,20 @@ export function SavedWordPopover({
         <div data-testid="vocabify-saved-hover-card">
           <Card
             record={record}
+            streaming={streaming}
+            errorMessage={errorMessage}
+            retryInfo={retryInfo}
             savedRecord={savedRecord}
             onMark={onMark}
             onEnterEdit={onEnterEdit}
             onDelete={onDelete}
+            onRetry={onRetry}
+            onRedefine={onRedefine}
+            redefining={redefining}
             onSpeak={onSpeak}
             onDismiss={onDismiss}
+            hasReceivedChunk={hasReceivedChunk}
+            hasReceivedReasoning={hasReceivedReasoning}
           />
         </div>
       </PopoverContent>
@@ -286,7 +317,7 @@ function OperationBar({
         data-testid="vocabify-operation-query"
       >
         <Search />
-        查询
+        {/* 查询 */}
       </Button>
       <Button
         type="button"
@@ -319,8 +350,9 @@ function OperationBar({
 function Card({
   record, streaming, errorMessage, savedRecord,
   selectionText,
-  onSave, onMark, onEnterEdit, onDelete, onRetry, onSpeak, onDismiss,
-  hasReceivedChunk, retryInfo,
+  onSave, onMark, onEnterEdit, onDelete, onRetry, onRedefine, onSpeak, onDismiss,
+  hasReceivedChunk, retryInfo, redefining,
+  hasReceivedReasoning,
 }: {
   record?: Partial<VocabResponse> | VocabRecord
   streaming?: boolean
@@ -333,9 +365,12 @@ function Card({
   onEnterEdit?: () => void
   onDelete?: () => void
   onRetry?: () => void
+  onRedefine?: () => void
   onSpeak?: () => void
   onDismiss: () => void
   hasReceivedChunk?: boolean
+  hasReceivedReasoning?: boolean
+  redefining?: boolean
 }) {
   const term = record?.term
   const title = selectionText || term || ''
@@ -349,6 +384,7 @@ function Card({
   const hasSenses = displaySenses.length > 0
   const isWaitingForModel = !!streaming && !hasReceivedChunk && !hasSenses
   const isBuildingResult = !!streaming && hasReceivedChunk && !hasSenses
+  const streamStatusLabel = hasReceivedReasoning ? 'Thinking' : 'Loading'
   const showMnemonic = !!mnemonic && !isPhrase
   const [translationMode, setTranslationMode] = React.useState<TranslationRevealMode>('hover')
 
@@ -370,6 +406,20 @@ function Card({
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <TermTitle text={title || '—'} />
+            {onRedefine && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onRedefine}
+                disabled={streaming || redefining}
+                className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                aria-label="Redefine"
+                title="Redefine"
+                data-testid="vocabify-redefine-action"
+              >
+                <RefreshCw className={cn('h-3 w-3', (streaming || redefining) && 'animate-spin')} />
+              </Button>
+            )}
             {onSpeak && (
               <Button variant="ghost" size="icon-sm" onClick={onSpeak} className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Pronounce" title="Pronounce">
                 <Volume2 className="h-3 w-3" />
@@ -394,16 +444,18 @@ function Card({
 
       <div className="flex-1 overflow-y-auto vocabify-fade-scroll px-3 py-1 max-h-[380px]">
         {errorMessage ? (
-          <div className="my-2 rounded-md border border-red-500/25 bg-red-500/10 px-2.5 py-2 text-[12px] text-red-300" data-testid="vocabify-stream-error">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-red-700 dark:text-red-100">Lookup failed</p>
-                <p className="mt-1 break-words text-red-700 dark:text-red-100/70">{errorMessage}</p>
+          <>
+            <div className="my-2 rounded-md border border-red-500/25 bg-red-500/10 px-2.5 py-2 text-[12px] text-red-300" data-testid="vocabify-stream-error">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-red-700 dark:text-red-100">Lookup failed</p>
+                  <p className="mt-1 break-words text-red-700 dark:text-red-100/70">{errorMessage}</p>
+                </div>
               </div>
+              {onRetry && <Button variant="outline" size="sm" onClick={onRetry} className="mt-2 h-7 border-red-500/25 bg-transparent text-[11px] text-red-700 dark:text-red-100 hover:bg-red-500/10">Retry now</Button>}
             </div>
-            {onRetry && <Button variant="outline" size="sm" onClick={onRetry} className="mt-2 h-7 border-red-500/25 bg-transparent text-[11px] text-red-700 dark:text-red-100 hover:bg-red-500/10">Retry now</Button>}
-          </div>
+          </>
         ) : (
           <>
             {retryInfo && (
@@ -416,7 +468,7 @@ function Card({
             )}
             {isWaitingForModel && (
               <div className="py-1.5" data-testid="vocabify-stream-waiting">
-                <span className="block h-1 w-12 rounded-full bg-primary/70 animate-ai-pulse" aria-label="Loading explanation" />
+                <AIThinkingBlock label={streamStatusLabel} />
               </div>
             )}
             {isPhrase ? (
@@ -429,10 +481,7 @@ function Card({
               </div>
             ) : isBuildingResult ? (
               <div className="py-1.5" data-testid="vocabify-stream-building">
-              <div className="inline-flex items-center gap-2 rounded border border-border/40 bg-card px-2 py-1 text-[11px] text-muted-foreground dark:border-white/[0.04]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-ai-pulse" />
-                  Structuring definition
-                </div>
+                <AIThinkingBlock label="Building" />
               </div>
             ) : null}
             {showMnemonic && (

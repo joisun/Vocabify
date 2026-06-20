@@ -201,16 +201,17 @@ function chunk(content: string) {
 }
 ```
 
-For streaming parser regressions, deliberately split JSON inside string values:
+For streaming parser regressions, prefer the block-stream protocol and deliberately split tag text across SSE chunks:
 
 ```ts
-chunk('```json\n{\n  "term": "nuanced')
-chunk(' phrase",\n  "phonetic": "/njuːˈɑːnst/",\n')
-chunk('  "senses": [{ "definition": "A subtle')
-chunk(' expression conveying detailed meaning" }]')
+chunk('<vocabify><term>nuanced')
+chunk(' phrase</term><pos>phrase</pos>')
+chunk('<phonetic></phonetic><definition index="0">A subtle')
+chunk(' expression conveying detailed meaning</definition>')
+chunk('<mnemonic></mnemonic></vocabify>')
 ```
 
-Assert structured fields appear before final completion and raw JSON is not visible.
+Assert structured fields appear before final completion and raw protocol text is not visible. JSON chunk tests are still useful as compatibility fallback coverage, but new streaming behavior should target block-stream parsing.
 For multi-word `phrase` selections, assert only `[data-testid="vocabify-stream-definition"]` as the translation. Do not expect `[data-testid="vocabify-stream-example"]`, phonetic text, pos chips, or mnemonic content.
 
 ## Manual UI Debugging With Existing Instance

@@ -58,7 +58,7 @@ const PromptTemplate = () => {
       description={
         <>
           Customise this user prompt freely. Vocabify keeps assistant identity and the required
-          output JSON contract in internal system messages. Use{' '}
+          block-stream output contract in internal system messages. Use{' '}
           <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">{Selection_Placeholder}</code>{' '}
           and{' '}
           <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">{Language_Placeholder}</code>{' '}

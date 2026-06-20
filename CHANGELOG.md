@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unified theme system** (`lib/theme.ts`): extension-wide `chrome.storage.local` key `vocabify-theme` with `light | dark | system` support, shared across options page and content script with storage-change sync.
 - **Bézier memory curve**: saved-word dots can now be clicked in the popover or sheet rows to expand a compact memory-curve visualization with anchor/current/projected scores.
 - **Daily review settlement**: each word records the local review date, selected action, and daily baseline so repeated Know / Fuzzy / Forget clicks on the same day do not stack score changes.
+- **Saved-entry redefinition**: saved vocabulary cards in the popover and wordlist sheet now expose a reload action that reruns the configured AI provider and overwrites the stored explanation.
+- **Block-stream AI output**: AI responses now prefer a whitelist XML-like block stream (`<term>`, `<definition>`, `<example>`, etc.) so fields can render as soon as their tag text arrives. JSON parsing remains as a compatibility fallback.
+- **Reasoning stream visibility**: reasoning-capable providers now surface AI SDK `reasoning-delta` output as a compact single-line Thinking status while the final vocabulary fields are still streaming.
 
 ### Changed
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
@@ -35,15 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Familiarity scoring now uses mark-time memory anchors plus a bounded cubic Bézier forgetting curve instead of fixed interval step decay.
 - Familiarity marks are now settled once per local day: repeating the same action is a no-op, while switching action on the same day rewrites that day's result from the original daily baseline instead of stacking another delta.
 - AI prompting now keeps product behavior, target-language guidance, and the strict JSON output contract in internal system messages, while the user-configured prompt with required `{SELECTION}` / `{LANGUAGE}` placeholders and optional `{SOURCE_CONTEXT}` is sent as the user message.
+- AI prompting now uses an internal block-stream contract instead of exposing output format control to the user prompt; the final record shape still validates against the same `VocabResponse` schema before persistence.
 - Theme provider now uses the extension-wide `vocabify-theme` storage key (previously `vite-ui-theme` in options, separate page-local state in content script).
 
 ### Fixed
 - **Rough streaming preview**: removed raw chunk / JSON text from the selection popover. Streaming now renders as a field-level structured card while provider reasoning stays hidden.
 - **Fine-grained streaming parser**: partial JSON parsing now extracts scalar fields and `senses[]` entries even when a provider cuts chunks inside a string, enabling per-text updates without provider-specific glue code.
+- **True field-level streaming**: block tags are parsed from the accumulated provider stream, including unclosed tag text, so visible definitions can update before a full JSON object or complete response exists.
 - **Selection card title stability**: the lookup card title now stays on the selected text while streaming, uses length-aware two-line truncation with an inline expand control, and no longer shows transient waiting labels.
 - **Lookup error visibility**: provider failures now render an explicit error state with the provider message and manual retry action instead of leaving an empty lookup card.
 - **Selected phrase integrity**: AI lookup now treats the exact selected text as the vocabulary item, keeps streaming/final `term` aligned with the selection, and marks multi-word selections as `phrase` instead of letting providers replace them with a single context word.
 - **Phrase lookup simplification**: multi-word selections now store and display translation only, without phonetic, part-of-speech chip, examples, or mnemonic fields.
+- **Phrase context isolation**: phrase lookup now explicitly treats source context as disambiguation only, preventing providers from translating the surrounding paragraph instead of the selected phrase.
+- **Single-word direct meanings**: AI prompting now requires each single-word `definition` to start with the target-language direct meaning, so users see translations like "凤尾鱼" without relying on the example translation.
+- **Selection text cleanup**: lookup now trims surrounding quotes, brackets, and punctuation from selected words or phrases before querying, while preserving internal word characters.
 - **Selection title expansion**: the selection popover now shows `Show all` only when the title actually overflows the two-line clamp, and expanded titles keep a visible `Show less` control.
 - **Familiarity meter display**: saved-word cards and the in-page wordlist now show familiarity as a compact 20-dot meter instead of textual tier labels.
 - **Silent familiarity actions**: Know / Fuzzy / Forget now update the score meter directly without showing a toast.
@@ -70,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GitHub sync local consistency**: local vocabulary replacement now happens only after `syncdata.json` is successfully written to GitHub, avoiding local mutation when the remote write fails.
 - **Popover delete confirmation**: saved-word popover delete actions now use the same shadcn/Radix AlertDialog confirmation pattern as the wordlist sheet.
 - **Read-time decay writes**: wordlist/search/highlight reads now materialize Bézier decay without persisting every record, reducing IndexedDB write pressure on large vocabularies.
+- **Wordlist redefine streaming**: sheet reload now uses the same `ai-stream` hook as the popover, showing partial structured output and inline errors instead of waiting silently for completion.
+- **Single-word redefine shape**: AI results can no longer force a single selected word into `phrase` translation-only display; only multi-word selections use phrase mode.
+- **Reasoning-model blank state**: lookup cards no longer appear idle while a provider emits only reasoning tokens before final content; an inline Thinking status appears during streaming and disappears after streaming finishes.
 
 ### Removed
 - Multi-provider failover, provider drag-and-drop ordering, and unused provider SDK dependencies for xAI, Groq, Mistral, Cohere, Fireworks, Together.ai, Cerebras, Perplexity, and DeepInfra.

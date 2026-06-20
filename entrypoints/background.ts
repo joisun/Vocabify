@@ -216,6 +216,9 @@ export default defineBackground(() => {
               onChunk: (chunk) => {
                 postToPort({ type: 'chunk', chunk })
               },
+              onReasoning: (chunk) => {
+                postToPort({ type: 'reasoning', chunk })
+              },
               onPartial: (partial) => {
                 postToPort({ type: 'partial', partial })
               },
