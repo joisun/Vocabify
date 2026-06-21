@@ -15,6 +15,7 @@ https://chromewebstore.google.com/detail/vocabify/jfdeidnhmcefnjohapiemmilcglgpi
 - **AI-powered explanations**: use OpenAI, Gemini, Anthropic, DeepSeek, GLM, Kimi, or any OpenAI-compatible provider.
 - **Streaming vocabulary cards**: definitions, examples, translations, phonetics, and mnemonics render progressively.
 - **Saved wordlist**: search, edit, redefine, pronounce, and delete saved entries from the in-page sheet.
+- **Dashboard**: review due words, inspect all saved words, view header stats and memory curves, import/export data, and sync through GitHub.
 - **Memory tracking**: each saved word has a 0-100 familiarity score and a Bézier forgetting forecast.
 - **Smart highlights**: saved words are highlighted across webpages with customizable underline/background styles.
 - **Local-first storage**: vocabulary lives in extension-origin IndexedDB; GitHub sync is optional.

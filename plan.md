@@ -75,6 +75,8 @@ Implementation evidence:
 
 ## Phase 2: Dashboard Shell
 
+Status: Implemented.
+
 ### Goal
 
 Add an independent Dashboard page as the main learning workspace, without changing current in-page reading workflows.
@@ -88,8 +90,10 @@ Add an independent Dashboard page as the main learning workspace, without changi
 
 ### Dashboard Sections
 
+- `Wordlist`
 - `Review`
-- `Stats`
+- `Header Stats`
+- `Memory Curve`
 - `Import / Export`
 - `Sync`
 
@@ -112,9 +116,21 @@ Dashboard reads through background messaging and extension-origin IndexedDB. Ini
 - Non-empty vocabulary state renders overview and queue.
 - Generated manifest permissions remain unchanged.
 
+Implementation evidence:
+
+- `entrypoints/dashboard/` adds a WXT internal Dashboard page with a three-column layout: Wordlist, Review, and a right rail for Memory Curve / Import & Export / Sync.
+- Dashboard Review uses a centered fixed-height card flow with bidirectional animated transitions, external Reveal / Know / Fuzzy / Forget controls, edit, pronunciation, AI redefinition, full definition display, and lightweight score-based actions before the FSRS phase lands.
+- Dashboard Wordlist has Due and lazy-loaded All tabs. Due entries open review mode, All entries open detail mode without review scoring, the All list uses React Virtuoso virtualization, and selected word focus is shared with the card and memory curve panel.
+- `lib/dashboard.ts` builds the initial snapshot from extension-origin vocabulary records, highlight visibility settings, and GitHub sync state.
+- `vocabDashboardSnapshot` background messaging keeps Dashboard reads behind the background data boundary.
+- Popup and Options header both open `dashboard.html` through `chrome.runtime.getURL`.
+- No manifest permission changes were added for the Dashboard page.
+
 ---
 
 ## Phase 3: Import / Export Center
+
+Status: Implemented.
 
 ### Goal
 
@@ -149,6 +165,14 @@ Make user data portable and recoverable.
 - Anki CSV emits one valid `Front / Back / Tags` row per record.
 - Invalid JSON schema is rejected before mutation.
 - Overwrite import creates a backup first.
+
+Implementation evidence:
+
+- `lib/vocabPortability.ts` owns JSON schema-v2 validation plus JSON / CSV / Anki CSV serialization.
+- Dashboard Import / Export panel downloads full JSON backups, generic CSV, and Anki CSV.
+- Dashboard Sync panel exposes a `Sync now` / `Connect` action backed by the existing GitHub Device Flow sync path.
+- JSON overwrite import runs dry-run validation before enabling the destructive action.
+- Confirmed overwrite import downloads a current local backup before calling the existing `vocabReplace` path.
 
 ---
 
@@ -216,7 +240,7 @@ Show actionable memory health, not vanity analytics.
 
 ### Retention Curve
 
-- Do not label the current Bezier score decay as Ebbinghaus.
+- Dashboard may surface the current memory curve early; Phase 5 should replace or validate it with a production-grade FSRS / Ebbinghaus retention model.
 - Use FSRS stability to derive retention curves.
 - Show:
   - current retention;

@@ -1,5 +1,6 @@
 import { onMessage } from '@/lib/messaging'
-import { hightlightStyle } from '@/utils/storage'
+import { buildDashboardSnapshot } from '@/lib/dashboard'
+import { githubAccessToken, githubLastSyncAt, githubSyncAccount, hightlightStyle } from '@/utils/storage'
 import { aiService } from '@/lib/aiService'
 import {
   countRecords,
@@ -123,6 +124,23 @@ export default defineBackground(() => {
 
   onMessage('vocabCount', async () => {
     return { count: await countRecords() }
+  })
+
+  onMessage('vocabDashboardSnapshot', async () => {
+    const [records, highlightSettings, githubToken, githubAccount, lastSyncAt] = await Promise.all([
+      getAllRecords(),
+      hightlightStyle.getValue(),
+      githubAccessToken.getValue(),
+      githubSyncAccount.getValue(),
+      githubLastSyncAt.getValue(),
+    ])
+    return buildDashboardSnapshot({
+      records,
+      highlightSettings,
+      githubToken,
+      githubAccount,
+      githubLastSyncAt: lastSyncAt,
+    })
   })
 
   onMessage('vocabSearch', async ({ data }) => {

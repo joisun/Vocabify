@@ -12,6 +12,10 @@ export async function countRecords() {
   return result.count
 }
 
+export function getDashboardSnapshot() {
+  return sendMessage('vocabDashboardSnapshot', undefined)
+}
+
 export function searchRecords(keyword: string) {
   return sendMessage('vocabSearch', { keyword })
 }

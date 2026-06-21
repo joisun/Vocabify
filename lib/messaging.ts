@@ -1,5 +1,6 @@
 import { defineExtensionMessaging, GetDataType } from '@webext-core/messaging';
 import type { MarkAction } from '@/lib/familiarity'
+import type { DashboardSnapshot } from '@/lib/dashboard'
 import type { NewVocabPayload, VocabRecord, VocabTombstone } from '@/lib/vocabTypes'
 
 // Define all message types and their payloads/return types
@@ -49,6 +50,8 @@ export interface ProtocolMap {
   vocabGetAll(data: undefined): VocabRecord[]
 
   vocabCount(data: undefined): { count: number }
+
+  vocabDashboardSnapshot(data: undefined): DashboardSnapshot
 
   vocabSearch(data: { keyword: string }): VocabRecord[]
 

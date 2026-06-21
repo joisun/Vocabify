@@ -22,7 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Saved-entry redefinition**: saved vocabulary cards in the popover and wordlist sheet now expose a reload action that reruns the configured AI provider and overwrites the stored explanation.
 - **Block-stream AI output**: AI responses now prefer a whitelist XML-like block stream (`<term>`, `<definition>`, `<example>`, etc.) so fields can render as soon as their tag text arrives. JSON parsing remains as a compatibility fallback.
 - **Reasoning stream visibility**: reasoning-capable providers now surface AI SDK `reasoning-delta` output as a compact single-line Thinking status while the final vocabulary fields are still streaming.
-- **Streaming status character**: redefine headers now use a lightweight loader-circle icon, while popover and wordlist streaming status blocks show the black / white theme-aware Three.js bun character beside the state label.
+- **Streaming status character**: redefine headers now use a lightweight refresh icon, while popover and wordlist streaming status blocks show the black / white theme-aware Three.js bun character beside the state label.
+- **Dashboard shell**: added an internal Dashboard page with header metrics and a three-column layout: focused Wordlist, Review workspace, and a right rail for memory curve, Import / Export, and Sync.
+- **Dashboard review actions**: review cards now support edit, pronunciation, and AI redefinition with streamed status, persisted refreshed explanations, silent refresh, a fixed-height card layout, external review controls, and bidirectional card transitions.
+- **Dashboard wordlist focus**: the Dashboard wordlist has Due and lazy-loaded All tabs; Due entries open review mode, All entries open detail mode, and the All tab uses React Virtuoso virtualization while keeping focus synced with the active card and memory curve.
+- **Import / Export center**: Dashboard now exports full JSON backups, spreadsheet CSV, and Anki CSV, and supports strict schema-v2 JSON overwrite import with dry-run validation and automatic pre-import backup.
 
 ### Changed
 - Brand accent and app icon now use the leaf-green palette (`#2ECC71`, `#27AE60`, `#15803D`) across theme tokens, generated toolbar icons, and the shared SVG icon component.

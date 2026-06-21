@@ -1,6 +1,6 @@
 import * as React from 'react'
 import MockLoading from '@/components/custom/MockLoading'
-import { Brush, Globe, Key, Languages, Moon, Sun, Wand2, Monitor } from 'lucide-react'
+import { Brush, Key, Languages, LayoutDashboard, Moon, Sun, Wand2, Monitor } from 'lucide-react'
 import ApiKeysConfigComponent from './components/ApiKeysConfigComponent'
 import PromptTemplate from './components/PromptTemplate'
 import TargetLanguageSetting from './components/TargetLanguageSetting'
@@ -52,24 +52,32 @@ function App() {
     scroller.scrollTo({ top, behavior: 'smooth' })
   }
 
+  function openDashboard() {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') })
+  }
+
   return (
     <>
       <MockLoading />
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <header className="z-30 shrink-0 border-b border-border bg-background/95 backdrop-blur dark:border-white/[0.04]">
-          <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
+          <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-3">
             <div className="leading-tight">
               <h1 className="inline-flex items-center font-display text-[14px] font-semibold tracking-tight"><VocabifySvgIcon className='text-xl'/>Vocabify</h1>
               <p className="text-[11px] text-muted-foreground">Settings</p>
             </div>
             <div className="ml-auto flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={openDashboard} className="h-7 px-2 text-[12px]">
+                <LayoutDashboard data-icon="inline-start" />
+                Dashboard
+              </Button>
               <ThemeToggle />
             </div>
           </div>
         </header>
 
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          <main className="mx-auto flex max-w-5xl gap-8 px-6 py-8 pb-32">
+          <main className="mx-auto flex max-w-6xl gap-8 px-6 py-8 pb-32">
             <aside className="sticky top-6 hidden h-max w-44 shrink-0 self-start md:block">
               <nav className="flex flex-col gap-0.5">
                 {NAV.map((nav) => {
