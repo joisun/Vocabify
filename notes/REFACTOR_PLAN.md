@@ -100,11 +100,12 @@
 
 ### 7. Popup 页面职责重定义
 
-**当前问题**：`popup/App.tsx` 已被删除（` D` 状态），Popup 的新职责尚未定义。
+**当前状态**：Popup 已恢复为轻量启动器，用于在不请求 MV3 `scripting` permission 的前提下打开当前页面内的 Wordlist。
 
-**建议方案**：
-- Popup 作为轻量入口：显示当前页面已保存的词汇数量、快速跳转到 Options、触发词库管理面板
-- 词库管理（查看/搜索/删除/导出）移到 In-page UI 的一个 Tab 中，或保留在 Popup 中
+**职责边界**：
+- Popup 显示轻量入口，用户点击后向当前 active tab 发送 `openVocabList`，成功后关闭。
+- Popup 不承载完整词库管理，词库管理仍由 In-page Wordlist Sheet 负责。
+- 如果当前页面没有可接收消息的 Content Script，Popup 提示刷新页面或打开普通网页。
 
 ---
 

@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Highlight appearance settings now support Underline, Background, and Underline + Background modes, 1–4 px underline thickness, and configurable background opacity.
 - Saved-word hover previews are now separated from selection-driven lookup popovers. Selection lookup and saved-word preview both use controlled Popover shells, but saved-word hover is driven by highlight hit-testing instead of text selection state.
 - Side Sheet (`VocabifySheet` + `InPageUI`) is now Wordlist-only — Tabs and the AI Explain pane have been removed. AI lookup is entirely inline in the selection popover.
-- Toolbar icon click now opens the in-page wordlist directly; the browser-action popup entrypoint has been removed.
+- Toolbar icon click now uses a lightweight popup launcher to open the in-page wordlist without requesting the MV3 `scripting` permission.
 - `VocabList` rows render the new structured fields: term, phonetic, pos chip, first sense's definition, with expansion revealing all senses, mnemonic, and source link.
 - GitHub sync payload bumped to `schemaVersion: 2`. `normalizeRecords` validates the new structured shape and drops legacy `meaning`-only records on import.
 - Dexie schema bumped to v7. Vocabulary data is now owned by the extension origin via background messaging; content scripts opportunistically import old page-origin `VocabifyIndexDB` data without deleting it, and records now carry daily-review metadata.
@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI prompting now keeps product behavior, target-language guidance, and the strict JSON output contract in internal system messages, while the user-configured prompt with required `{SELECTION}` / `{LANGUAGE}` placeholders and optional `{SOURCE_CONTEXT}` is sent as the user message.
 - AI prompting now uses an internal block-stream contract instead of exposing output format control to the user prompt; the final record shape still validates against the same `VocabResponse` schema before persistence.
 - Theme provider now uses the extension-wide `vocabify-theme` storage key (previously `vite-ui-theme` in options, separate page-local state in content script).
+- Highlight settings now use a simpler v2 structure with direct per-level `NEW` / `LEARNING` / `FAMILIAR` / `MASTERED` styles and per-level page visibility.
 
 ### Fixed
 - **Rough streaming preview**: removed raw chunk / JSON text from the selection popover. Streaming now renders as a field-level structured card while provider reasoning stays hidden.
@@ -75,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Saved-word hover flicker**: saved-word hover no longer triggers the text-selection operation popover at the viewport origin, and preview content remains open while the pointer moves from the highlighted word onto the card.
 - **AI stream timeout with reasoning models**: increased `chunkMs` from 8s to 30s to accommodate providers that emit `reasoning_content` before `content`.
 - **Highlight isolation**: Vocabify now deletes only its own Custom Highlight registry keys, escapes saved terms before regex matching, clears stale fallback `<mark>` nodes before repainting, and skips interactive/code/hidden/extension UI text nodes.
+- **Per-level highlight visibility**: disabled mastery levels are removed before range generation, so hidden words do not paint or trigger saved-word hover hit-testing.
 - **Code-block selection isolation**: selecting text inside nested `pre` / `code` syntax-highlight spans no longer opens the Vocabify lookup operation bar.
 - **Vocabulary import tombstones**: importing data now applies newer tombstones to delete matching local records and prevents older records from reviving entries that were deleted locally.
 - **GitHub sync local consistency**: local vocabulary replacement now happens only after `syncdata.json` is successfully written to GitHub, avoiding local mutation when the remote write fails.

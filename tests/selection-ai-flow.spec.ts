@@ -161,6 +161,73 @@ test.describe('Vocabify selection + AI flow', () => {
     }
   })
 
+  test('disabled mastery level hides records before range hit-testing', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page, mockBaseUrl, {
+        hightlightStyle: {
+          version: 2,
+          levelStyles: {
+            MASTERED: {
+              enabled: false,
+            },
+          },
+        },
+      })
+      await seedSavedRecordBeforeReload(page, {
+        score: 88,
+        memoryAnchorScore: 88,
+        memoryAnchorAt: new Date().toISOString(),
+        memoryHorizonDays: 180,
+      })
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
+
+      await expect.poll(() => getRegisteredHighlightCount(page), { timeout: 5_000 }).toBe(0)
+      const rect = await getSavedHighlightRect(page)
+      expect(rect).not.toBeNull()
+      await page.mouse.move(rect!.left + rect!.width / 2, rect!.top + rect!.height / 2)
+      await page.waitForTimeout(300)
+      await expect.poll(() => getShadowField(page, 'savedHoverVisible'), { timeout: 1_000 }).toBe(false)
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
+  test('per-level highlight style storage paints records', async () => {
+    const page = await context.newPage()
+    let restoreStorage = async () => {}
+    try {
+      restoreStorage = await setupPage(page, mockBaseUrl, {
+        hightlightStyle: {
+          version: 2,
+          levelStyles: {
+            NEW: {
+              enabled: true,
+              type: 'background',
+              style: 'solid',
+              offset: '2',
+              thickness: '2',
+              color: { r: 46, g: 204, b: 113, a: 0.5 },
+              backgroundOpacity: '0.18',
+              invertColor: false,
+            },
+          },
+        },
+      })
+      await seedSavedRecordBeforeReload(page)
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await expect(page.locator('#vocabify-root')).toBeAttached({ timeout: 15_000 })
+
+      await expect.poll(() => getRegisteredHighlightCount(page), { timeout: 10_000 }).toBeGreaterThan(0)
+    } finally {
+      await restoreStorage()
+      await page.close().catch(() => undefined)
+    }
+  })
+
   test('code block text does not trigger selection lookup', async () => {
     const page = await context.newPage()
     let restoreStorage = async () => {}
@@ -319,9 +386,9 @@ test.describe('Vocabify selection + AI flow', () => {
     }))
   }
 
-  async function seedSavedRecordBeforeReload(page: Page) {
+  async function seedSavedRecordBeforeReload(page: Page, overrides: Record<string, unknown> = {}) {
     const extensionId = await getExtensionId(context)
-    await seedExtensionRecord(context, extensionId, page.url())
+    await seedExtensionRecord(context, extensionId, page.url(), overrides)
   }
 
   async function clickQuery(page: Page) {
@@ -425,6 +492,22 @@ test.describe('Vocabify selection + AI flow', () => {
         node = walker.nextNode()
       }
       return null
+    })
+  }
+
+  function getRegisteredHighlightCount(page: Page) {
+    return page.evaluate(() => {
+      const cssWithHighlights = CSS as typeof CSS & {
+        highlights?: HighlightRegistry
+      }
+      if (cssWithHighlights.highlights) {
+        let count = 0
+        for (const key of cssWithHighlights.highlights.keys()) {
+          if (key.startsWith('vocabify-')) count += 1
+        }
+        return count
+      }
+      return document.querySelectorAll('.vocabify-highlight').length
     })
   }
 
@@ -559,11 +642,16 @@ async function clearExtensionDatabase(context: BrowserContext, extensionId: stri
   }
 }
 
-async function seedExtensionRecord(context: BrowserContext, extensionId: string, sourceUrl: string) {
+async function seedExtensionRecord(
+  context: BrowserContext,
+  extensionId: string,
+  sourceUrl: string,
+  overrides: Record<string, unknown> = {},
+) {
   const page = await context.newPage()
   try {
     await page.goto(`chrome-extension://${extensionId}/options.html`)
-    await page.evaluate((url) => new Promise<void>((resolve, reject) => {
+    await page.evaluate(({ url, extra }) => new Promise<void>((resolve, reject) => {
       const request = indexedDB.open('VocabifyIndexDB', 70)
       request.onupgradeneeded = () => {
         const db = request.result
@@ -613,6 +701,7 @@ async function seedExtensionRecord(context: BrowserContext, extensionId: string,
           lastReviewDate: null,
           lastReviewAction: null,
           dailyReviewBaseScore: null,
+          ...extra,
         })
         tx.oncomplete = () => {
           db.close()
@@ -623,7 +712,7 @@ async function seedExtensionRecord(context: BrowserContext, extensionId: string,
           reject(tx.error)
         }
       }
-    }), sourceUrl)
+    }), { url: sourceUrl, extra: overrides })
   } finally {
     await page.close().catch(() => undefined)
   }

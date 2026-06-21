@@ -1,10 +1,15 @@
 import type { VocabRecord } from '@/lib/vocabTypes'
 import { getLevel, levelClassSuffix, type FamiliarityLevel } from '@/lib/familiarity'
-import { hightlightStyle, type highlightStyleSettingsType } from '@/utils/storage'
+import {
+  HIGHLIGHT_LEVELS,
+  hightlightStyle,
+  normalizeHighlightStyleSettings,
+  shouldHighlightLevelBePainted,
+  type HighlightLevelStyleSettings,
+  type highlightStyleSettingsType,
+} from '@/utils/storage'
 import { getAllRecords } from '@/lib/vocabApi'
 import { NO_SELECTION_CONTAINER } from '@/const'
-
-const LEVELS: FamiliarityLevel[] = ['NEW', 'LEARNING', 'FAMILIAR', 'MASTERED']
 
 const VOCABIFY_HIGHLIGHT_STYLE_ID = 'vocabify-highlight-styles'
 const VOCABIFY_HIGHLIGHT_PREFIX = 'vocabify-'
@@ -31,13 +36,6 @@ const SKIP_TEXT_SELECTOR = Array.from(SKIP_TEXT_TAGS).join(',')
  * `assets/global.css` so the in-page highlights paint correctly even though
  * the rest of the extension UI lives in a Shadow DOM.
  */
-const LEVEL_FALLBACK_COLORS: Record<FamiliarityLevel, { r: number; g: number; b: number; a: number }> = {
-  NEW: { r: 34, g: 197, b: 94, a: 0.18 },
-  LEARNING: { r: 249, g: 115, b: 22, a: 0.22 },
-  FAMILIAR: { r: 59, g: 130, b: 246, a: 0.18 },
-  MASTERED: { r: 168, g: 85, b: 247, a: 0.10 },
-}
-
 export type HoverRect = {
   top: number
   right: number
@@ -89,15 +87,19 @@ export class HighlightService {
   }
 
   async highlightVocabulary() {
-    await this.ensureStylesInjected()
+    const settings = normalizeHighlightStyleSettings(await hightlightStyle.getValue())
+    await this.ensureStylesInjected(settings)
     const records = await getAllRecords()
-    this.records = records
+    const paintableRecords = records.filter((record) => (
+      record.id != null && shouldHighlightLevelBePainted(settings, getLevel(record.score))
+    ))
+    this.records = paintableRecords
     this.rangesByRecordId.clear()
 
     if (this.supportsCustomHighlight) {
-      this.highlightWithCustomAPI(records)
+      this.highlightWithCustomAPI(paintableRecords)
     } else {
-      this.highlightWithFallback(records)
+      this.highlightWithFallback(paintableRecords)
     }
   }
 
@@ -122,13 +124,13 @@ export class HighlightService {
    * but the marks we paint live on the host document and can't see those styles. The CSS Custom
    * Highlight API also needs `::highlight(...)` selectors registered on the host stylesheet.
    */
-  private async ensureStylesInjected() {
+  private async ensureStylesInjected(settings: highlightStyleSettingsType) {
     if (typeof document === 'undefined') return
 
     const style = this.styleElement || document.getElementById(VOCABIFY_HIGHLIGHT_STYLE_ID) as HTMLStyleElement | null
     this.styleElement = style || document.createElement('style')
     this.styleElement.id = VOCABIFY_HIGHLIGHT_STYLE_ID
-    this.styleElement.textContent = buildHighlightStyles(await hightlightStyle.getValue())
+    this.styleElement.textContent = buildHighlightStyles(settings)
     if (!this.styleElement.isConnected) {
       document.head.appendChild(this.styleElement)
     }
@@ -140,7 +142,7 @@ export class HighlightService {
 
     const textNodes = this.getAllTextNodes(document.body)
     const rangesByLevel = new Map<FamiliarityLevel, Range[]>()
-    LEVELS.forEach((level) => rangesByLevel.set(level, []))
+    HIGHLIGHT_LEVELS.forEach((level) => rangesByLevel.set(level, []))
 
     records.forEach((record) => {
       if (record.id == null) return
@@ -235,7 +237,7 @@ export class HighlightService {
     this.highlights.forEach((_highlight, name) => {
       CSS.highlights.delete(name)
     })
-    LEVELS.forEach((level) => {
+    HIGHLIGHT_LEVELS.forEach((level) => {
       CSS.highlights.delete(getCustomHighlightName(level))
     })
   }
@@ -460,20 +462,21 @@ function rangeContainsPoint(range: Range, node: Node, offset: number): boolean {
 
 function buildHighlightStyles(settings: highlightStyleSettingsType) {
   const normalized = normalizeHighlightSettings(settings)
-  return LEVELS.map((level) => {
+  return HIGHLIGHT_LEVELS.map((level) => {
     const suffix = levelClassSuffix(level)
-    const color = normalized.useCustomColor ? normalized.color : LEVEL_FALLBACK_COLORS[level]
+    const levelStyle = normalized.levelStyles[level]
+    const color = levelStyle.color
     const decorationColor = rgba(color, color.a)
-    const backgroundColor = rgba(color, normalized.backgroundOpacity)
-    const textColor = normalized.invertColor ? rgb(invertRgb(color)) : 'inherit'
+    const backgroundColor = rgba(color, Number(levelStyle.backgroundOpacity))
+    const textColor = levelStyle.invertColor ? rgb(invertRgb(color)) : 'inherit'
     const declarations = [
       `color: ${textColor}`,
-      normalized.hasBackground ? `background-color: ${backgroundColor}` : 'background-color: transparent',
-      normalized.hasUnderline ? `text-decoration-line: underline` : 'text-decoration-line: none',
-      normalized.hasUnderline ? `text-decoration-color: ${decorationColor}` : '',
-      normalized.hasUnderline ? `text-decoration-style: ${normalized.style}` : '',
-      normalized.hasUnderline ? `text-decoration-thickness: ${normalized.thickness}px` : '',
-      normalized.hasUnderline ? `text-underline-offset: ${normalized.offset}px` : '',
+      hasBackground(levelStyle) ? `background-color: ${backgroundColor}` : 'background-color: transparent',
+      hasUnderline(levelStyle) ? `text-decoration-line: underline` : 'text-decoration-line: none',
+      hasUnderline(levelStyle) ? `text-decoration-color: ${decorationColor}` : '',
+      hasUnderline(levelStyle) ? `text-decoration-style: ${levelStyle.style}` : '',
+      hasUnderline(levelStyle) ? `text-decoration-thickness: ${levelStyle.thickness}px` : '',
+      hasUnderline(levelStyle) ? `text-underline-offset: ${levelStyle.offset}px` : '',
     ].filter(Boolean).join(';\n  ')
 
     return `::highlight(${getCustomHighlightName(level)}),
@@ -491,20 +494,15 @@ function buildHighlightStyles(settings: highlightStyleSettingsType) {
 }
 
 function normalizeHighlightSettings(settings: highlightStyleSettingsType) {
-  const type = settings.type === 'under-over' ? 'underline' : settings.type
-  const hasUnderline = type === 'underline' || type === 'underline-background'
-  const hasBackground = type === 'background' || type === 'underline-background'
-  return {
-    hasUnderline,
-    hasBackground,
-    style: settings.style || 'solid',
-    thickness: ['1', '2', '3', '4'].includes(settings.thickness) ? settings.thickness : '2',
-    offset: settings.offset || '1',
-    color: settings.color,
-    backgroundOpacity: Number(settings.backgroundOpacity || settings.color.a || 0.18),
-    invertColor: !!settings.invertColor,
-    useCustomColor: true,
-  }
+  return normalizeHighlightStyleSettings(settings)
+}
+
+function hasUnderline(style: HighlightLevelStyleSettings) {
+  return style.type === 'underline' || style.type === 'underline-background'
+}
+
+function hasBackground(style: HighlightLevelStyleSettings) {
+  return style.type === 'background' || style.type === 'underline-background'
 }
 
 function rgba(color: { r: number; g: number; b: number; a: number }, alpha: number) {

@@ -20,7 +20,9 @@ https://chromewebstore.google.com/detail/vocabify/jfdeidnhmcefnjohapiemmilcglgpi
 - **Local-first storage**: vocabulary lives in extension-origin IndexedDB; GitHub sync is optional.
 - **Private sync**: sync to your own private `__Vocabify_Data_Center__` repository through GitHub Device Flow.
 
+## Roadmap
 
+See [plan.md](./plan.md) for the phased product roadmap.
 
 ## Privacy
 
