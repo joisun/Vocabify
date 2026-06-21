@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, Brain, Check, Copy, Edit3, Eye, HelpCircle,
-  Plus, RotateCw, Search, Trash2, Volume2, X,
+  Plus, RefreshCw, Search, Trash2, Volume2, X,
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
@@ -424,7 +424,7 @@ function Card({
                 title="Redefine"
                 data-testid="vocabify-redefine-action"
               >
-                <RotateCw className={cn('h-3.5 w-3.5', (streaming || redefining) && 'animate-spin')} />
+                <RefreshCw className={cn('h-3.5 w-3.5', (streaming || redefining) && 'animate-spin')} />
               </button>
             )}
             {onSpeak && (

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import { Virtuoso } from 'react-virtuoso'
 import type { VocabResponse } from '@/lib/aiSchema'
 import type { VocabRecord } from '@/lib/vocabTypes'
 import { Button } from '@/components/ui/button'
@@ -16,7 +17,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, ArrowLeft, BookOpen, CheckCircle2, Copy, Edit3, ExternalLink, Github,
-  Loader2, LogOut, RefreshCw, RotateCw, Search, Trash2, Volume2,
+  Loader2, LogOut, RefreshCw, Search, Trash2, Volume2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -233,201 +234,261 @@ export function VocabList() {
             />
           </div>
 
-          <div
-            className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
-            data-testid="vocabify-wordlist-scroll"
-          >
-            {loading ? (
+          {loading ? (
+            <div className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
               <ListSkeleton />
-            ) : records.length === 0 ? (
+            </div>
+          ) : records.length === 0 ? (
+            <div
+              className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
+              data-testid="vocabify-wordlist-scroll"
+            >
               <EmptyState hasFilter={!!searchKeyword.trim()} />
-            ) : (
-              <ul className="space-y-1.5">
-                {records.map((record) => {
-                  const displayRecord = getDisplayRecord(record)
-                  const isExpanded = expanded === record.id
-                  const level = getLevel(record.score)
-                  const levelSuffix = levelClassSuffix(level)
-                  const itemIsRedefining = redefiningId === record.id
-                  const itemIsStreaming = itemIsRedefining && isRedefining
-                  const itemError = itemIsRedefining && aiStream.status === 'error' ? aiStream.error : null
-                  const isPhrase = displayRecord.pos === 'phrase'
-                  const phraseTranslation = displayRecord.senses?.[0]?.definition || ''
-                  const hasSenses = !!displayRecord.senses?.length
-                  const itemCharacterState = getStreamCharacterState({
-                    streaming: itemIsStreaming,
-                    hasReceivedChunk: aiStream.hasReceivedChunk,
-                    hasReceivedReasoning: aiStream.hasReceivedReasoning,
-                    hasSenses,
-                  })
-                  return (
-                    <li
-                      key={record.id}
-                      className={cn(
-                        'rounded-[8px] border border-border bg-card transition-colors animate-fade-in',
-                        'hover:border-primary/45 dark:border-white/[0.04] dark:hover:border-primary/30',
-                        isExpanded && 'border-primary/45 dark:border-primary/30',
-                      )}
-                    >
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setExpanded(isExpanded ? null : record.id ?? null)}
-                        onKeyDown={(event) => {
-                          if (event.key !== 'Enter' && event.key !== ' ') return
-                          event.preventDefault()
-                          setExpanded(isExpanded ? null : record.id ?? null)
-                        }}
-                        className="flex w-full items-start gap-2 px-3 py-2 text-left"
-                        aria-expanded={isExpanded}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`vocabify-level-dot is-${levelSuffix} shrink-0`} aria-hidden />
-                            <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
-                              {record.term || record.wordOrPhrase}
-                            </h3>
-                            {record.pos && !isPhrase && (
-                              <span className="rounded-[3px] bg-secondary px-1 py-[1px] text-[9px] font-semibold uppercase tracking-wide text-foreground/80">
-                                {record.pos}
-                              </span>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={(e) => { e.stopPropagation(); handleRedefine(record) }}
-                              disabled={isRedefining}
-                              aria-label={`Redefine ${record.wordOrPhrase}`}
-                              title="Redefine"
-                              className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
-                              data-testid="vocabify-wordlist-redefine"
-                            >
-                              <RotateCw className={cn('h-3 w-3', itemIsStreaming && 'animate-spin')} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={(e) => { e.stopPropagation(); speak(record.term || record.wordOrPhrase) }}
-                              aria-label="Pronounce"
-                              title="Pronounce"
-                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                            >
-                              <Volume2 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={(e) => { e.stopPropagation(); setEditingId(record.id ?? null) }}
-                              aria-label={`Edit ${record.wordOrPhrase}`}
-                              title="Edit"
-                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={(e) => e.stopPropagation()}
-                                  aria-label={`Delete ${record.wordOrPhrase}`}
-                                  title="Delete"
-                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will remove “{record.term || record.wordOrPhrase}” from your wordlist. This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => record.id && handleDelete(record.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                          {displayRecord.phonetic && !isPhrase && (
-                            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{displayRecord.phonetic}</p>
-                          )}
-                          {isExpanded ? (
-                            <div className="mt-1 space-y-2">
-                              {itemError ? (
-                                <div className="rounded-[5px] bg-destructive/10 px-2 py-1.5 text-[11px] leading-relaxed text-destructive">
-                                  {itemError}
-                                </div>
-                              ) : itemIsStreaming && !hasSenses ? (
-                                <div className="py-1">
-                                  <AIThinkingBlock label={redefiningStatusLabel} state={itemCharacterState} compact />
-                                </div>
-                              ) : isPhrase ? (
-                                <div className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
-                                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
-                                  <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">{phraseTranslation}</p>
-                                </div>
-                              ) : (
-                                (displayRecord.senses || []).map((sense, i) => (
-                                  <div key={(sense as { id?: string }).id || i} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
-                                    <p className="text-[12px] leading-relaxed text-foreground">
-                                      <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
-                                      {sense.definition}
-                                    </p>
-                                    {sense.example && (
-                                      <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
-                                    )}
-                                    {sense.exampleTranslation && (
-                                      <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
-                                    )}
-                                  </div>
-                                ))
-                              )}
-                              {displayRecord.mnemonic && !isPhrase && (
-                                <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{displayRecord.mnemonic}</p>
-                              )}
-                              {record.sourceUrl && (
-                                <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
-                                  源: {new URL(record.sourceUrl).hostname}
-                                </a>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
-                              {phraseTranslation}
-                            </p>
-                          )}
-                          <div className="mt-1.5 flex items-center justify-between gap-2">
-                            <p className="tabular text-[10px] text-muted-foreground/70">
-                              {new Date(record.updatedAt).toLocaleDateString()}
-                            </p>
-                            <FamiliarityMeter
-                              record={record}
-                              align="right"
-                              expanded={expandedCurveId === record.id}
-                              onExpandedChange={(next) => setExpandedCurveId(next ? record.id ?? null : null)}
-                              renderCurve={false}
-                            />
-                          </div>
-                          {expandedCurveId === record.id ? (
-                            <div className="mt-1.5 flex justify-end">
-                              <MemoryCurvePanel record={record} className="w-[280px]" hideTitle />
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
+            </div>
+          ) : (
+            <Virtuoso
+              className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 px-1"
+              data-testid="vocabify-wordlist-scroll"
+              data={records}
+              increaseViewportBy={{ top: 320, bottom: 640 }}
+              computeItemKey={(_, record) => record.id ?? record.wordOrPhrase}
+              itemContent={(_, record) => (
+                <div className="pb-1.5">
+                  <WordlistItem
+                    record={record}
+                    displayRecord={getDisplayRecord(record)}
+                    expanded={expanded === record.id}
+                    curveExpanded={expandedCurveId === record.id}
+                    redefining={redefiningId === record.id}
+                    streaming={isRedefining}
+                    streamStatusLabel={redefiningStatusLabel}
+                    streamError={redefiningId === record.id && aiStream.status === 'error' ? aiStream.error : null}
+                    hasReceivedChunk={aiStream.hasReceivedChunk}
+                    hasReceivedReasoning={aiStream.hasReceivedReasoning}
+                    onToggleExpanded={() => setExpanded(expanded === record.id ? null : record.id ?? null)}
+                    onRedefine={() => handleRedefine(record)}
+                    onSpeak={() => speak(record.term || record.wordOrPhrase)}
+                    onEdit={() => setEditingId(record.id ?? null)}
+                    onDelete={() => record.id && handleDelete(record.id)}
+                    onCurveExpandedChange={(next) => setExpandedCurveId(next ? record.id ?? null : null)}
+                  />
+                </div>
+              )}
+            />
+          )}
         </>
       )}
+    </div>
+  )
+}
+
+function WordlistItem({
+  record,
+  displayRecord,
+  expanded,
+  curveExpanded,
+  redefining,
+  streaming,
+  streamStatusLabel,
+  streamError,
+  hasReceivedChunk,
+  hasReceivedReasoning,
+  onToggleExpanded,
+  onRedefine,
+  onSpeak,
+  onEdit,
+  onDelete,
+  onCurveExpandedChange,
+}: {
+  record: VocabRecord
+  displayRecord: VocabRecord | Partial<VocabResponse>
+  expanded: boolean
+  curveExpanded: boolean
+  redefining: boolean
+  streaming: boolean
+  streamStatusLabel: string
+  streamError: string | null
+  hasReceivedChunk: boolean
+  hasReceivedReasoning: boolean
+  onToggleExpanded: () => void
+  onRedefine: () => void
+  onSpeak: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onCurveExpandedChange: (next: boolean) => void
+}) {
+  const level = getLevel(record.score)
+  const levelSuffix = levelClassSuffix(level)
+  const itemIsStreaming = redefining && streaming
+  const isPhrase = displayRecord.pos === 'phrase'
+  const phraseTranslation = displayRecord.senses?.[0]?.definition || ''
+  const hasSenses = !!displayRecord.senses?.length
+  const itemCharacterState = getStreamCharacterState({
+    streaming: itemIsStreaming,
+    hasReceivedChunk,
+    hasReceivedReasoning,
+    hasSenses,
+  })
+
+  return (
+    <div
+      className={cn(
+        'rounded-[8px] border border-border bg-card transition-colors animate-fade-in',
+        'hover:border-primary/45 dark:border-white/[0.04] dark:hover:border-primary/30',
+        expanded && 'border-primary/45 dark:border-primary/30',
+      )}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggleExpanded}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return
+          event.preventDefault()
+          onToggleExpanded()
+        }}
+        className="flex w-full items-start gap-2 px-3 py-2 text-left"
+        aria-expanded={expanded}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className={`vocabify-level-dot is-${levelSuffix} shrink-0`} aria-hidden />
+            <h3 className="truncate font-display text-[14px] font-semibold tracking-tight">
+              {record.term || record.wordOrPhrase}
+            </h3>
+            {record.pos && !isPhrase && (
+              <span className="rounded-[3px] bg-secondary px-1 py-[1px] text-[9px] font-semibold uppercase tracking-wide text-foreground/80">
+                {record.pos}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={(e) => { e.stopPropagation(); onRedefine() }}
+              disabled={streaming}
+              aria-label={`Redefine ${record.wordOrPhrase}`}
+              title="Redefine"
+              className="ml-auto h-6 w-6 text-muted-foreground hover:text-foreground"
+              data-testid="vocabify-wordlist-redefine"
+            >
+              <RefreshCw className={cn('h-3 w-3', itemIsStreaming && 'animate-spin')} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={(e) => { e.stopPropagation(); onSpeak() }}
+              aria-label="Pronounce"
+              title="Pronounce"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            >
+              <Volume2 className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={(e) => { e.stopPropagation(); onEdit() }}
+              aria-label={`Edit ${record.wordOrPhrase}`}
+              title="Edit"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            >
+              <Edit3 className="h-3 w-3" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`Delete ${record.wordOrPhrase}`}
+                  title="Delete"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove “{record.term || record.wordOrPhrase}” from your wordlist. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDelete}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+          {displayRecord.phonetic && !isPhrase && (
+            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{displayRecord.phonetic}</p>
+          )}
+          {expanded ? (
+            <div className="mt-1 space-y-2">
+              {streamError ? (
+                <div className="rounded-[5px] bg-destructive/10 px-2 py-1.5 text-[11px] leading-relaxed text-destructive">
+                  {streamError}
+                </div>
+              ) : itemIsStreaming && !hasSenses ? (
+                <div className="py-1">
+                  <AIThinkingBlock label={streamStatusLabel} state={itemCharacterState} compact />
+                </div>
+              ) : isPhrase ? (
+                <div className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Translation</p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-foreground">{phraseTranslation}</p>
+                </div>
+              ) : (
+                (displayRecord.senses || []).map((sense, i) => (
+                  <div key={(sense as { id?: string }).id || i} className="rounded-[5px] bg-secondary/40 px-2 py-1.5">
+                    <p className="text-[12px] leading-relaxed text-foreground">
+                      <span className="text-primary mr-1">{`①②③`[i] || i + 1}</span>
+                      {sense.definition}
+                    </p>
+                    {sense.example && (
+                      <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
+                    )}
+                    {sense.exampleTranslation && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
+                    )}
+                  </div>
+                ))
+              )}
+              {displayRecord.mnemonic && !isPhrase && (
+                <p className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground/80">联想: </span>{displayRecord.mnemonic}</p>
+              )}
+              {record.sourceUrl && (
+                <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="block truncate text-[10px] text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                  源: {new URL(record.sourceUrl).hostname}
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
+              {phraseTranslation}
+            </p>
+          )}
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <p className="tabular text-[10px] text-muted-foreground/70">
+              {new Date(record.updatedAt).toLocaleDateString()}
+            </p>
+            <FamiliarityMeter
+              record={record}
+              align="right"
+              expanded={curveExpanded}
+              onExpandedChange={onCurveExpandedChange}
+              renderCurve={false}
+            />
+          </div>
+          {curveExpanded ? (
+            <div className="mt-1.5 flex justify-end">
+              <MemoryCurvePanel record={record} className="w-[280px]" hideTitle />
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   )
 }

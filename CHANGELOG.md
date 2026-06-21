@@ -22,13 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Saved-entry redefinition**: saved vocabulary cards in the popover and wordlist sheet now expose a reload action that reruns the configured AI provider and overwrites the stored explanation.
 - **Block-stream AI output**: AI responses now prefer a whitelist XML-like block stream (`<term>`, `<definition>`, `<example>`, etc.) so fields can render as soon as their tag text arrives. JSON parsing remains as a compatibility fallback.
 - **Reasoning stream visibility**: reasoning-capable providers now surface AI SDK `reasoning-delta` output as a compact single-line Thinking status while the final vocabulary fields are still streaming.
-- **Streaming status character**: redefine headers now use a lightweight rotating refresh icon, while popover and wordlist streaming status blocks show the black / white theme-aware Three.js bun character beside the state label.
+- **Streaming status character**: redefine headers now use a lightweight loader-circle icon, while popover and wordlist streaming status blocks show the black / white theme-aware Three.js bun character beside the state label.
 
 ### Changed
 - Brand accent and app icon now use the leaf-green palette (`#2ECC71`, `#27AE60`, `#15803D`) across theme tokens, generated toolbar icons, and the shared SVG icon component.
 - Options provider settings now use one active provider instead of a fallback chain. The UI was rebuilt as a dense, low-border configuration panel with popular providers (OpenAI, Gemini, Anthropic, DeepSeek), GLM / Kimi OpenAI-compatible presets, and a custom OpenAI-compatible endpoint flow.
 - In-page wordlist sheet now opens taller, giving saved vocabulary more vertical reading space.
 - In-page wordlist sheet now uses the same theme-aware floating surface tokens as tooltips and selection popovers, with lower-contrast hairline borders.
+- In-page wordlist rows now render through React Virtuoso virtualization, reducing DOM cost for large local vocabularies while preserving dynamic row heights.
 - Draggable in-page wordlist sheet now exits toward its snapped side when closed, so a sheet moved to the left no longer disappears to the right.
 - Highlight appearance settings now support Underline, Background, and Underline + Background modes, 1–4 px underline thickness, and configurable background opacity.
 - Saved-word hover previews are now separated from selection-driven lookup popovers. Selection lookup and saved-word preview both use controlled Popover shells, but saved-word hover is driven by highlight hit-testing instead of text selection state.
