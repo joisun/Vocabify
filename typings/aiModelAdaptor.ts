@@ -51,6 +51,7 @@ export interface AiAgentApiKey {
   apiKey: string
   model: string
   baseURL?: string
+  providerOptions?: Record<string, unknown>
 }
 
 export type AiAgentApiKeys = AiAgentApiKey[]
@@ -78,6 +79,7 @@ function normalizeModernAgent(item: Partial<AiAgentApiKey>): AiAgentApiKey | nul
 
   const baseURL = isCustom ? item.baseURL?.trim() : undefined
   if (isCustom && !baseURL) return null
+  const providerOptions = isPlainRecord(item.providerOptions) ? item.providerOptions : undefined
 
   return {
     providerId: template ? template.id : providerId as `custom:${string}`,
@@ -85,6 +87,7 @@ function normalizeModernAgent(item: Partial<AiAgentApiKey>): AiAgentApiKey | nul
     apiKey,
     model,
     ...(baseURL ? { baseURL } : {}),
+    ...(providerOptions ? { providerOptions } : {}),
   }
 }
 
@@ -99,4 +102,8 @@ export function normalizeAgentConfigs(raw: unknown): AiAgentApiKeys {
   }
 
   return normalized
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -91,6 +92,29 @@ function uniqueModels(models: string[]) {
   return Array.from(new Set(models.map((item) => item.trim()).filter(Boolean)))
 }
 
+function formatProviderOptions(value: Record<string, unknown> | undefined) {
+  if (!value || Object.keys(value).length === 0) return ''
+  return JSON.stringify(value, null, 2)
+}
+
+function serializeProviderOptions(value: Record<string, unknown> | undefined) {
+  return JSON.stringify(value || {})
+}
+
+function parseProviderOptionsText(text: string): { valid: true; value: Record<string, unknown> | undefined } | { valid: false; error: string } {
+  const trimmed = text.trim()
+  if (!trimmed) return { valid: true, value: undefined }
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { valid: false, error: 'Provider options must be a JSON object.' }
+    }
+    return { valid: true, value: parsed as Record<string, unknown> }
+  } catch {
+    return { valid: false, error: 'Invalid JSON.' }
+  }
+}
+
 function normalizeBaseURL(url: string) {
   return url.trim().replace(/\/$/, '')
 }
@@ -176,6 +200,7 @@ const ApiKeysConfigComponent = () => {
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState(DEFAULT_PROVIDER_TEMPLATE.defaultModel)
   const [models, setModels] = useState<string[]>(DEFAULT_PROVIDER_TEMPLATE.staticModels)
+  const [providerOptionsText, setProviderOptionsText] = useState('')
   const [fetchState, setFetchState] = useState<ModelFetchState>({ loading: false, error: '' })
   const [saving, setSaving] = useState(false)
 
@@ -184,6 +209,7 @@ const ApiKeysConfigComponent = () => {
   const selectedChoice = useMemo(() => getChoice(selectedProvider), [selectedProvider])
   const isCustom = selectedChoice.kind === 'custom'
   const needsBaseURL = selectedChoice.kind !== 'built-in'
+  const providerOptionsState = useMemo(() => parseProviderOptionsText(providerOptionsText), [providerOptionsText])
 
   useEffect(() => {
     getNormalizedAgents().then((value) => {
@@ -198,6 +224,7 @@ const ApiKeysConfigComponent = () => {
       setApiKey(current.apiKey)
       setModel(current.model || choice.defaultModel)
       setModels(getStaticModels(choice, current.model))
+      setProviderOptionsText(formatProviderOptions(current.providerOptions))
     })
   }, [])
 
@@ -249,6 +276,7 @@ const ApiKeysConfigComponent = () => {
     apiKey.trim()
     && model.trim()
     && (!needsBaseURL || baseURL.trim())
+    && (!isCustom || providerOptionsState.valid)
   )
 
   const isDirty = !activeAgent
@@ -257,6 +285,7 @@ const ApiKeysConfigComponent = () => {
     || activeAgent.apiKey !== apiKey.trim()
     || activeAgent.model !== model.trim()
     || (activeAgent.baseURL || '') !== (needsBaseURL ? normalizeBaseURL(baseURL) : '')
+    || serializeProviderOptions(activeAgent.providerOptions) !== serializeProviderOptions(resolveProviderOptionsForSave())
 
   function resolveProviderId() {
     if (isCustom) {
@@ -283,6 +312,7 @@ const ApiKeysConfigComponent = () => {
     setApiKey('')
     setModel(choice.defaultModel)
     setModels(choice.staticModels)
+    setProviderOptionsText('')
   }
 
   async function saveProvider() {
@@ -294,6 +324,7 @@ const ApiKeysConfigComponent = () => {
       apiKey: apiKey.trim(),
       model: model.trim(),
       ...(needsBaseURL ? { baseURL: normalizeBaseURL(baseURL) } : {}),
+      ...(resolveProviderOptionsForSave() ? { providerOptions: resolveProviderOptionsForSave() } : {}),
     }
     setSaving(true)
     try {
@@ -311,9 +342,17 @@ const ApiKeysConfigComponent = () => {
       await agentsStorage.setValue([])
       setActiveAgent(null)
       setApiKey('')
+      setProviderOptionsText('')
     } finally {
       setSaving(false)
     }
+  }
+
+  function resolveProviderOptionsForSave() {
+    if (!isCustom || !providerOptionsState.valid) return undefined
+    return providerOptionsState.value && Object.keys(providerOptionsState.value).length > 0
+      ? providerOptionsState.value
+      : undefined
   }
 
   return (
@@ -378,6 +417,21 @@ const ApiKeysConfigComponent = () => {
               </datalist>
             </Field>
           </div>
+
+          {isCustom ? (
+            <Field label="Provider options">
+              <Textarea
+                value={providerOptionsText}
+                onChange={(event) => setProviderOptionsText(event.target.value)}
+                placeholder={'{\n  "custom": {\n    "thinking": { "type": "disabled" }\n  }\n}'}
+                aria-label="Custom provider options JSON"
+                className="min-h-[112px] font-mono text-[12px]"
+              />
+              {!providerOptionsState.valid ? (
+                <p className="text-[11px] leading-relaxed text-destructive">{providerOptionsState.error}</p>
+              ) : null}
+            </Field>
+          ) : null}
 
           {fetchState.loading || fetchState.error ? (
             <div className="flex min-h-5 items-center gap-2 text-xs text-muted-foreground">

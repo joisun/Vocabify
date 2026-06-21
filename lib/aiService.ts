@@ -27,6 +27,8 @@ export interface AIStreamOptions {
   onRetry?: (attempt: number, maxRetries: number, error: Error) => void
 }
 
+type StreamTextProviderOptions = NonNullable<Parameters<typeof streamText>[0]['providerOptions']>
+
 export class AIService {
   private async getMessages(text: string, sourceContext?: string): Promise<ModelMessage[]> {
     const template = await promptTemplate.getValue()
@@ -57,7 +59,7 @@ export class AIService {
         if (agent.providerId.startsWith('custom:')) {
           if (!agent.baseURL) throw new Error(`${agent.providerLabel} requires a baseURL`)
           return createOpenAICompatible({
-            name: agent.providerId,
+            name: getOpenAICompatibleProviderName(agent),
             baseURL: agent.baseURL,
             apiKey: agent.apiKey,
           })(agent.model)
@@ -70,6 +72,7 @@ export class AIService {
     const { fullStream } = await streamText({
       model: this.createModel(agent),
       messages,
+      providerOptions: getRequestProviderOptions(agent),
       maxRetries: 0,
       abortSignal: options.abortSignal,
       timeout: {
@@ -219,6 +222,27 @@ function looksLikeBlockStream(buffer: string) {
 
 function getStreamPartText(part: { text?: string; delta?: string }) {
   return typeof part.text === 'string' ? part.text : part.delta || ''
+}
+
+function getRequestProviderOptions(agent: AiAgentApiKey): StreamTextProviderOptions | undefined {
+  if (!agent.providerId.startsWith('custom:') || !agent.providerOptions) return undefined
+  const options = agent.providerOptions
+  if (!Object.keys(options).length) return undefined
+
+  const providerName = getOpenAICompatibleProviderName(agent)
+  if (options[providerName] || options.openaiCompatible || options['openai-compatible']) {
+    return options as StreamTextProviderOptions
+  }
+
+  return {
+    [providerName]: options,
+  } as StreamTextProviderOptions
+}
+
+function getOpenAICompatibleProviderName(agent: AiAgentApiKey) {
+  const label = agent.providerLabel.trim().toLowerCase()
+  if (label && label !== 'custom') return label.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'custom'
+  return 'custom'
 }
 
 function buildOutputBlockSystemPrompt(language: string) {

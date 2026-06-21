@@ -76,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Popover invisible in light mode**: selection popover colors now use theme tokens instead of hardcoded white-on-dark classes, so light and dark themes both remain readable.
 - **Dark overlay border fatigue**: reduced dark-mode hairline contrast and removed default overlay shadows across options sections, popovers, tooltips, dropdowns, form controls, sheet frame, toast, and the selection popover.
 - **Custom provider endpoint handling**: user-defined custom providers follow the same OpenAI-compatible base URL path as GLM and Kimi, using Vercel AI SDK instead of custom SSE glue.
+- **AI SDK v7 beta migration**: the built-in providers now use AI SDK v7 beta packages, and custom providers can persist arbitrary `providerOptions` JSON that is merged into the request body at runtime.
 - **Options initial save toasts**: opening the options page no longer triggers "Prompt template saved" or "Highlight style saved" before the user edits anything.
 - **Selection popover dismissed on query click**: added `isVocabifyUiEvent` guard to the `mouseup` listener.
 - **Saved-word hover flicker**: saved-word hover no longer triggers the text-selection operation popover at the viewport origin, and preview content remains open while the pointer moves from the highlighted word onto the card.
