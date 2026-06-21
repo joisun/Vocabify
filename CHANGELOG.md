@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dashboard review actions**: review cards now support edit, pronunciation, and AI redefinition with streamed status, persisted refreshed explanations, silent refresh, a fixed-height card layout, external review controls, and bidirectional card transitions.
 - **Dashboard wordlist focus**: the Dashboard wordlist has Due and lazy-loaded All tabs; Due entries open review mode, All entries open detail mode, and the All tab uses React Virtuoso virtualization while keeping focus synced with the active card and memory curve.
 - **Import / Export center**: Dashboard now exports full JSON backups, spreadsheet CSV, and Anki CSV, and supports strict schema-v2 JSON overwrite import with dry-run validation and automatic pre-import backup.
+- **Configurable speech**: pronunciation now uses shared speech settings with Browser TTS as the default, optional client-side Edge TTS synthesis, a user-controlled Browser fallback checkbox, explicit `wss://speech.platform.bing.com/*` host access for Edge audio synthesis, and example-sentence playback in the popover, wordlist sheet, and Dashboard review card.
+- **Edge TTS execution boundary**: Edge synthesis and audio playback now run from an extension offscreen document, with a narrow dynamic DNR rule that rewrites the Edge TTS WebSocket `User-Agent` to an Edge UA. This avoids both the page-origin `403` handshake failure and page CSP blocking `blob:` media playback.
 
 ### Changed
 - Brand accent and app icon now use the leaf-green palette (`#2ECC71`, `#27AE60`, `#15803D`) across theme tokens, generated toolbar icons, and the shared SVG icon component.
@@ -48,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI prompting now uses an internal block-stream contract instead of exposing output format control to the user prompt; the final record shape still validates against the same `VocabResponse` schema before persistence.
 - Theme provider now uses the extension-wide `vocabify-theme` storage key (previously `vite-ui-theme` in options, separate page-local state in content script).
 - Highlight settings now use a simpler v2 structure with direct per-level `NEW` / `LEARNING` / `FAMILIAR` / `MASTERED` styles and per-level page visibility.
+- Pronunciation buttons now show a local `loader-circle` spinner while word or example speech is starting or playing.
+- Speech settings now live in a dedicated Options card, default to Edge TTS with Aria English US, and restrict Edge voices to selectable presets.
 
 ### Fixed
 - **Rough streaming preview**: removed raw chunk / JSON text from the selection popover. Streaming now renders as a field-level structured card while provider reasoning stays hidden.
@@ -77,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dark overlay border fatigue**: reduced dark-mode hairline contrast and removed default overlay shadows across options sections, popovers, tooltips, dropdowns, form controls, sheet frame, toast, and the selection popover.
 - **Custom provider endpoint handling**: user-defined custom providers follow the same OpenAI-compatible base URL path as GLM and Kimi, using Vercel AI SDK instead of custom SSE glue.
 - **AI SDK v7 beta migration**: the built-in providers now use AI SDK v7 beta packages, and custom providers can persist arbitrary `providerOptions` JSON that is merged into the request body at runtime.
+- **AI SDK v7 prompt compatibility**: internal Vocabify system prompts are now sent through `instructions` instead of `messages`, fixing lookup failures from providers that reject system messages in message arrays.
 - **Options initial save toasts**: opening the options page no longer triggers "Prompt template saved" or "Highlight style saved" before the user edits anything.
 - **Selection popover dismissed on query click**: added `isVocabifyUiEvent` guard to the `mouseup` listener.
 - **Saved-word hover flicker**: saved-word hover no longer triggers the text-selection operation popover at the viewport origin, and preview content remains open while the pointer moves from the highlighted word onto the card.
@@ -91,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Wordlist redefine streaming**: sheet reload now uses the same `ai-stream` hook as the popover, showing partial structured output and inline errors instead of waiting silently for completion.
 - **Single-word redefine shape**: AI results can no longer force a single selected word into `phrase` translation-only display; only multi-word selections use phrase mode.
 - **Reasoning-model blank state**: lookup cards no longer appear idle while a provider emits only reasoning tokens before final content; an inline Thinking status appears during streaming and disappears after streaming finishes.
+- **Edge TTS multilingual voices**: SSML now uses the selected voice locale instead of hardcoded `en-US`, fixing empty-audio responses for Korean, Chinese, Japanese, and UK voices.
 
 ### Removed
 - Multi-provider failover, provider drag-and-drop ordering, and unused provider SDK dependencies for xAI, Groq, Mistral, Cohere, Fireworks, Together.ai, Cerebras, Perplexity, and DeepInfra.

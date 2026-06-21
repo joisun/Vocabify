@@ -215,6 +215,74 @@ export const translationRevealMode = storage.defineItem<TranslationRevealMode>('
   fallback: 'hover',
 })
 
+export type SpeechProvider = 'browser' | 'edge'
+
+export type SpeechSettings = {
+  provider: SpeechProvider
+  edgeVoice: string
+  rate: number
+  pitch: number
+  volume: number
+  fallbackToBrowser: boolean
+}
+
+export const DEFAULT_EDGE_TTS_VOICE = 'en-US-AriaNeural'
+
+export const EDGE_TTS_VOICES = [
+  { value: DEFAULT_EDGE_TTS_VOICE, label: 'Aria · English US', locale: 'en-US' },
+  { value: 'en-US-JennyNeural', label: 'Jenny · English US', locale: 'en-US' },
+  { value: 'en-US-GuyNeural', label: 'Guy · English US', locale: 'en-US' },
+  { value: 'en-GB-SoniaNeural', label: 'Sonia · English UK', locale: 'en-GB' },
+  { value: 'zh-CN-XiaoxiaoNeural', label: 'Xiaoxiao · Chinese', locale: 'zh-CN' },
+  { value: 'zh-CN-YunxiNeural', label: 'Yunxi · Chinese', locale: 'zh-CN' },
+  { value: 'ja-JP-NanamiNeural', label: 'Nanami · Japanese', locale: 'ja-JP' },
+  { value: 'ko-KR-SunHiNeural', label: 'SunHi · Korean', locale: 'ko-KR' },
+] as const
+
+export function getEdgeTtsVoiceLocale(voice: string) {
+  return EDGE_TTS_VOICES.find((item) => item.value === voice)?.locale || 'en-US'
+}
+
+export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
+  provider: 'edge',
+  edgeVoice: DEFAULT_EDGE_TTS_VOICE,
+  rate: 1,
+  pitch: 1,
+  volume: 1,
+  fallbackToBrowser: true,
+}
+
+export const speechSettings = storage.defineItem<SpeechSettings>('local:speechSettings', {
+  fallback: DEFAULT_SPEECH_SETTINGS,
+})
+
+export function normalizeSpeechSettings(value?: Partial<SpeechSettings> | null): SpeechSettings {
+  const base = value || {}
+  return {
+    provider: base.provider === 'edge' ? 'edge' : 'browser',
+    edgeVoice: normalizeEdgeVoice(base.edgeVoice),
+    rate: clampRange(base.rate, 0.5, 2, DEFAULT_SPEECH_SETTINGS.rate),
+    pitch: clampRange(base.pitch, 0.5, 2, DEFAULT_SPEECH_SETTINGS.pitch),
+    volume: clampRange(base.volume, 0, 1, DEFAULT_SPEECH_SETTINGS.volume),
+    fallbackToBrowser: typeof base.fallbackToBrowser === 'boolean'
+      ? base.fallbackToBrowser
+      : DEFAULT_SPEECH_SETTINGS.fallbackToBrowser,
+  }
+}
+
+function normalizeEdgeVoice(value: unknown) {
+  if (typeof value !== 'string') return DEFAULT_EDGE_TTS_VOICE
+  const trimmed = value.trim()
+  return EDGE_TTS_VOICES.some((voice) => voice.value === trimmed)
+    ? trimmed
+    : DEFAULT_EDGE_TTS_VOICE
+}
+
+function clampRange(value: unknown, min: number, max: number, fallback: number) {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? Math.max(min, Math.min(max, numeric)) : fallback
+}
+
 export const themePreference = storage.defineItem<ThemePreference>('local:vocabify-theme', {
   fallback: 'system',
 })

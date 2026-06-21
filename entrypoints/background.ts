@@ -18,6 +18,12 @@ import {
   updateRecordFields,
 } from '@/lib/vocabifyDb'
 
+const EDGE_TTS_DNR_RULE_ID = 10_001
+const EDGE_TTS_CHROMIUM_FULL_VERSION = '143.0.3650.75'
+const EDGE_TTS_CHROMIUM_MAJOR_VERSION = EDGE_TTS_CHROMIUM_FULL_VERSION.split('.')[0]
+const EDGE_TTS_USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${EDGE_TTS_CHROMIUM_MAJOR_VERSION}.0.0.0 Safari/537.36 Edg/${EDGE_TTS_CHROMIUM_MAJOR_VERSION}.0.0.0`
+const EDGE_TTS_URL_FILTER = '|wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1'
+
 export default defineBackground(() => {
   console.log('Vocabify background started', { id: browser.runtime.id })
 
@@ -28,6 +34,21 @@ export default defineBackground(() => {
 
   onMessage('openOptionsPage', async () => {
     await chrome.runtime.openOptionsPage()
+    return { status: 'ok' as const }
+  })
+
+  onMessage('edgeTtsSpeak', async ({ data }) => {
+    await ensureEdgeTtsHeaderRule()
+    await ensureOffscreenDocument()
+    const response = await chrome.runtime.sendMessage({
+      id: `edge-tts-${Date.now()}`,
+      type: 'edgeTtsOffscreenSpeak',
+      data,
+      timestamp: Date.now(),
+    })
+    if (!response || response.status !== 'ok') {
+      throw new Error(response?.error || 'Edge TTS playback failed')
+    }
     return { status: 'ok' as const }
   })
 
@@ -292,4 +313,64 @@ async function readGitHubJson(response: Response) {
     throw new Error(`GitHub request failed: ${message}`)
   }
   return data
+}
+
+let offscreenDocumentPromise: Promise<void> | null = null
+let edgeTtsHeaderRulePromise: Promise<void> | null = null
+
+async function ensureEdgeTtsHeaderRule() {
+  if (edgeTtsHeaderRulePromise) return edgeTtsHeaderRulePromise
+  edgeTtsHeaderRulePromise = (async () => {
+    const dnrApi = chrome.declarativeNetRequest
+    if (!dnrApi) {
+      throw new Error('Declarative Net Request API is not available in this browser')
+    }
+    await dnrApi.updateDynamicRules({
+      removeRuleIds: [EDGE_TTS_DNR_RULE_ID],
+      addRules: [
+        {
+          id: EDGE_TTS_DNR_RULE_ID,
+          priority: 1,
+          action: {
+            type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+            requestHeaders: [
+              {
+                header: 'user-agent',
+                operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+                value: EDGE_TTS_USER_AGENT,
+              },
+            ],
+          },
+          condition: {
+            urlFilter: EDGE_TTS_URL_FILTER,
+            resourceTypes: [chrome.declarativeNetRequest.ResourceType.WEBSOCKET],
+          },
+        },
+      ],
+    })
+  })().finally(() => {
+    edgeTtsHeaderRulePromise = null
+  })
+  return edgeTtsHeaderRulePromise
+}
+
+async function ensureOffscreenDocument() {
+  if (offscreenDocumentPromise) return offscreenDocumentPromise
+  offscreenDocumentPromise = (async () => {
+    const offscreenUrl = chrome.runtime.getURL('offscreen.html')
+    const offscreenApi = chrome.offscreen
+    if (!offscreenApi) {
+      throw new Error('Offscreen API is not available in this browser')
+    }
+    const hasDocument = await offscreenApi.hasDocument().catch(() => false)
+    if (hasDocument) return
+    await offscreenApi.createDocument({
+      url: offscreenUrl,
+      reasons: [chrome.offscreen.Reason.AUDIO_PLAYBACK],
+      justification: 'Synthesize Edge TTS audio and keep playback isolated from content scripts.',
+    })
+  })().finally(() => {
+    offscreenDocumentPromise = null
+  })
+  return offscreenDocumentPromise
 }

@@ -8,8 +8,11 @@ export default defineConfig({
     action: {
       default_title: "Click to open panel",
     },
-    host_permissions: ["*://*/*"],
-    permissions: ["storage", "identity"],
+    host_permissions: [
+      "*://*/*",
+      "wss://speech.platform.bing.com/*",
+    ],
+    permissions: ["storage", "identity", "offscreen", "declarativeNetRequestWithHostAccess"],
   },
   dev: {
     server: {

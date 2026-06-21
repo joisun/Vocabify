@@ -14,11 +14,16 @@ import type { FamiliarityLevel } from '@/lib/familiarity'
 import { cn } from '@/lib/utils'
 import {
   HIGHLIGHT_LEVELS,
+  EDGE_TTS_VOICES,
   hightlightStyle,
   normalizeHighlightStyleSettings,
   type HighlightLevelStyleSettings,
   type HighlightStyleBase,
   type highlightStyleSettingsType,
+  normalizeSpeechSettings,
+  speechSettings,
+  type SpeechProvider,
+  type SpeechSettings,
   translationRevealMode,
   type TranslationRevealMode,
 } from '@/utils/storage'
@@ -38,6 +43,134 @@ export default function UserInterfaceSettings() {
       <TranslationRevealSetter />
       <HighlightStyleSetter />
     </OptionSection>
+  )
+}
+
+export function SpeechSettingsSection() {
+  return (
+    <OptionSection
+      id="speech"
+      title="Speech"
+    >
+      <SpeechSettingsSetter />
+    </OptionSection>
+  )
+}
+
+const SpeechSettingsSetter = () => {
+  const hydratedRef = useRef(false)
+  const [settings, setSettings] = useState<SpeechSettings>(() => normalizeSpeechSettings())
+
+  useEffect(() => {
+    speechSettings.getValue().then((value) => {
+      setSettings(normalizeSpeechSettings(value))
+      hydratedRef.current = true
+    })
+  }, [])
+
+  function update(patch: Partial<SpeechSettings>) {
+    setSettings((prev) => {
+      const next = normalizeSpeechSettings({ ...prev, ...patch })
+      if (hydratedRef.current) {
+        speechSettings.setValue(next).catch((error) => console.error('Speech settings save failed:', error))
+      }
+      return next
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-4">
+        <Label className="text-[13px] font-medium">Speech provider</Label>
+        <div className="w-48">
+          <Select value={settings.provider} onValueChange={(value) => update({ provider: value as SpeechProvider })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="browser">Browser TTS</SelectItem>
+                <SelectItem value="edge">Edge TTS</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {settings.provider === 'edge' ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FieldRow label="Edge voice">
+            <Select value={settings.edgeVoice} onValueChange={(value) => update({ edgeVoice: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {EDGE_TTS_VOICES.map((voice) => (
+                    <SelectItem key={voice.value} value={voice.value}>{voice.label}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldRow>
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <FieldRow label="Rate">
+          <Select value={String(settings.rate)} onValueChange={(value) => update({ rate: Number(value) })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="0.75">Slow</SelectItem>
+                <SelectItem value="1">Normal</SelectItem>
+                <SelectItem value="1.25">Fast</SelectItem>
+                <SelectItem value="1.5">Faster</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+
+        <FieldRow label="Pitch">
+          <Select value={String(settings.pitch)} onValueChange={(value) => update({ pitch: Number(value) })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="0.85">Low</SelectItem>
+                <SelectItem value="1">Normal</SelectItem>
+                <SelectItem value="1.15">High</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+
+        <FieldRow label="Volume">
+          <Select value={String(settings.volume)} onValueChange={(value) => update({ volume: Number(value) })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="0.5">50%</SelectItem>
+                <SelectItem value="0.75">75%</SelectItem>
+                <SelectItem value="1">100%</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+      </div>
+
+      {settings.provider === 'edge' ? (
+        <label className="flex items-center gap-2">
+          <Checkbox
+            className="rounded-sm"
+            checked={settings.fallbackToBrowser}
+            onCheckedChange={(checked: boolean) => update({ fallbackToBrowser: checked })}
+          />
+          <span className="cursor-pointer text-[12px] font-medium leading-none">
+            Fallback to Browser TTS when Edge fails
+          </span>
+        </label>
+      ) : null}
+    </div>
   )
 }
 

@@ -1,21 +1,22 @@
 import * as React from 'react'
 import MockLoading from '@/components/custom/MockLoading'
-import { Brush, Key, Languages, LayoutDashboard, Moon, Sun, Wand2, Monitor } from 'lucide-react'
+import { Brush, Key, Languages, LayoutDashboard, Moon, Sun, Wand2, Monitor, Volume2 } from 'lucide-react'
 import ApiKeysConfigComponent from './components/ApiKeysConfigComponent'
 import PromptTemplate from './components/PromptTemplate'
 import TargetLanguageSetting from './components/TargetLanguageSetting'
-import UserInterfaceSettings from './components/UserInterfaceSettings'
+import UserInterfaceSettings, { SpeechSettingsSection } from './components/UserInterfaceSettings'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/custom/theme-provider'
 import { cn } from '@/lib/utils'
 import VocabifySvgIcon from '@/components/custom/VocabifySvgIcon'
 
-type SectionId = 'providers' | 'language' | 'prompt' | 'appearance'
+type SectionId = 'providers' | 'language' | 'prompt' | 'speech' | 'appearance'
 
 const NAV: Array<{ id: SectionId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'providers', label: 'Providers', icon: Key },
   { id: 'language', label: 'Target language', icon: Languages },
   { id: 'prompt', label: 'Prompt template', icon: Wand2 },
+  { id: 'speech', label: 'Speech', icon: Volume2 },
   { id: 'appearance', label: 'Appearance', icon: Brush },
 ]
 
@@ -107,6 +108,7 @@ function App() {
               <ApiKeysConfigComponent />
               <TargetLanguageSetting />
               <PromptTemplate />
+              <SpeechSettingsSection />
               <UserInterfaceSettings />
             </div>
           </main>

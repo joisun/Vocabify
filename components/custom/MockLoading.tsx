@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react"
 import VocabifySvgIcon from "./VocabifySvgIcon.tsx"
 
 export default function MockLoading() {

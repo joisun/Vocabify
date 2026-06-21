@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, Brain, Check, Copy, Edit3, Eye, HelpCircle,
-  Plus, RefreshCw, Search, Trash2, Volume2, X,
+  LoaderCircle, Plus, RefreshCw, Search, Trash2, Volume2, X,
 } from 'lucide-react'
 import { NO_SELECTION_CONTAINER } from '@/const'
 import {
@@ -41,6 +41,8 @@ export type SelectionRect = {
 }
 
 export type PopoverMode = 'operation-bar' | 'card' | 'edit'
+type SpeakHandler = () => void | Promise<void>
+type SpeakTextHandler = (text: string) => void | Promise<void>
 
 export interface SelectionPopoverProps {
   open: boolean
@@ -71,7 +73,8 @@ export interface SelectionPopoverProps {
   onDelete?: () => void
   onRetry?: () => void
   onRedefine?: () => void
-  onSpeak?: () => void
+  onSpeak?: SpeakHandler
+  onSpeakText?: SpeakTextHandler
 
   onEditCommit?: (next: EditableFields) => void
   onEditCancel?: () => void
@@ -99,7 +102,8 @@ export interface SavedWordPopoverProps {
   onRetry?: () => void
   onRedefine?: () => void
   redefining?: boolean
-  onSpeak?: () => void
+  onSpeak?: SpeakHandler
+  onSpeakText?: SpeakTextHandler
 }
 
 export function SelectionPopover(props: SelectionPopoverProps) {
@@ -173,6 +177,7 @@ export function SelectionPopover(props: SelectionPopoverProps) {
             onRedefine={props.onRedefine}
             redefining={props.redefining}
             onSpeak={props.onSpeak}
+            onSpeakText={props.onSpeakText}
             onDismiss={onDismiss}
             hasReceivedChunk={props.hasReceivedChunk}
             hasReceivedReasoning={props.hasReceivedReasoning}
@@ -213,6 +218,7 @@ export function SavedWordPopover({
   onRedefine,
   redefining,
   onSpeak,
+  onSpeakText,
 }: SavedWordPopoverProps) {
   return (
     <Popover open={open}>
@@ -271,6 +277,7 @@ export function SavedWordPopover({
             onRedefine={onRedefine}
             redefining={redefining}
             onSpeak={onSpeak}
+            onSpeakText={onSpeakText}
             onDismiss={onDismiss}
             hasReceivedChunk={hasReceivedChunk}
             hasReceivedReasoning={hasReceivedReasoning}
@@ -350,7 +357,7 @@ function OperationBar({
 function Card({
   record, streaming, errorMessage, savedRecord,
   selectionText,
-  onSave, onMark, onEnterEdit, onDelete, onRetry, onRedefine, onSpeak, onDismiss,
+  onSave, onMark, onEnterEdit, onDelete, onRetry, onRedefine, onSpeak, onSpeakText, onDismiss,
   hasReceivedChunk, retryInfo, redefining,
   hasReceivedReasoning,
 }: {
@@ -366,7 +373,8 @@ function Card({
   onDelete?: () => void
   onRetry?: () => void
   onRedefine?: () => void
-  onSpeak?: () => void
+  onSpeak?: SpeakHandler
+  onSpeakText?: SpeakTextHandler
   onDismiss: () => void
   hasReceivedChunk?: boolean
   hasReceivedReasoning?: boolean
@@ -393,6 +401,17 @@ function Card({
   })
   const showMnemonic = !!mnemonic && !isPhrase
   const [translationMode, setTranslationMode] = React.useState<TranslationRevealMode>('hover')
+  const [speaking, setSpeaking] = React.useState(false)
+
+  async function handleSpeakClick() {
+    if (!onSpeak || speaking) return
+    setSpeaking(true)
+    try {
+      await onSpeak()
+    } finally {
+      setSpeaking(false)
+    }
+  }
 
   React.useEffect(() => {
     let mounted = true
@@ -428,8 +447,19 @@ function Card({
               </button>
             )}
             {onSpeak && (
-              <button type="button" onClick={onSpeak} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" aria-label="Pronounce" title="Pronounce">
-                <Volume2 className="h-3.5 w-3.5" />
+              <button
+                type="button"
+                onClick={() => void handleSpeakClick()}
+                disabled={speaking}
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-65"
+                aria-label="Pronounce"
+                title="Pronounce"
+              >
+                {speaking ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
               </button>
             )}
             <button type="button" onClick={onDismiss} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" aria-label="Dismiss">
@@ -485,7 +515,14 @@ function Card({
             ) : hasSenses ? (
               <div className="space-y-1.5 py-1" data-testid="vocabify-stream-senses">
                 {displaySenses.map((sense, i) => (
-                  <SenseRow key={i} index={i} sense={sense} streaming={streaming} translationMode={translationMode} />
+                  <SenseRow
+                    key={i}
+                    index={i}
+                    sense={sense}
+                    streaming={streaming}
+                    translationMode={translationMode}
+                    onSpeakText={onSpeakText}
+                  />
                 ))}
               </div>
             ) : isBuildingResult ? (
@@ -526,15 +563,29 @@ function SenseRow({
   sense,
   streaming,
   translationMode,
+  onSpeakText,
 }: {
   index: number
   sense: { definition?: string; example?: string; exampleTranslation?: string }
   streaming?: boolean
   translationMode: TranslationRevealMode
+  onSpeakText?: SpeakTextHandler
 }) {
   const num = `①②③`[index] || `${index + 1}`
   const [revealed, setRevealed] = React.useState(false)
+  const [speakingExample, setSpeakingExample] = React.useState(false)
   const showTranslation = translationMode === 'always' || revealed
+
+  async function handleExampleSpeak() {
+    if (!sense.example || !onSpeakText || speakingExample) return
+    setSpeakingExample(true)
+    try {
+      await onSpeakText(sense.example)
+    } finally {
+      setSpeakingExample(false)
+    }
+  }
+
   return (
     <div className="rounded border border-border/40 bg-card px-2.5 py-1.5 animate-fade-in dark:border-white/[0.04]">
       <div className="flex items-baseline gap-1.5">
@@ -542,7 +593,27 @@ function SenseRow({
         <p className="text-[12px] leading-relaxed text-foreground" data-testid="vocabify-stream-definition">{sense.definition || (streaming ? <Skeleton width={140} /> : null)}</p>
       </div>
       {(sense.example || streaming) && (
-        <p className="mt-1 text-[11px] italic leading-relaxed text-muted-foreground" data-testid="vocabify-stream-example">"{sense.example || (streaming ? <Skeleton width={180} /> : '')}"</p>
+        <div className="mt-1 flex items-start gap-1.5">
+          <p className="min-w-0 flex-1 text-[11px] italic leading-relaxed text-muted-foreground" data-testid="vocabify-stream-example">
+            "{sense.example || (streaming ? <Skeleton width={180} /> : '')}"
+          </p>
+          {sense.example && onSpeakText ? (
+            <button
+              type="button"
+              className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-secondary hover:text-foreground"
+              aria-label="Pronounce example"
+              title="Pronounce example"
+              disabled={speakingExample}
+              onClick={() => void handleExampleSpeak()}
+            >
+              {speakingExample ? (
+                <LoaderCircle className="h-3 w-3 animate-spin" />
+              ) : (
+                <Volume2 className="h-3 w-3" />
+              )}
+            </button>
+          ) : null}
+        </div>
       )}
       {sense.exampleTranslation && (
         <div className="mt-0.5 flex items-start gap-1.5">

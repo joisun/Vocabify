@@ -86,6 +86,14 @@ export interface ProtocolMap {
     records: Array<Partial<VocabRecord>>
     tombstones: Array<Partial<VocabTombstone>>
   }): { recordCount: number; tombstoneCount: number }
+
+  edgeTtsSpeak(data: {
+    text: string
+    voice: string
+    rate: number
+    pitch: number
+    volume: number
+  }): { status: 'ok' }
 }
 
 export type RuntimeMessage =

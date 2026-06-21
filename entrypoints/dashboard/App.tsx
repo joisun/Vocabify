@@ -8,6 +8,7 @@ import {
   Edit3,
   Github,
   Import,
+  LoaderCircle,
   Monitor,
   Moon,
   RotateCcw,
@@ -50,6 +51,7 @@ import { FAMILIARITY_LEVELS, getLevel, levelClassSuffix, type FamiliarityLevel, 
 import type { DashboardQueueItem, DashboardSnapshot } from '@/lib/dashboard'
 import { cn } from '@/lib/utils'
 import { useAIStream } from '@/lib/aiStreamClient'
+import { speakText } from '@/lib/speech'
 import type { VocabResponse } from '@/lib/aiSchema'
 import { responseToRecordPatch, type VocabRecord } from '@/lib/vocabTypes'
 import {
@@ -87,6 +89,8 @@ type DashboardFocus = {
 }
 
 type ReviewCardDirection = -1 | 1
+type SpeakHandler = () => void | Promise<void>
+type SpeakTextHandler = (text: string) => void | Promise<void>
 
 const reviewCardVariants = {
   enter: (direction: ReviewCardDirection) => ({
@@ -681,6 +685,7 @@ function ReviewPanel({
                 hasReceivedReasoning={aiStream.hasReceivedReasoning}
                 onRedefine={redefineCurrent}
                 onSpeak={() => speakText(displayReviewItem.term)}
+                onSpeakText={(text) => speakText(text)}
                 onEdit={() => {
                   setRevealed(true)
                   setEditing(true)
@@ -742,6 +747,7 @@ function ReviewCard({
   hasReceivedReasoning,
   onRedefine,
   onSpeak,
+  onSpeakText,
   onEdit,
   onCancelEdit,
   onCommitEdit,
@@ -759,7 +765,8 @@ function ReviewCard({
   hasReceivedChunk: boolean
   hasReceivedReasoning: boolean
   onRedefine: () => void
-  onSpeak: () => void
+  onSpeak: SpeakHandler
+  onSpeakText: SpeakTextHandler
   onEdit: () => void
   onCancelEdit: () => void
   onCommitEdit: (fields: EditableFields) => void
@@ -772,6 +779,17 @@ function ReviewCard({
     hasReceivedReasoning,
     hasSenses: false,
   })
+  const [speaking, setSpeaking] = React.useState(false)
+
+  async function handleSpeakClick() {
+    if (speaking) return
+    setSpeaking(true)
+    try {
+      await onSpeak()
+    } finally {
+      setSpeaking(false)
+    }
+  }
 
   return (
     <Card className="h-full overflow-hidden border-primary/20 bg-card">
@@ -805,11 +823,12 @@ function ReviewCard({
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={onSpeak}
+              onClick={() => void handleSpeakClick()}
+              disabled={speaking}
               aria-label={`Pronounce ${item.term}`}
               title="Pronounce"
             >
-              <Volume2 />
+              {speaking ? <LoaderCircle className="animate-spin" /> : <Volume2 />}
             </Button>
             <Button
               variant="ghost"
@@ -897,7 +916,7 @@ function ReviewCard({
               />
             ) : null}
             <div className="vocabify-fade-scroll min-h-0 flex-1 overflow-y-auto pr-1">
-              <VocabDefinition item={item} />
+              <VocabDefinition item={item} onSpeakText={onSpeakText} />
             </div>
           </motion.div>
         ) : (
@@ -940,8 +959,20 @@ function ReviewActionBar({
   )
 }
 
-function VocabDefinition({ item }: { item: DashboardQueueItem }) {
+function VocabDefinition({ item, onSpeakText }: { item: DashboardQueueItem; onSpeakText: SpeakTextHandler }) {
   const isPhrase = item.pos === 'phrase'
+  const [speakingExampleKey, setSpeakingExampleKey] = React.useState<string | null>(null)
+
+  async function handleExampleSpeak(text: string, key: string) {
+    if (speakingExampleKey) return
+    setSpeakingExampleKey(key)
+    try {
+      await onSpeakText(text)
+    } finally {
+      setSpeakingExampleKey(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
@@ -963,7 +994,24 @@ function VocabDefinition({ item }: { item: DashboardQueueItem }) {
             {sense.definition}
           </p>
           {sense.example ? (
-            <p className="mt-1 text-[12px] italic leading-relaxed text-muted-foreground">"{sense.example}"</p>
+            <div className="mt-1 flex items-start gap-1.5">
+              <p className="min-w-0 flex-1 text-[12px] italic leading-relaxed text-muted-foreground">"{sense.example}"</p>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => void handleExampleSpeak(sense.example || '', `${sense.id || index}`)}
+                disabled={!!speakingExampleKey}
+                aria-label="Pronounce example"
+                title="Pronounce example"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              >
+                {speakingExampleKey === `${sense.id || index}` ? (
+                  <LoaderCircle className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Volume2 className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
           ) : null}
           {sense.exampleTranslation ? (
             <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground/85">{sense.exampleTranslation}</p>
@@ -1381,16 +1429,6 @@ function updateSessionItem(
   return {
     ...session,
     items: session.items.map((item) => (getDashboardItemKey(item) === key ? update(item) : item)),
-  }
-}
-
-function speakText(text: string) {
-  try {
-    const utterance = new SpeechSynthesisUtterance(text)
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(utterance)
-  } catch (error) {
-    console.error('Dashboard pronunciation failed:', error)
   }
 }
 

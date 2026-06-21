@@ -28,6 +28,7 @@ import { NO_SELECTION_CONTAINER } from '@/const'
 import { checkIsDisabled, copyHandler } from './utils'
 import { useAIStream } from './useAIStream'
 import { THEME_STORAGE_KEY, resolveStoredEffectiveTheme } from '@/lib/theme'
+import { speakText } from '@/lib/speech'
 
 async function applyThemeClass(...targets: Array<HTMLElement | null>) {
   const effective = await resolveStoredEffectiveTheme()
@@ -286,15 +287,15 @@ export default defineContentScript({
         dismiss()
       }
 
-      function handleSpeak() {
+      async function handleSpeak() {
         const text = savedRecord?.term || popoverState?.selectionText || cardRecord?.term
         if (!text) return
-        speakText(text)
+        await speakText(text)
       }
 
-      function handleHoverSpeak() {
+      async function handleHoverSpeak() {
         if (!hoverRecord?.term) return
-        speakText(hoverRecord.term)
+        await speakText(hoverRecord.term)
       }
 
       function handleRedefine(kind: RedefineTarget['kind'], record: VocabRecord | null) {
@@ -317,14 +318,6 @@ export default defineContentScript({
         }
 
         handleQuery()
-      }
-
-      function speakText(text: string) {
-        try {
-          const u = new SpeechSynthesisUtterance(text)
-          window.speechSynthesis.cancel()
-          window.speechSynthesis.speak(u)
-        } catch {}
       }
 
       async function handleSave() {
@@ -471,6 +464,7 @@ export default defineContentScript({
             onRedefine={savedRecord?.id || popoverState?.selectionText ? handleSelectionRedefine : undefined}
             redefining={!!isSelectionRedefining}
             onSpeak={handleSpeak}
+            onSpeakText={(text) => speakText(text)}
             onEditCommit={handleEditCommit}
             onEditCancel={() => setPopoverState((s) => (s ? { ...s, mode: 'card' } : s))}
             saving={saving}
@@ -511,6 +505,7 @@ export default defineContentScript({
               onRedefine={() => handleRedefine('hover', hoverRecord)}
               redefining={isHoverStreamActive && isAiStreaming}
               onSpeak={handleHoverSpeak}
+              onSpeakText={(text) => speakText(text)}
               onDismiss={dismissSavedHover}
             />
           )}

@@ -28,9 +28,13 @@ export interface AIStreamOptions {
 }
 
 type StreamTextProviderOptions = NonNullable<Parameters<typeof streamText>[0]['providerOptions']>
+type VocabPrompt = {
+  instructions: Array<{ role: 'system'; content: string }>
+  messages: ModelMessage[]
+}
 
 export class AIService {
-  private async getMessages(text: string, sourceContext?: string): Promise<ModelMessage[]> {
+  private async getPrompt(text: string, sourceContext?: string): Promise<VocabPrompt> {
     const template = await promptTemplate.getValue()
     const language = await targetLanguage.getValue()
     const resolvedUserPrompt = template
@@ -38,11 +42,15 @@ export class AIService {
       .split(Language_Placeholder).join(language)
       .split(SourceContext_Placeholder).join(sourceContext || 'N/A')
 
-    return [
-      { role: 'system', content: buildAssistantSystemPrompt(language) },
-      { role: 'system', content: buildOutputBlockSystemPrompt(language) },
-      { role: 'user', content: resolvedUserPrompt },
-    ]
+    return {
+      instructions: [
+        { role: 'system', content: buildAssistantSystemPrompt(language) },
+        { role: 'system', content: buildOutputBlockSystemPrompt(language) },
+      ],
+      messages: [
+        { role: 'user', content: resolvedUserPrompt },
+      ],
+    }
   }
 
   private createModel(agent: AiAgentApiKey): LanguageModel {
@@ -68,10 +76,11 @@ export class AIService {
     }
   }
 
-  private async streamWithVercelSdk(agent: AiAgentApiKey, messages: ModelMessage[], options: AIStreamOptions) {
+  private async streamWithVercelSdk(agent: AiAgentApiKey, prompt: VocabPrompt, options: AIStreamOptions) {
     const { fullStream } = await streamText({
       model: this.createModel(agent),
-      messages,
+      instructions: prompt.instructions,
+      messages: prompt.messages,
       providerOptions: getRequestProviderOptions(agent),
       maxRetries: 0,
       abortSignal: options.abortSignal,
@@ -118,7 +127,7 @@ export class AIService {
 
   async streamExplanation(options: AIStreamOptions): Promise<void> {
     const agents = await getNormalizedAgents()
-    const messages = await this.getMessages(options.text, options.sourceContext)
+    const prompt = await this.getPrompt(options.text, options.sourceContext)
     const maxRetries = normalizeRetryCount(await aiMaxRetries.getValue())
 
     if (!agents.length) {
@@ -130,7 +139,7 @@ export class AIService {
     let lastError: Error | null = null
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        await this.streamWithVercelSdk(agent, messages, options)
+        await this.streamWithVercelSdk(agent, prompt, options)
         return
       } catch (error) {
         const normalized = error instanceof Error ? error : new Error(String(error))

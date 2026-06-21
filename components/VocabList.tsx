@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   AlertCircle, ArrowLeft, BookOpen, CheckCircle2, Copy, Edit3, ExternalLink, Github,
-  Loader2, LogOut, RefreshCw, Search, Trash2, Volume2,
+  Loader2, LoaderCircle, LogOut, RefreshCw, Search, Trash2, Volume2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -36,8 +36,11 @@ import { AIThinkingBlock, getStreamCharacterState } from '@/components/AIThinkin
 import type { RuntimeMessage } from '@/lib/messaging'
 import { useAIStream } from '@/lib/aiStreamClient'
 import { responseToRecordPatch } from '@/lib/vocabTypes'
+import { speakText } from '@/lib/speech'
 
 const WORDLIST_EDIT_FORM_ID = 'vocabify-wordlist-edit-form'
+type SpeakHandler = () => void | Promise<void>
+type SpeakTextHandler = (text: string) => void | Promise<void>
 
 function useVocabularyCount() {
   const [count, setCount] = useState(0)
@@ -131,16 +134,6 @@ export function VocabList() {
       setRecords((prev) => prev.filter((r) => r.id !== id))
     } catch (error) {
       console.error('Delete failed:', error)
-    }
-  }
-
-  function speak(text: string) {
-    try {
-      const u = new SpeechSynthesisUtterance(text)
-      window.speechSynthesis.cancel()
-      window.speechSynthesis.speak(u)
-    } catch (e) {
-      console.error('TTS failed:', e)
     }
   }
 
@@ -267,7 +260,8 @@ export function VocabList() {
                     hasReceivedReasoning={aiStream.hasReceivedReasoning}
                     onToggleExpanded={() => setExpanded(expanded === record.id ? null : record.id ?? null)}
                     onRedefine={() => handleRedefine(record)}
-                    onSpeak={() => speak(record.term || record.wordOrPhrase)}
+                    onSpeak={() => speakText(record.term || record.wordOrPhrase)}
+                    onSpeakText={(text) => speakText(text)}
                     onEdit={() => setEditingId(record.id ?? null)}
                     onDelete={() => record.id && handleDelete(record.id)}
                     onCurveExpandedChange={(next) => setExpandedCurveId(next ? record.id ?? null : null)}
@@ -296,6 +290,7 @@ function WordlistItem({
   onToggleExpanded,
   onRedefine,
   onSpeak,
+  onSpeakText,
   onEdit,
   onDelete,
   onCurveExpandedChange,
@@ -312,7 +307,8 @@ function WordlistItem({
   hasReceivedReasoning: boolean
   onToggleExpanded: () => void
   onRedefine: () => void
-  onSpeak: () => void
+  onSpeak: SpeakHandler
+  onSpeakText: SpeakTextHandler
   onEdit: () => void
   onDelete: () => void
   onCurveExpandedChange: (next: boolean) => void
@@ -323,12 +319,36 @@ function WordlistItem({
   const isPhrase = displayRecord.pos === 'phrase'
   const phraseTranslation = displayRecord.senses?.[0]?.definition || ''
   const hasSenses = !!displayRecord.senses?.length
+  const [speaking, setSpeaking] = useState(false)
+  const [speakingExampleKey, setSpeakingExampleKey] = useState<string | null>(null)
   const itemCharacterState = getStreamCharacterState({
     streaming: itemIsStreaming,
     hasReceivedChunk,
     hasReceivedReasoning,
     hasSenses,
   })
+
+  async function handleSpeakClick(event: React.MouseEvent) {
+    event.stopPropagation()
+    if (speaking) return
+    setSpeaking(true)
+    try {
+      await onSpeak()
+    } finally {
+      setSpeaking(false)
+    }
+  }
+
+  async function handleExampleSpeak(event: React.MouseEvent, text: string, key: string) {
+    event.stopPropagation()
+    if (speakingExampleKey) return
+    setSpeakingExampleKey(key)
+    try {
+      await onSpeakText(text)
+    } finally {
+      setSpeakingExampleKey(null)
+    }
+  }
 
   return (
     <div
@@ -376,12 +396,17 @@ function WordlistItem({
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={(e) => { e.stopPropagation(); onSpeak() }}
+              onClick={(e) => void handleSpeakClick(e)}
+              disabled={speaking}
               aria-label="Pronounce"
               title="Pronounce"
               className="h-6 w-6 text-muted-foreground hover:text-foreground"
             >
-              <Volume2 className="h-3 w-3" />
+              {speaking ? (
+                <LoaderCircle className="h-3 w-3 animate-spin" />
+              ) : (
+                <Volume2 className="h-3 w-3" />
+              )}
             </Button>
             <Button
               variant="ghost"
@@ -448,7 +473,30 @@ function WordlistItem({
                       {sense.definition}
                     </p>
                     {sense.example && (
-                      <p className="mt-0.5 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
+                      <div className="mt-0.5 flex items-start gap-1.5">
+                        <p className="min-w-0 flex-1 text-[11px] italic text-muted-foreground">"{sense.example}"</p>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={(event) => {
+                            void handleExampleSpeak(
+                              event,
+                              sense.example || '',
+                              `${(sense as { id?: string }).id || i}`,
+                            )
+                          }}
+                          disabled={!!speakingExampleKey}
+                          aria-label="Pronounce example"
+                          title="Pronounce example"
+                          className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                        >
+                          {speakingExampleKey === `${(sense as { id?: string }).id || i}` ? (
+                            <LoaderCircle className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Volume2 className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
                     )}
                     {sense.exampleTranslation && (
                       <p className="mt-0.5 text-[11px] text-muted-foreground/80">{sense.exampleTranslation}</p>
