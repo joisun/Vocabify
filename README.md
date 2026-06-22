@@ -1,9 +1,11 @@
 # Vocabify
 
-<p align="center">
-  <img src="./README.assets/banner.png" alt="Vocabify banner" width="960" />
-</p>
 Vocabify is a local-first browser extension for learning vocabulary while you read. Select a word or phrase on any webpage, get a streamed AI explanation, save it to your wordlist, and review it later with a lightweight memory score.
+
+
+<p align="center">
+  <img src="./banner.png" alt="Vocabify banner" width="960" />
+</p>
 
 ### Usage
 
@@ -21,9 +23,6 @@ https://chromewebstore.google.com/detail/vocabify/jfdeidnhmcefnjohapiemmilcglgpi
 - **Local-first storage**: vocabulary lives in extension-origin IndexedDB; GitHub sync is optional.
 - **Private sync**: sync to your own private `__Vocabify_Data_Center__` repository through GitHub Device Flow.
 
-## Roadmap
-
-See [plan.md](./plan.md) for the phased product roadmap.
 
 ## Privacy
 
@@ -34,5 +33,5 @@ Vocabulary data stays on your device by default. AI requests are sent only to th
 If Vocabify helps your reading workflow, you can support the project here:
 
 <p align="center">
-  <img src="./README.assets/buymecoffee.jpg" alt="Buy me a coffee" width="320" />
+  <img src="./buymecoffee.jpg" alt="Buy me a coffee" width="320" />
 </p>
