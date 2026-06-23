@@ -12,7 +12,7 @@ export default defineConfig({
       "*://*/*",
       "wss://speech.platform.bing.com/*",
     ],
-    permissions: ["storage", "identity", "offscreen", "declarativeNetRequestWithHostAccess"],
+    permissions: ["storage", "offscreen", "declarativeNetRequestWithHostAccess"],
   },
   dev: {
     server: {
