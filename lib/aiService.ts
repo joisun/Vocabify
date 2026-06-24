@@ -44,8 +44,13 @@ export class AIService {
 
     return {
       instructions: [
-        { role: 'system', content: buildAssistantSystemPrompt(language) },
-        { role: 'system', content: buildOutputBlockSystemPrompt(language) },
+        {
+          role: 'system',
+          content: [
+            buildAssistantSystemPrompt(language),
+            buildOutputBlockSystemPrompt(language),
+          ].join('\n\n'),
+        },
       ],
       messages: [
         { role: 'user', content: resolvedUserPrompt },

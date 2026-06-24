@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Speech settings now live in a dedicated Options card, default to Edge TTS with Aria English US, and restrict Edge voices to selectable presets.
 
 ### Fixed
+- **Spark system prompt compatibility**: AI prompting now combines internal system instructions into a single `system` instruction so OpenAI-compatible providers such as XunFei Spark do not reject later system messages.
 - **Rough streaming preview**: removed raw chunk / JSON text from the selection popover. Streaming now renders as a field-level structured card while provider reasoning stays hidden.
 - **Fine-grained streaming parser**: partial JSON parsing now extracts scalar fields and `senses[]` entries even when a provider cuts chunks inside a string, enabling per-text updates without provider-specific glue code.
 - **True field-level streaming**: block tags are parsed from the accumulated provider stream, including unclosed tag text, so visible definitions can update before a full JSON object or complete response exists.
