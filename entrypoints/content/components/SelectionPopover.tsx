@@ -510,7 +510,11 @@ function Card({
                 <AIThinkingBlock label={streamStatusLabel} state={characterState} />
               </div>
             )}
-            {isPhrase ? (
+            {isBuildingResult ? (
+              <div className="py-1.5" data-testid="vocabify-stream-building">
+                <AIThinkingBlock label="Building" state={characterState} />
+              </div>
+            ) : isPhrase ? (
               <PhraseTranslation translation={phraseTranslation} streaming={streaming} />
             ) : hasSenses ? (
               <div className="space-y-1.5 py-1" data-testid="vocabify-stream-senses">
@@ -524,10 +528,6 @@ function Card({
                     onSpeakText={onSpeakText}
                   />
                 ))}
-              </div>
-            ) : isBuildingResult ? (
-              <div className="py-1.5" data-testid="vocabify-stream-building">
-                <AIThinkingBlock label="Building" state={characterState} />
               </div>
             ) : null}
             {showMnemonic && (

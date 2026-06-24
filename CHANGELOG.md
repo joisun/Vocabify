@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Speech settings now live in a dedicated Options card, default to Edge TTS with Aria English US, and restrict Edge voices to selectable presets.
 
 ### Fixed
+- **Phrase streaming status**: phrase and sentence lookups now show the Building status after model output starts and before the first translation field is available.
 - **Default prompt phrase handling**: the default user prompt now distinguishes single-word explanations from phrase or sentence translation, reducing sub-term extraction for long selections.
 - **Spark system prompt compatibility**: AI prompting now combines internal system instructions into a single `system` instruction so OpenAI-compatible providers such as XunFei Spark do not reject later system messages.
 - **Rough streaming preview**: removed raw chunk / JSON text from the selection popover. Streaming now renders as a field-level structured card while provider reasoning stays hidden.
