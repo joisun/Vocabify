@@ -29,7 +29,7 @@ export interface AIStreamOptions {
 
 type StreamTextProviderOptions = NonNullable<Parameters<typeof streamText>[0]['providerOptions']>
 type VocabPrompt = {
-  instructions: Array<{ role: 'system'; content: string }>
+  instructions: string
   messages: ModelMessage[]
 }
 
@@ -44,14 +44,9 @@ export class AIService {
 
     return {
       instructions: [
-        {
-          role: 'system',
-          content: [
-            buildAssistantSystemPrompt(language),
-            buildOutputBlockSystemPrompt(language),
-          ].join('\n\n'),
-        },
-      ],
+        buildAssistantSystemPrompt(language),
+        buildOutputBlockSystemPrompt(language),
+      ].join('\n\n'),
       messages: [
         { role: 'user', content: resolvedUserPrompt },
       ],

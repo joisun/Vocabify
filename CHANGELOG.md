@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Speech settings now live in a dedicated Options card, default to Edge TTS with Aria English US, and restrict Edge voices to selectable presets.
 
 ### Fixed
+- **Spark prompt compatibility**: merged internal AI instructions are now passed to the AI SDK as a single instruction string, preventing OpenAI-compatible adapters from emitting multiple system messages.
 - **Dashboard review card layout**: review cards now use a leaner header, simplified progress text, full phrase titles, and unwrapped footer actions.
 - **Dashboard review queue semantics**: words added today now appear in a dedicated New stat that shows 0 when empty instead of counting as due immediately, and the loaded All list refreshes in place after dashboard refreshes or external vocabulary changes.
 - **Wordlist delete scroll position**: deleting a word from the Sheet or Dashboard All list now updates the visible list in place instead of reloading back to the top.
