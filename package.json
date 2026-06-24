@@ -2,7 +2,7 @@
   "name": "vocabify",
   "description": "manifest.json description",
   "private": true,
-  "version": "2.2.4",
+  "version": "2.2.5",
   "type": "module",
   "scripts": {
     "dev": "wxt",

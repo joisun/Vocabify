@@ -768,28 +768,17 @@ function ReviewPanel({
     }
   }
 
+  const reviewedProgressCount = Math.max(snapshot?.reviewedToday ?? 0, completedCount)
+
   return (
     <section className="flex h-full min-h-0 flex-col items-center justify-center gap-3 overflow-hidden rounded-[12px] border border-border bg-secondary/30 p-4 dark:border-white/[0.04]">
-      <div className="flex w-full max-w-2xl items-center justify-between gap-3 px-1">
-        <div>
-          <h2 className="font-display text-[16px] font-semibold tracking-tight">
-            {isReviewMode ? 'Review session' : 'Word details'}
-          </h2>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
-            {isReviewMode
-              ? 'Due words are shown one card at a time.'
-              : 'Details are shown without changing review state.'}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+      {isReviewMode ? (
+        <div className="flex w-full max-w-2xl justify-end px-1">
           <span className="rounded-[5px] bg-secondary px-2 py-1 text-[11px] text-muted-foreground">
-            {completedCount}/{reviewItems.length}
-          </span>
-          <span className="rounded-[5px] bg-secondary px-2 py-1 text-[11px] text-muted-foreground">
-            {snapshot?.reviewedToday ?? 0} today
+            {reviewedProgressCount} today / {reviewItems.length}
           </span>
         </div>
-      </div>
+      ) : null}
 
       {loading ? (
         <div className="min-h-0 w-full max-w-2xl flex-1">
@@ -910,6 +899,7 @@ function ReviewCard({
   onReset: () => void
 }) {
   const editFormId = `vocabify-review-edit-${getDashboardItemKey(item).replace(/[^a-zA-Z0-9_-]/g, '-')}`
+  const isPhrase = item.pos === 'phrase'
   const streamCharacterState = getStreamCharacterState({
     streaming: redefining,
     hasReceivedChunk,
@@ -987,7 +977,12 @@ function ReviewCard({
         </div>
 
         <div className="shrink-0 rounded-[12px] border border-border bg-secondary/30 px-5 py-6 text-center dark:border-white/[0.04]">
-          <h3 className="line-clamp-2 break-words font-display text-[clamp(28px,5vw,38px)] font-semibold leading-tight tracking-[-0.04em]">
+          <h3 className={cn(
+            'break-words font-display font-semibold',
+            isPhrase
+              ? 'whitespace-normal text-[clamp(19px,3vw,26px)] leading-snug tracking-normal'
+              : 'line-clamp-2 text-[clamp(28px,5vw,38px)] leading-tight tracking-[-0.04em]',
+          )}>
             {item.term}
           </h3>
           {item.phonetic ? <p className="mt-2 font-mono text-[13px] text-muted-foreground">{item.phonetic}</p> : null}
@@ -1079,16 +1074,14 @@ function ReviewActionBar({
 }) {
   if (!revealed) {
     return (
-      <div className="shrink-0 rounded-[10px] border border-border bg-card p-2 dark:border-white/[0.04]">
-        <Button size="lg" onClick={onReveal} disabled={disabled} className="w-full">
-          Reveal definition
-        </Button>
-      </div>
+      <Button size="lg" onClick={onReveal} disabled={disabled} className="w-full shrink-0">
+        Reveal definition
+      </Button>
     )
   }
 
   return (
-    <div className="grid shrink-0 grid-cols-3 gap-2 rounded-[10px] border border-border bg-card p-2 dark:border-white/[0.04]">
+    <div className="grid shrink-0 grid-cols-3 gap-2">
       <Button variant="outline" onClick={() => onMark('FORGET')} disabled={disabled}>Forget</Button>
       <Button variant="outline" onClick={() => onMark('FUZZY')} disabled={disabled}>Fuzzy</Button>
       <Button onClick={() => onMark('KNOW')} disabled={disabled}>Know</Button>
