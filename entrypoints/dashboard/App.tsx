@@ -16,6 +16,7 @@ import {
   Save,
   Settings,
   Sun,
+  Trash2,
   Volume2,
   X,
 } from 'lucide-react'
@@ -27,6 +28,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { RecordEditForm, type EditableFields } from '@/components/RecordEditForm'
 import {
   AlertDialog,
@@ -43,6 +45,7 @@ import {
   exportVocabularyPayload,
   getAllRecords,
   getDashboardSnapshot,
+  deleteRecordById,
   markRecord,
   replaceVocabularyPayload,
   updateRecordFields,
@@ -193,6 +196,12 @@ function App() {
             snapshot={snapshot}
             activeKey={focusedItem ? getDashboardItemKey(focusedItem) : null}
             onFocusItem={focusDashboardItem}
+            onDeleteItem={async (item) => {
+              if (focusedItem && getDashboardItemKey(focusedItem) === getDashboardItemKey(item)) {
+                setDashboardFocus(null)
+              }
+              await loadSnapshot({ silent: true })
+            }}
           />
           <ReviewPanel
             snapshot={snapshot}
@@ -281,14 +290,17 @@ function DashboardWordListPanel({
   snapshot,
   activeKey,
   onFocusItem,
+  onDeleteItem,
 }: {
   snapshot: DashboardSnapshot | null
   activeKey: string | null
   onFocusItem: (item: DashboardQueueItem, source: 'due' | 'all', direction: ReviewCardDirection) => void
+  onDeleteItem: (item: DashboardQueueItem) => Promise<void> | void
 }) {
   const [tab, setTab] = React.useState('due')
   const [allWords, setAllWords] = React.useState<DashboardQueueItem[] | null>(null)
   const [loadingAll, setLoadingAll] = React.useState(false)
+  const [deletingId, setDeletingId] = React.useState<number | null>(null)
   const lastFocusRef = React.useRef<{ source: 'due' | 'all'; index: number } | null>(null)
   const dueWords = snapshot?.reviewQueue ?? []
 
@@ -297,6 +309,20 @@ function DashboardWordListPanel({
     const direction: ReviewCardDirection = lastFocus && lastFocus.source === source && index < lastFocus.index ? -1 : 1
     lastFocusRef.current = { source, index }
     onFocusItem(item, source, direction)
+  }
+
+  async function deleteListItem(item: DashboardQueueItem) {
+    if (!item.id || deletingId) return
+    setDeletingId(item.id)
+    try {
+      await deleteRecordById(item.id)
+      setAllWords((current) => current?.filter((word) => word.id !== item.id) ?? null)
+      await onDeleteItem(item)
+    } catch (error) {
+      console.error('Dashboard delete failed:', error)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   React.useEffect(() => {
@@ -321,11 +347,6 @@ function DashboardWordListPanel({
       cancelled = true
     }
   }, [allWords, tab])
-
-  React.useEffect(() => {
-    if (tab === 'all') setAllWords(null)
-    // Regenerate lazy all-list after external vocabulary changes.
-  }, [snapshot?.generatedAt, tab])
 
   return (
     <Card className="flex min-h-0 flex-col overflow-hidden">
@@ -353,13 +374,17 @@ function DashboardWordListPanel({
             ) : allWords?.length ? (
               <Virtuoso
                 data={allWords}
-                className="h-full"
+                className="vocabify-fade-scroll h-full"
                 itemContent={(index, item) => (
-                  <DashboardWordListItem
-                    item={item}
-                    active={activeKey === getDashboardItemKey(item)}
-                    onFocusItem={() => focusListItem(item, 'all', index)}
-                  />
+                  <div className={cn('px-1.5 pb-1', index === 0 && 'pt-1', index === allWords.length - 1 && 'pb-1.5')}>
+                    <DashboardWordListItem
+                      item={item}
+                      active={activeKey === getDashboardItemKey(item)}
+                      deleting={deletingId === item.id}
+                      onFocusItem={() => focusListItem(item, 'all', index)}
+                      onDeleteItem={item.id ? () => void deleteListItem(item) : undefined}
+                    />
+                  </div>
                 )}
               />
             ) : (
@@ -390,12 +415,13 @@ function DashboardWordListItems({
   }
 
   return (
-    <div className="vocabify-fade-scroll flex h-full min-h-0 flex-col gap-1 overflow-y-auto pr-1">
+    <div className="vocabify-fade-scroll flex h-full min-h-0 flex-col gap-1 overflow-y-auto px-1.5 py-1">
       {items.map((item, index) => (
         <DashboardWordListItem
           key={getDashboardItemKey(item)}
           item={item}
           active={activeKey === getDashboardItemKey(item)}
+          deleting={false}
           onFocusItem={() => onFocusItem(item, source, index)}
         />
       ))}
@@ -406,27 +432,116 @@ function DashboardWordListItems({
 function DashboardWordListItem({
   item,
   active,
+  deleting,
   onFocusItem,
+  onDeleteItem,
 }: {
   item: DashboardQueueItem
   active: boolean
+  deleting: boolean
   onFocusItem: () => void
+  onDeleteItem?: () => void | Promise<void>
 }) {
   return (
-    <button
-      type="button"
-      onClick={onFocusItem}
+    <div
       className={cn(
-        'w-full rounded-[7px] px-2 py-2 text-left transition-colors',
+        'group flex w-full items-start gap-1 rounded-[7px] transition-colors',
         active ? 'bg-primary/10 text-foreground ring-1 ring-primary/20' : 'hover:bg-secondary/70',
       )}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <span className={`vocabify-level-dot is-${levelClassSuffix(item.level)} shrink-0`} aria-hidden />
-        <span className="truncate text-[12px] font-medium">{item.term}</span>
-      </div>
-      <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{item.definition || item.pos}</p>
-    </button>
+      <button
+        type="button"
+        onClick={onFocusItem}
+        className="min-w-0 flex-1 px-2 py-2 text-left"
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`vocabify-level-dot is-${levelClassSuffix(item.level)} shrink-0`} aria-hidden />
+          <span className="truncate text-[12px] font-medium">{item.term}</span>
+        </div>
+        <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{item.definition || item.pos}</p>
+      </button>
+      {onDeleteItem ? (
+        <div className="shrink-0 pr-1 pt-1.5">
+          <DashboardDeleteConfirm
+            label={item.term}
+            deleting={deleting}
+            onConfirm={onDeleteItem}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function DashboardDeleteConfirm({
+  label,
+  deleting,
+  onConfirm,
+}: {
+  label: string
+  deleting: boolean
+  onConfirm: () => void | Promise<void>
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  async function confirmDelete(event: React.MouseEvent) {
+    event.stopPropagation()
+    await onConfirm()
+    setOpen(false)
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          disabled={deleting}
+          aria-label={`Delete ${label}`}
+          title="Delete"
+          className="h-6 w-6 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {deleting ? <LoaderCircle className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="right"
+        sideOffset={6}
+        className="w-[210px] border-border/80 bg-background p-2.5 shadow-[0_14px_36px_rgb(0_0_0_/_0.18)] dark:border-white/[0.14] dark:bg-[#34343a] dark:shadow-[0_18px_44px_rgb(0_0_0_/_0.38)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="text-[12px] font-medium text-foreground">Delete this entry?</p>
+        <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+          Remove “{label}” from your wordlist.
+        </p>
+        <div className="mt-2 flex justify-end gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px]"
+            onClick={(event) => {
+              event.stopPropagation()
+              setOpen(false)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="h-6 px-2 text-[11px]"
+            disabled={deleting}
+            onClick={(event) => void confirmDelete(event)}
+          >
+            Delete
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 

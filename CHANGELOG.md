@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Speech settings now live in a dedicated Options card, default to Edge TTS with Aria English US, and restrict Edge voices to selectable presets.
 
 ### Fixed
+- **Wordlist delete scroll position**: deleting a word from the Sheet or Dashboard All list now updates the visible list in place instead of reloading back to the top.
+- **Dashboard all-wordlist actions**: the Dashboard Wordlist All tab now supports deleting entries and uses the same fade-scroll treatment as the Due list.
+- **Sheet delete confirmation**: wordlist item deletion in the side Sheet now uses a compact inline popover instead of a global confirmation dialog.
 - **Phrase streaming status**: phrase and sentence lookups now show the Building status after model output starts and before the first translation field is available.
 - **Default prompt phrase handling**: the default user prompt now distinguishes single-word explanations from phrase or sentence translation, reducing sub-term extraction for long selections.
 - **Spark system prompt compatibility**: AI prompting now combines internal system instructions into a single `system` instruction so OpenAI-compatible providers such as XunFei Spark do not reject later system messages.
@@ -71,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Familiarity meter display**: saved-word cards and the in-page wordlist now show familiarity as a compact 20-dot meter instead of textual tier labels.
 - **Silent familiarity actions**: Know / Fuzzy / Forget now update the score meter directly without showing a toast.
 - **Lower-contrast sense cards**: selection popover sense and translation cards now use softer hairline borders in dark mode.
-- **Wordlist delete confirmation**: sheet delete actions now sit inline with edit and require a shadcn/Radix AlertDialog confirmation before removing an entry.
+- **Wordlist delete confirmation**: sheet delete actions now sit inline with edit and require an inline confirmation before removing an entry.
 - **Wordlist edit overflow**: long edit forms now scroll inside the editor while Cancel / Save stay fixed in the editor footer.
 - **Custom highlight style application**: content highlights now read the persisted Options style and repaint when highlight settings change.
 - **Highlight style save noise**: changing highlight appearance now saves silently without showing repeated success toasts.
@@ -94,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Code-block selection isolation**: selecting text inside nested `pre` / `code` syntax-highlight spans no longer opens the Vocabify lookup operation bar.
 - **Vocabulary import tombstones**: importing data now applies newer tombstones to delete matching local records and prevents older records from reviving entries that were deleted locally.
 - **GitHub sync local consistency**: local vocabulary replacement now happens only after `syncdata.json` is successfully written to GitHub, avoiding local mutation when the remote write fails.
-- **Popover delete confirmation**: saved-word popover delete actions now use the same shadcn/Radix AlertDialog confirmation pattern as the wordlist sheet.
+- **Popover delete confirmation**: saved-word popover delete actions now use the same inline confirmation pattern as the wordlist sheet.
 - **Read-time decay writes**: wordlist/search/highlight reads now materialize Bézier decay without persisting every record, reducing IndexedDB write pressure on large vocabularies.
 - **Wordlist redefine streaming**: sheet reload now uses the same `ai-stream` hook as the popover, showing partial structured output and inline errors instead of waiting silently for completion.
 - **Single-word redefine shape**: AI results can no longer force a single selected word into `phrase` translation-only display; only multi-word selections use phrase mode.

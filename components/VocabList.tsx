@@ -4,17 +4,7 @@ import type { VocabResponse } from '@/lib/aiSchema'
 import type { VocabRecord } from '@/lib/vocabTypes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   AlertCircle, ArrowLeft, BookOpen, CheckCircle2, Copy, Edit3, ExternalLink, Github,
   Loader2, LoaderCircle, LogOut, RefreshCw, Search, Trash2, Volume2,
@@ -77,6 +67,7 @@ export function VocabList() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [redefiningId, setRedefiningId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const skipNextVocabChangedRef = useRef(false)
   const aiStream = useAIStream()
   const editingRecord = editingId == null ? null : records.find((record) => record.id === editingId) ?? null
   const isRedefining = aiStream.status === 'loading' || aiStream.status === 'streaming'
@@ -121,6 +112,10 @@ export function VocabList() {
   useEffect(() => {
     const handler = (message: RuntimeMessage) => {
       if (message.type !== 'vocabChanged') return
+      if (skipNextVocabChangedRef.current) {
+        skipNextVocabChangedRef.current = false
+        return
+      }
       void handleSearch()
     }
     chrome.runtime.onMessage.addListener(handler)
@@ -130,9 +125,11 @@ export function VocabList() {
 
   async function handleDelete(id: number) {
     try {
+      skipNextVocabChangedRef.current = true
       await deleteRecordById(id)
       setRecords((prev) => prev.filter((r) => r.id !== id))
     } catch (error) {
+      skipNextVocabChangedRef.current = false
       console.error('Delete failed:', error)
     }
   }
@@ -228,25 +225,25 @@ export function VocabList() {
           </div>
 
           {loading ? (
-            <div className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+            <div className="vocabify-fade-scroll min-h-0 flex-1 overflow-y-auto px-1.5 py-1">
               <ListSkeleton />
             </div>
           ) : records.length === 0 ? (
             <div
-              className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
+              className="vocabify-fade-scroll min-h-0 flex-1 overflow-y-auto px-1.5 py-1"
               data-testid="vocabify-wordlist-scroll"
             >
               <EmptyState hasFilter={!!searchKeyword.trim()} />
             </div>
           ) : (
             <Virtuoso
-              className="vocabify-fade-scroll -mx-1 min-h-0 flex-1 px-1"
+              className="vocabify-fade-scroll min-h-0 flex-1"
               data-testid="vocabify-wordlist-scroll"
               data={records}
               increaseViewportBy={{ top: 320, bottom: 640 }}
               computeItemKey={(_, record) => record.id ?? record.wordOrPhrase}
-              itemContent={(_, record) => (
-                <div className="pb-1.5">
+              itemContent={(index, record) => (
+                <div className={cn('px-1.5 pb-1.5', index === 0 && 'pt-1')}>
                   <WordlistItem
                     record={record}
                     displayRecord={getDisplayRecord(record)}
@@ -418,34 +415,11 @@ function WordlistItem({
             >
               <Edit3 className="h-3 w-3" />
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={`Delete ${record.wordOrPhrase}`}
-                  title="Delete"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will remove “{record.term || record.wordOrPhrase}” from your wordlist. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onDelete}>
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <InlineDeleteConfirm
+              label={record.term || record.wordOrPhrase}
+              onConfirm={onDelete}
+              triggerClassName="h-6 w-6 text-muted-foreground hover:text-destructive"
+            />
           </div>
           {displayRecord.phonetic && !isPhrase && (
             <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{displayRecord.phonetic}</p>
@@ -538,6 +512,76 @@ function WordlistItem({
         </div>
       </div>
     </div>
+  )
+}
+
+function InlineDeleteConfirm({
+  label,
+  onConfirm,
+  triggerClassName,
+}: {
+  label: string
+  onConfirm: () => void | Promise<void>
+  triggerClassName?: string
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  async function confirmDelete(event: React.MouseEvent) {
+    event.stopPropagation()
+    await onConfirm()
+    setOpen(false)
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`Delete ${label}`}
+          title="Delete"
+          className={triggerClassName}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="top"
+        sideOffset={6}
+        className="w-[220px] border-border/80 bg-background p-2.5 shadow-[0_14px_36px_rgb(0_0_0_/_0.18)] dark:border-white/[0.14] dark:bg-[#34343a] dark:shadow-[0_18px_44px_rgb(0_0_0_/_0.38)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="text-[12px] font-medium text-foreground">Delete this entry?</p>
+        <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+          Remove “{label}” from your wordlist.
+        </p>
+        <div className="mt-2 flex justify-end gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px]"
+            onClick={(event) => {
+              event.stopPropagation()
+              setOpen(false)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="h-6 px-2 text-[11px]"
+            onClick={(event) => void confirmDelete(event)}
+          >
+            Delete
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
