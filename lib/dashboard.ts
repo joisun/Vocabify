@@ -32,6 +32,7 @@ export type DashboardQueueItem = FamiliarityFields & {
 export type DashboardSnapshot = {
   generatedAt: string
   totalWords: number
+  newToday: number
   dueCount: number
   reviewedToday: number
   levelDistribution: DashboardLevelSummary[]
@@ -81,8 +82,14 @@ export function buildDashboardSnapshot({
   }
 
   const totalWords = records.length
+  const newToday = records.filter((record) => getRecordLocalDate(record.createdAt) === today).length
   const reviewedToday = records.filter((record) => record.lastReviewDate === today).length
-  const dueRecords = records.filter((record) => record.lastReviewDate !== today && record.score < FAMILIARITY_LEVELS.MASTERED.min)
+  const dueRecords = records.filter((record) => {
+    const createdDate = getRecordLocalDate(record.createdAt)
+    return createdDate !== today
+      && record.lastReviewDate !== today
+      && record.score < FAMILIARITY_LEVELS.MASTERED.min
+  })
   const toQueueItem = (record: VocabRecord): DashboardQueueItem => ({
     id: record.id,
     term: record.term,
@@ -111,6 +118,7 @@ export function buildDashboardSnapshot({
   return {
     generatedAt: new Date(now).toISOString(),
     totalWords,
+    newToday,
     dueCount: dueRecords.length,
     reviewedToday,
     levelDistribution: HIGHLIGHT_LEVELS.map((level) => ({
@@ -144,4 +152,9 @@ export function buildDashboardSnapshot({
       levels: visibility,
     },
   }
+}
+
+function getRecordLocalDate(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : getLocalReviewDate(date)
 }

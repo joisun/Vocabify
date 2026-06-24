@@ -224,13 +224,15 @@ function App() {
 }
 
 function HeaderStats({ snapshot, loading }: { snapshot: DashboardSnapshot | null; loading: boolean }) {
+  const statValue = (value: number | undefined) => (snapshot ? formatNumber(value ?? 0) : '—')
   const stats = [
-    { label: 'Total', value: formatNumber(snapshot?.totalWords) },
-    { label: 'Due', value: formatNumber(snapshot?.dueCount) },
-    { label: 'Today', value: formatNumber(snapshot?.reviewedToday) },
+    { label: 'Total', value: statValue(snapshot?.totalWords) },
+    { label: 'New', value: statValue(snapshot?.newToday) },
+    { label: 'Due', value: statValue(snapshot?.dueCount) },
+    { label: 'Reviewed', value: statValue(snapshot?.reviewedToday) },
     {
       label: 'Mastered',
-      value: formatNumber(snapshot?.levelDistribution.find((item) => item.level === 'MASTERED')?.count),
+      value: statValue(snapshot?.levelDistribution.find((item) => item.level === 'MASTERED')?.count),
     },
   ]
 
@@ -347,6 +349,26 @@ function DashboardWordListPanel({
       cancelled = true
     }
   }, [allWords, tab])
+
+  React.useEffect(() => {
+    if (tab !== 'all' || allWords === null) return
+    let cancelled = false
+
+    async function refreshAllWordsInPlace() {
+      try {
+        const records = await getAllRecords()
+        if (!cancelled) setAllWords(records.map(recordToDashboardItem))
+      } catch (error) {
+        console.error('Dashboard all wordlist refresh failed:', error)
+      }
+    }
+
+    void refreshAllWordsInPlace()
+    return () => {
+      cancelled = true
+    }
+    // Keep the loaded All tab current after manual refresh or external vocabulary changes.
+  }, [snapshot?.generatedAt, tab])
 
   return (
     <Card className="flex min-h-0 flex-col overflow-hidden">
